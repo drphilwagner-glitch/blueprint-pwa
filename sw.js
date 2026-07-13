@@ -1,12 +1,15 @@
 /* Service worker: caches the app shell for offline + installability.
  * Cross-origin API calls (the Apps Script Web App) are left to the app / offline queue (S10).
  */
-var CACHE = 'bp-shell-v1';
+var CACHE = 'bp-shell-v3';
 var SHELL = ['./', './index.html', './app.js', './config.js', './styles.css',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
+  // Cache each shell asset independently so one missing file can't fail the whole install.
+  e.waitUntil(caches.open(CACHE).then(function (c) {
+    return Promise.all(SHELL.map(function (u) { return c.add(u).catch(function () {}); }));
+  }).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener('activate', function (e) {

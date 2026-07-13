@@ -57,3 +57,10 @@ body {
 .side-tag { font-size: 11px; font-weight: 700; color: var(--muted); width: 18px; }
 .timer { font-size: 13px; color: var(--warn); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
 .edit input { width: 62px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; }
+.tap.side { min-width: 54px; margin-left: 6px; }
+.finish {
+  display: block; width: 100%; margin: 18px 0 28px; min-height: 54px;
+  border: 0; border-radius: 12px; background: var(--ink); color: #fff; font-size: 16px; font-weight: 700;
+}
+
+.tap.holding { background: var(--warn); }

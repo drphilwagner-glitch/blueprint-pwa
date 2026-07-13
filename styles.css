@@ -1,0 +1,59 @@
+:root {
+  --bp: #0b3d91;
+  --bg: #f4f6fb;
+  --card: #ffffff;
+  --ink: #17223b;
+  --muted: #6b7280;
+  --line: #e3e7ef;
+  --ok: #1a7f37;
+  --warn: #b45309;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; }
+body {
+  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg); color: var(--ink);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+#hdr {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--bp); color: #fff;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+}
+.hdr-row { display: flex; align-items: center; justify-content: space-between; }
+#hdr h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
+.meta { font-size: 13px; opacity: .9; margin-top: 2px; }
+.sync {
+  font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: rgba(255,255,255,.18);
+}
+.sync.pending { background: var(--warn); }
+.sync.synced { background: var(--ok); }
+#app { padding: 12px; display: grid; gap: 12px; max-width: 640px; margin: 0 auto; }
+.loading, .empty, .err { color: var(--muted); padding: 24px 8px; text-align: center; }
+.err { color: #b91c1c; }
+.slot {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 14px; box-shadow: 0 1px 2px rgba(20,30,60,.04);
+}
+.slot-title { font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin: 0 0 8px; }
+.exercise { padding: 8px 0; border-top: 1px solid var(--line); }
+.exercise:first-of-type { border-top: 0; }
+.ex-name { font-size: 16px; margin: 0 0 8px; }
+.sets { display: grid; gap: 8px; }
+.set {
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff;
+}
+.set.warmup { background: #fbfbfe; }
+.set.done { border-color: var(--ok); background: #f0faf3; }
+.set-target { flex: 1; font-variant-numeric: tabular-nums; }
+.set-warm { font-size: 11px; color: var(--warn); font-weight: 600; margin-right: 4px; }
+.tap {
+  min-width: 84px; min-height: 40px; border: 0; border-radius: 9px;
+  background: var(--bp); color: #fff; font-weight: 600; font-size: 14px;
+}
+.tap.done { background: var(--ok); }
+.side-tag { font-size: 11px; font-weight: 700; color: var(--muted); width: 18px; }
+.timer { font-size: 13px; color: var(--warn); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+.edit input { width: 62px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; }

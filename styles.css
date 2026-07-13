@@ -42,13 +42,15 @@ body {
 .ex-name { font-size: 16px; margin: 0 0 8px; }
 .sets { display: grid; gap: 8px; }
 .set {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
   border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff;
 }
 .set.warmup { background: #fbfbfe; }
 .set.done { border-color: var(--ok); background: #f0faf3; }
+.set-ex { font-size: 13px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.set-controls { display: flex; align-items: center; gap: 10px; }
 .set-target { flex: 1; font-variant-numeric: tabular-nums; }
-.set-warm { font-size: 11px; color: var(--warn); font-weight: 600; margin-right: 4px; }
+.set-warm { font-size: 10px; color: var(--warn); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
 .tap {
   min-width: 84px; min-height: 40px; border: 0; border-radius: 9px;
   background: var(--bp); color: #fff; font-weight: 600; font-size: 14px;

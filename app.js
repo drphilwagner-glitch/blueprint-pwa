@@ -1,6 +1,8 @@
 /* Blueprint Logger PWA.
- * Render session · tap-to-log · edit actual load/reps · each-side L/R · offline queue ·
- * one rest/interval timer per COMPLEX (started by the first exercise) · accessory + duration dosing.
+ * A complex is an interleaved superset: round r = A set r, then the paired exercise(s) set r
+ * (an exercise drops out once its sets run out). ONE timer per complex, started by the A-side
+ * only, once per round (not reset by the R side or the paired exercise). Interval comes from the
+ * server (slot.interval_s), configurable in the Workbook.
  */
 (function () {
   'use strict';
@@ -67,14 +69,13 @@
   document.addEventListener('visibilitychange', function () { if (!document.hidden) drain(); });
   setInterval(function () { if (navigator.onLine) drain(); }, 15000);   // safety-net retry
 
-  // ---- complex timer: interval by the lift's level (L1=3min, L2=4min, L3=5min; 90s default) ----
-  function intervalFor(ex) { var band = ex.level ? parseInt(String(ex.level), 10) : 0; return band ? (band + 2) * 60 : 90; }
+  // ---- one timer per complex; restarts each new round when the A-side begins ----
   function startTimer(node, sec) {
     if (!node) return;
     var end = Date.now() + sec * 1000;
     function tick() {
       var left = Math.max(0, Math.round((end - Date.now()) / 1000));
-      node.textContent = left > 0 ? ('next set ' + Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2)) : 'go';
+      node.textContent = left > 0 ? ('next round ' + Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2)) : 'go';
       if (left > 0) node._t = setTimeout(tick, 250);
     }
     if (node._t) clearTimeout(node._t);
@@ -117,18 +118,21 @@
     return chip;
   }
 
-  function setRow(slot, ex, t, slotTimer, isFirst) {
+  function setRow(slot, ex, t, slotTimer, slotState, interval, isASide) {
     var isDur = !!t.duration_s, isAcc = ex.mode === 'accessory';
     var row = el('div', 'set' + (t.kind === 'warmup' ? ' warmup' : ''));
-    if (t.kind === 'warmup') row.appendChild(el('span', 'set-warm', 'WARM-UP'));
+    var head = el('div', 'set-ex');
+    head.appendChild(el('span', null, (ex.display_name || ex.exercise) + (ex.level ? ' · L' + ex.level : '') + ' · set ' + t.set_no));
+    if (t.kind === 'warmup') head.appendChild(el('span', 'set-warm', 'warm-up'));
+    row.appendChild(head);
+
+    var controls = el('div', 'set-controls');
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
     var state = { load: prefill, reps: t.target_reps };
     var showLoad = isAcc || (t.target_load !== '' && t.target_load != null);
     var labelText = isDur ? durLabel(t, ex) : (isAcc ? accLabel(t, ex) : targetLabel(t));
-
-    // duration items: show the label as static text + a Start countdown; others: an editable chip.
-    if (isDur) row.appendChild(el('span', 'set-target', labelText));
-    else row.appendChild(editChip(labelText, state, showLoad));
+    if (isDur) controls.appendChild(el('span', 'set-target', labelText));
+    else controls.appendChild(editChip(labelText, state, showLoad));
 
     function markDone(side, btn) {
       logRows([mkLog(slot, ex, t, side, state)]);
@@ -136,7 +140,8 @@
       var bs = row.querySelectorAll('button.tap'), all = true;
       for (var i = 0; i < bs.length; i++) if (!bs[i].classList.contains('done')) all = false;
       if (all) row.classList.add('done');
-      if (isFirst) startTimer(slotTimer, intervalFor(ex));   // only the first exercise drives the complex timer
+      // A-side drives the complex timer, once per round — R side and paired exercise don't reset it.
+      if (isASide && t.set_no !== slotState.lastRound) { slotState.lastRound = t.set_no; startTimer(slotTimer, interval); }
     }
     function startHold(side, btn) {
       var rem = t.duration_s; btn.disabled = true; btn.classList.add('holding');
@@ -153,8 +158,9 @@
         if (btn.classList.contains('done') || btn.disabled) return;
         if (isDur) startHold(side, btn); else markDone(side, btn);
       });
-      row.appendChild(btn);
+      controls.appendChild(btn);
     });
+    row.appendChild(controls);
     return row;
   }
 
@@ -167,14 +173,18 @@
       var head = el('h2', 'slot-title', slot.slot + ' · ' + slot.complex_name);
       var slotTimer = el('span', 'timer'); head.appendChild(slotTimer);   // ONE timer per complex
       card.appendChild(head);
-      slot.exercises.forEach(function (ex, exIdx) {
-        var box = el('div', 'exercise');
-        box.appendChild(el('h3', 'ex-name', (ex.display_name || ex.exercise) + (ex.level ? ' · L' + ex.level : '')));
-        var sets = el('div', 'sets');
-        ex.sets.forEach(function (t) { sets.appendChild(setRow(slot, ex, t, slotTimer, exIdx === 0)); });
-        box.appendChild(sets);
-        card.appendChild(box);
-      });
+      var body = el('div', 'sets');
+      var slotState = { lastRound: null };
+      var interval = slot.interval_s || 300;
+      var aSide = slot.exercises[0];
+      var maxSets = 0;
+      slot.exercises.forEach(function (ex) { if (ex.sets.length > maxSets) maxSets = ex.sets.length; });
+      for (var r = 0; r < maxSets; r++) {                                 // interleave the superset by round
+        slot.exercises.forEach(function (ex) {
+          if (r < ex.sets.length) body.appendChild(setRow(slot, ex, ex.sets[r], slotTimer, slotState, interval, ex === aSide));
+        });
+      }
+      card.appendChild(body);
       app.appendChild(card);
     });
     var finish = el('button', 'finish', 'Finish workout');

@@ -170,19 +170,23 @@
     app.innerHTML = '';
     s.slots.forEach(function (slot) {
       var card = el('section', 'slot');
-      var head = el('h2', 'slot-title', slot.slot + ' · ' + slot.complex_name);
-      var slotTimer = el('span', 'timer'); head.appendChild(slotTimer);   // ONE timer per complex
-      card.appendChild(head);
+      card.appendChild(el('h2', 'slot-title', slot.slot + ' · ' + slot.complex_name));
       var body = el('div', 'sets');
       var slotState = { lastRound: null };
       var interval = slot.interval_s || 300;
       var aSide = slot.exercises[0];
       var maxSets = 0;
       slot.exercises.forEach(function (ex) { if (ex.sets.length > maxSets) maxSets = ex.sets.length; });
-      for (var r = 0; r < maxSets; r++) {                                 // interleave the superset by round
+      for (var r = 0; r < maxSets; r++) {                                 // one box per round (the paired sets + their timer)
+        var roundBox = el('div', 'round');
+        var roundTimer = el('div', 'round-timer');
+        var count = 0;
         slot.exercises.forEach(function (ex) {
-          if (r < ex.sets.length) body.appendChild(setRow(slot, ex, ex.sets[r], slotTimer, slotState, interval, ex === aSide));
+          if (r < ex.sets.length) { roundBox.appendChild(setRow(slot, ex, ex.sets[r], roundTimer, slotState, interval, ex === aSide)); count++; }
         });
+        if (count > 1) roundBox.classList.add('paired');                  // a genuine superset round
+        roundBox.appendChild(roundTimer);
+        body.appendChild(roundBox);
       }
       card.appendChild(body);
       app.appendChild(card);

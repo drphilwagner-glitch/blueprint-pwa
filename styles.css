@@ -40,7 +40,11 @@ body {
 .exercise { padding: 8px 0; border-top: 1px solid var(--line); }
 .exercise:first-of-type { border-top: 0; }
 .ex-name { font-size: 16px; margin: 0 0 8px; }
-.sets { display: grid; gap: 8px; }
+.sets { display: grid; gap: 12px; }
+.round { border: 1.5px solid var(--line); border-radius: 12px; padding: 8px; display: grid; gap: 8px; }
+.round.paired { border: 2px solid var(--bp); background: #f7f9ff; }
+.round-timer { text-align: right; font-size: 13px; font-weight: 700; color: var(--warn); font-variant-numeric: tabular-nums; min-height: 16px; padding-right: 4px; }
+.round-timer:empty { display: none; }
 .set {
   display: flex; flex-direction: column; align-items: stretch; gap: 8px;
   border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff;

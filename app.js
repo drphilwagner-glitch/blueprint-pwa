@@ -1,6 +1,6 @@
 /* Blueprint Logger PWA.
- * S8 render · S9 logging · S10 offline queue · polish: each-side single row (L/R buttons),
- * level-based "next set" countdown, Finish button, display names.
+ * Render session · tap-to-log · edit actual load/reps · each-side L/R · offline queue ·
+ * one rest/interval timer per COMPLEX (started by the first exercise) · accessory + duration dosing.
  */
 (function () {
   'use strict';
@@ -21,12 +21,13 @@
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function uuid() { return (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2); }
   function planUrl() { return cfg.WEBAPP_URL + '?action=plan&athlete=' + encodeURIComponent(athlete) + '&date=' + todayISO() + '&token=' + encodeURIComponent(token); }
-  function targetLabel(t) { var noLoad = (t.target_load === '' || t.target_load == null); return noLoad ? (t.target_reps + ' reps') : (t.target_reps + ' × ' + t.target_load + ' lb'); }
   function show(msg, cls) { app.innerHTML = ''; app.appendChild(el('p', cls || 'empty', msg)); }
 
-  // --- logging transport (S9) + offline IndexedDB queue (S10) ---
+  // ---- offline queue (IndexedDB). Logs are idempotent (client log_id), so the drain is
+  //      fire-and-forget: POST no-cors, and on any resolved send remove from the queue; a
+  //      failed/offline send stays queued and retries. Robust flag reset + periodic retry. ----
   function sendLog(rows) {
-    return fetch(cfg.WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    return fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: rows }) });
   }
   var DB;
@@ -47,7 +48,7 @@
     return qAll().then(function (rows) {
       if (rows.length) { syncEl.hidden = false; syncEl.className = 'sync pending'; syncEl.textContent = rows.length + ' pending'; }
       else { syncEl.className = 'sync synced'; syncEl.textContent = 'synced'; setTimeout(function () { if (syncEl.textContent === 'synced') syncEl.hidden = true; }, 1500); }
-    });
+    }).catch(function () {});
   }
   var draining = false;
   function drain() {
@@ -55,19 +56,21 @@
     draining = true;
     return qAll().then(function (rows) {
       if (!rows.length) { draining = false; return; }
-      return sendLog(rows).then(function (r) { return r.json(); }).then(function (data) {
-        if (data && data.ok) return qDel(rows.map(function (x) { return x.log_id; }));
-      }).then(function () { draining = false; return updateBadge(); }).catch(function () { draining = false; });
-    });
+      return sendLog(rows)
+        .then(function () { return qDel(rows.map(function (x) { return x.log_id; })); })  // sent (idempotent) -> remove
+        .then(function () { draining = false; return updateBadge(); })
+        .catch(function () { draining = false; });                                        // offline/failed -> keep queued
+    }).catch(function () { draining = false; });
   }
   function logRows(rows) { Promise.all(rows.map(qAdd)).then(updateBadge).then(drain); }
   window.addEventListener('online', drain);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) drain(); });
+  setInterval(function () { if (navigator.onLine) drain(); }, 15000);   // safety-net retry
 
-  // --- "next set" countdown (per exercise). Interval by level: L1=3min, L2=4min, L3=5min;
-  //     accessories / reps-only (no level) get a 90s default. ---
+  // ---- complex timer: interval by the lift's level (L1=3min, L2=4min, L3=5min; 90s default) ----
   function intervalFor(ex) { var band = ex.level ? parseInt(String(ex.level), 10) : 0; return band ? (band + 2) * 60 : 90; }
   function startTimer(node, sec) {
+    if (!node) return;
     var end = Date.now() + sec * 1000;
     function tick() {
       var left = Math.max(0, Math.round((end - Date.now()) / 1000));
@@ -78,48 +81,54 @@
     tick();
   }
 
-  function mkLog(slot, ex, t, side, state) {
-    return { log_id: uuid(), session_id: SESSION.session_id, complex_name: slot.complex_name, exercise: ex.exercise,
-      set_no: t.set_no, side: side, target_load: t.target_load, target_reps: t.target_reps,
-      actual_load: state.load, actual_reps: state.reps, flag: '' };
-  }
-  // Accessory label: reps + prefilled load (last logged actual) + intensity_pct HINT (never a target).
+  // ---- labels ----
+  function targetLabel(t) { var noLoad = (t.target_load === '' || t.target_load == null); return noLoad ? (t.target_reps + ' reps') : (t.target_reps + ' × ' + t.target_load + ' lb'); }
   function accLabel(t, ex) {
     var s = t.target_reps + ' reps';
-    s += (ex.load_prefill !== '' && ex.load_prefill != null) ? (' · ' + ex.load_prefill + ' lb') : ' · log lb';
+    if (ex.load_prefill !== '' && ex.load_prefill != null) s += ' · ' + ex.load_prefill + ' lb';   // no "log lb" nudge
     if (ex.intensity_pct != null) s += ' · ~' + ex.intensity_pct + (typeof ex.intensity_pct === 'number' ? '%' : '');
     return s;
   }
-  function openEdit(row, target, state, showLoad) {
-    if (row.querySelector('.edit')) return;
-    var box = el('span', 'edit');
-    var reps = el('input'); reps.type = 'number'; reps.value = state.reps; reps.inputMode = 'numeric';
-    reps.addEventListener('input', function () { state.reps = reps.value === '' ? '' : Number(reps.value); });
-    if (showLoad) {
-      var load = el('input'); load.type = 'number'; load.value = state.load; load.inputMode = 'decimal';
-      load.addEventListener('input', function () { state.load = load.value === '' ? '' : Number(load.value); });
-      box.appendChild(load); box.appendChild(el('span', null, ' lb × '));
-    }
-    box.appendChild(reps); box.appendChild(el('span', null, ' reps'));
-    target.replaceWith(box);
-  }
-
   function durLabel(t, ex) {
     var s = t.duration_s + 's hold';
     if (ex.load_prefill !== '' && ex.load_prefill != null) s += ' · ' + ex.load_prefill + ' lb';
     return s;
   }
-  function setRow(slot, ex, t, timer) {
-    var isDur = !!t.duration_s;
+  function mkLog(slot, ex, t, side, state) {
+    return { log_id: uuid(), session_id: SESSION.session_id, complex_name: slot.complex_name, exercise: ex.exercise,
+      set_no: t.set_no, side: side, target_load: t.target_load, target_reps: t.target_reps,
+      actual_load: state.load, actual_reps: state.reps, flag: '' };
+  }
+  // Tap the chip to adjust actual reps (+ load, where applicable) before logging.
+  function editChip(labelText, state, showLoad) {
+    var chip = el('button', 'chip', labelText + '  ✎');
+    chip.type = 'button';
+    chip.addEventListener('click', function () {
+      if (chip.dataset.editing) return; chip.dataset.editing = '1'; chip.textContent = '';
+      var reps = el('input'); reps.type = 'number'; reps.value = state.reps; reps.inputMode = 'numeric'; reps.setAttribute('aria-label', 'reps');
+      reps.addEventListener('input', function () { state.reps = reps.value === '' ? '' : Number(reps.value); });
+      if (showLoad) {
+        var load = el('input'); load.type = 'number'; load.value = state.load; load.inputMode = 'decimal'; load.setAttribute('aria-label', 'lb');
+        load.addEventListener('input', function () { state.load = load.value === '' ? '' : Number(load.value); });
+        chip.appendChild(reps); chip.appendChild(el('span', null, ' reps × ')); chip.appendChild(load); chip.appendChild(el('span', null, ' lb'));
+      } else { chip.appendChild(reps); chip.appendChild(el('span', null, ' reps')); }
+      reps.focus();
+    });
+    return chip;
+  }
+
+  function setRow(slot, ex, t, slotTimer, isFirst) {
+    var isDur = !!t.duration_s, isAcc = ex.mode === 'accessory';
     var row = el('div', 'set' + (t.kind === 'warmup' ? ' warmup' : ''));
     if (t.kind === 'warmup') row.appendChild(el('span', 'set-warm', 'WARM-UP'));
-    var isAcc = ex.mode === 'accessory';
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
     var state = { load: prefill, reps: t.target_reps };
     var showLoad = isAcc || (t.target_load !== '' && t.target_load != null);
-    var target = el('span', 'set-target', isDur ? durLabel(t, ex) : (isAcc ? accLabel(t, ex) : targetLabel(t)));
-    target.addEventListener('click', function () { if (!row.classList.contains('done')) openEdit(row, target, state, showLoad); });
-    row.appendChild(target);
+    var labelText = isDur ? durLabel(t, ex) : (isAcc ? accLabel(t, ex) : targetLabel(t));
+
+    // duration items: show the label as static text + a Start countdown; others: an editable chip.
+    if (isDur) row.appendChild(el('span', 'set-target', labelText));
+    else row.appendChild(editChip(labelText, state, showLoad));
 
     function markDone(side, btn) {
       logRows([mkLog(slot, ex, t, side, state)]);
@@ -127,9 +136,9 @@
       var bs = row.querySelectorAll('button.tap'), all = true;
       for (var i = 0; i < bs.length; i++) if (!bs[i].classList.contains('done')) all = false;
       if (all) row.classList.add('done');
-      startTimer(timer, intervalFor(ex));
+      if (isFirst) startTimer(slotTimer, intervalFor(ex));   // only the first exercise drives the complex timer
     }
-    function startHold(side, btn) {                       // duration items: countdown, then log
+    function startHold(side, btn) {
       var rem = t.duration_s; btn.disabled = true; btn.classList.add('holding');
       btn.textContent = (side ? side + ' ' : '') + rem + 's';
       var iv = setInterval(function () {
@@ -139,7 +148,7 @@
     }
     (ex.each_side ? ['L', 'R'] : ['']).forEach(function (side) {
       var lbl = isDur ? ((side ? side + ' ' : 'Start ') + t.duration_s + 's') : (side || 'Done');
-      var btn = el('button', 'tap' + (side ? ' side' : ''), lbl);
+      var btn = el('button', 'tap' + (side ? ' side' : ''), lbl); btn.type = 'button';
       btn.addEventListener('click', function () {
         if (btn.classList.contains('done') || btn.disabled) return;
         if (isDur) startHold(side, btn); else markDone(side, btn);
@@ -155,14 +164,14 @@
     app.innerHTML = '';
     s.slots.forEach(function (slot) {
       var card = el('section', 'slot');
-      card.appendChild(el('h2', 'slot-title', slot.slot + ' · ' + slot.complex_name));
-      slot.exercises.forEach(function (ex) {
+      var head = el('h2', 'slot-title', slot.slot + ' · ' + slot.complex_name);
+      var slotTimer = el('span', 'timer'); head.appendChild(slotTimer);   // ONE timer per complex
+      card.appendChild(head);
+      slot.exercises.forEach(function (ex, exIdx) {
         var box = el('div', 'exercise');
-        var head = el('h3', 'ex-name', (ex.display_name || ex.exercise) + (ex.level ? ' · L' + ex.level : ''));
-        var timer = el('span', 'timer'); head.appendChild(timer);
-        box.appendChild(head);
+        box.appendChild(el('h3', 'ex-name', (ex.display_name || ex.exercise) + (ex.level ? ' · L' + ex.level : '')));
         var sets = el('div', 'sets');
-        ex.sets.forEach(function (t) { sets.appendChild(setRow(slot, ex, t, timer)); });
+        ex.sets.forEach(function (t) { sets.appendChild(setRow(slot, ex, t, slotTimer, exIdx === 0)); });
         box.appendChild(sets);
         card.appendChild(box);
       });

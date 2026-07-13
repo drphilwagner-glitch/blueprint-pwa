@@ -64,3 +64,9 @@ body {
 }
 
 .tap.holding { background: var(--warn); }
+
+.chip {
+  flex: 1; text-align: left; background: #fff; border: 1px dashed var(--bp); border-radius: 9px;
+  padding: 10px 12px; font: inherit; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.chip input { width: 58px; padding: 4px 6px; margin: 0 2px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; }

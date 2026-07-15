@@ -119,3 +119,91 @@ body {
 /* conditioning */
 .ex-row.cond { background: #fff8ef; }
 .dist-in { width: 96px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; }
+
+/* UI cleanup pass */
+.ex-head { display: flex; align-items: center; gap: 8px; width: 100%; }
+.ex-head .ex-name { flex: 1; }
+.gt { flex-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.swap { min-width: 38px; min-height: 34px; }
+
+/* compact pass (from Phil: too tall / too much scroll) */
+.slot { padding: 10px 12px; }
+.sets { gap: 8px; }
+.round { padding: 7px; gap: 5px; }
+.round-title { font-size: 10px; }
+.ex-row { padding: 7px 8px; gap: 6px; }
+.ex-head .ex-name { font-size: 14px; font-weight: 600; }
+.fields { gap: 6px; }
+.gt { display: inline-flex; align-items: center; font-size: 12px; color: var(--muted); white-space: nowrap; margin: 0; padding-right: 2px; }
+.gt .goal { color: var(--muted); }
+.gt .aim { color: var(--bp); font-weight: 700; }
+.stepper { gap: 1px; padding: 1px; }
+.step { min-width: 32px; min-height: 34px; font-size: 13px; }
+.val { min-width: 34px; }
+.check { min-width: 46px; min-height: 36px; font-size: 15px; }
+.swap { min-width: 34px; min-height: 30px; font-size: 14px; }
+
+/* tighter still — fit loaded lifts on one line at 375px */
+.ex-row { padding: 6px 7px; gap: 5px; }
+.fields { gap: 5px; }
+.stepper { gap: 0; padding: 1px; }
+.step { min-width: 30px; width: 30px; min-height: 32px; padding: 0; font-size: 16px; font-weight: 700; }
+.val { min-width: 30px; font-size: 14px; }
+.unit { font-size: 11px; padding: 0 1px; }
+.check { min-width: 42px; min-height: 34px; font-size: 15px; }
+.gt { font-size: 11px; }
+.round { padding: 6px; }
+
+/* final shave for wider values (e.g. 32.5, 132.5) */
+.ex-row { gap: 4px; }
+.fields { gap: 4px; }
+.step { min-width: 28px; width: 28px; }
+.val { min-width: 26px; padding: 0 1px; }
+.check { min-width: 40px; }
+.gt { font-size: 10px; }
+.swap { min-width: 32px; }
+
+.tstart { min-height: 30px; border: 0; border-radius: 8px; background: var(--bp); color: #fff; font-size: 13px; font-weight: 700; padding: 0 12px; }
+
+/* refinements: smaller check, labeled goal/aim, swap header */
+.check { min-width: 36px; min-height: 30px; font-size: 14px; }
+.gt .lbl { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .3px; }
+.gt .goal { color: var(--ink); font-weight: 600; }
+.gt .aim { color: var(--bp); font-weight: 800; }
+.swap-h { font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 700; margin-bottom: 2px; }
+
+/* ============================================================================
+   2026-07-15 — final two-line aligned row (Phil: never >2 lines; columns must line up).
+   Line 1: name .......... ⇄ Swap.  Line 2 is a fixed 3-column grid so the control and
+   the check/Start align vertically down the whole screen regardless of row type:
+     col1 = goal/aim (flex)   col2 = the one stepper   col3 = ✓ / Start
+   Weighted lifts put a WEIGHT stepper in col2 (reps are the fixed goal); bodyweight/
+   stability put a REPS stepper; loaded carries put a weight stepper beside the hold's Start.
+   ========================================================================== */
+.ex-row { display: grid; gap: 5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.ex-row.done { border-color: var(--ok); background: #f0faf3; }
+
+.l1 { display: flex; align-items: center; gap: 8px; }
+.l1 .ex-name { flex: 1 1 auto; min-width: 0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 14px; font-weight: 600; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); }
+.l1 .ex-name.has-video { color: var(--bp); text-decoration: underline; }
+.swapbtn { flex: none; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line);
+  border-radius: 8px; background: #f7f9ff; color: var(--bp); font-size: 11px; font-weight: 700; padding: 4px 9px; }
+
+.l2 { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; }
+.l2 > .gt { grid-column: 1; min-width: 0; margin: 0; font-size: 11px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.l2 > .gt .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .3px; }
+.l2 > .gt .goal { color: var(--ink); font-weight: 700; font-size: 12px; }
+.l2 > .gt .aim { color: var(--bp); font-weight: 800; }
+.l2 > .stepper { grid-column: 2; }
+.l2 > .check, .l2 > .startbtn { grid-column: 3; justify-self: end; }
+
+.l2 .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 9px; background: #fff; padding: 1px; gap: 0; }
+.l2 .stepper .step { min-width: 30px; width: 30px; min-height: 36px; padding: 0; background: #eef1f7; border-radius: 7px; font-size: 18px; font-weight: 700; color: var(--ink); }
+.l2 .stepper .val { min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 800; font-size: 15px; padding: 0 1px; }
+.l2 .stepper .unit { font-size: 10px; color: var(--muted); padding: 0 1px; }
+.l2 .check { min-width: 40px; min-height: 38px; border: 0; border-radius: 9px; background: var(--bp); color: #fff; font-weight: 700; font-size: 16px; }
+.l2 .check.done { background: var(--ok); }
+.startbtn { min-height: 38px; border: 0; border-radius: 9px; background: var(--bp); color: #fff; font-weight: 700; font-size: 12px; padding: 0 12px; }
+.startbtn.done { background: var(--ok); }
+.startbtn.holding { background: var(--warn); }

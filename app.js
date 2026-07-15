@@ -1,7 +1,7 @@
 /* Blueprint Logger PWA.
  * Compact logging: a complex is an interleaved superset; each round is a box titled "Set N"
  * holding the paired exercises. Per exercise: tappable name (opens video when set), inline
- * weight (−5 −2.5 / +2.5 +5) and reps (− / +) steppers, and one check (both sides assumed).
+ * compact weight (±2.5) and reps (±1) steppers, Goal→Aim inline, one check.
  * ONE timer per round, started by the A-side only, once per round. Offline queue drains itself.
  */
 (function () {
@@ -99,33 +99,35 @@
       actual_load: state.load, actual_reps: state.reps, flag: '' };
   }
   // Goal (pass standard = prescription) + this-week Target (all-time best + bump) side by side.
-  function goalTarget(ex, t) {
-    var d = el('div', 'gt' + (t.kind === 'warmup' ? ' warm' : ''));
+  function goalTarget(ex, t) {                        // labeled + compact: "goal 8×92.5 · aim 97.5"
     var loaded = (t.target_load !== '' && t.target_load != null);
-    d.appendChild(el('span', 'goal', 'goal ' + (loaded ? (t.target_reps + '×' + t.target_load + 'lb') : (t.target_reps + ' reps'))));
+    var span = el('span', 'gt');
+    span.appendChild(el('span', 'lbl', 'goal '));
+    span.appendChild(el('span', 'goal', loaded ? (t.target_reps + '×' + t.target_load) : (t.target_reps + ' reps')));
     if (t.kind !== 'warmup') {
-      var wt = ex.week_target || {}, aim = wt.load != null ? (t.target_reps + '×' + wt.load + 'lb') : (wt.reps != null ? (wt.reps + ' reps') : '—');
-      d.appendChild(el('span', 'aim', 'aim ' + aim));
+      var wt = ex.week_target || {}, aim = wt.load != null ? ('' + wt.load) : (wt.reps != null ? (wt.reps + '') : '');
+      if (aim) { span.appendChild(el('span', 'lbl', ' · aim ')); span.appendChild(el('span', 'aim', aim)); }
     }
-    return d;
+    return span;
+  }
+  function slotLabel(s) {                              // "WUp1" -> "Warm Up 1"; "Comp1" -> "Complex 1"
+    s = String(s || '');
+    var m = s.match(/^W\s*U\s*p?\s*(\d+)/i); if (m) return 'Warm Up ' + m[1];
+    var c = s.match(/^Comp\s*(\d+)/i); if (c) return 'Complex ' + c[1];
+    return s;
   }
 
-  // Inline +/- stepper bound to state[key]. deltas negatives render left, positives right.
-  function stepper(state, key, deltas, unit) {
+  // Compact −/+ stepper bound to state[key] (single increment; − left, value, + right).
+  function stepper(state, key, delta, unit) {
     var f = el('div', 'stepper');
     var val = el('span', 'val');
     function draw() { var v = state[key]; val.textContent = (v === '' || v == null) ? '—' : v; }
-    function stepBtn(d) {
-      var b = el('button', 'step', (d > 0 ? '+' : '') + d); b.type = 'button';
-      b.addEventListener('click', function () {
-        var cur = Number(state[key] || 0), nv = Math.round((cur + d) * 10) / 10;
-        if (nv < 0) nv = 0; state[key] = nv; draw();
-      });
+    function btn(sign) {
+      var b = el('button', 'step', sign > 0 ? '+' : '−'); b.type = 'button';
+      b.addEventListener('click', function () { var c = Number(state[key] || 0), nv = Math.round((c + sign * delta) * 10) / 10; if (nv < 0) nv = 0; state[key] = nv; draw(); });
       return b;
     }
-    deltas.filter(function (d) { return d < 0; }).forEach(function (d) { f.appendChild(stepBtn(d)); });
-    f.appendChild(val); if (unit) f.appendChild(el('span', 'unit', unit));
-    deltas.filter(function (d) { return d > 0; }).forEach(function (d) { f.appendChild(stepBtn(d)); });
+    f.appendChild(btn(-1)); f.appendChild(val); if (unit) f.appendChild(el('span', 'unit', unit)); f.appendChild(btn(1));
     draw();
     return f;
   }
@@ -143,10 +145,10 @@
     var open = row.querySelector('.swap-panel');
     if (open) { open.remove(); return; }
     var panel = el('div', 'swap-panel');
-    var lbl = { pain: 'Pain', noequip: 'No-equip', ue_pain: 'UE pain', equip: 'Equip' };
+    panel.appendChild(el('div', 'swap-h', 'Change exercise'));
     var opts = [{ main: true, name: ex.exercise }].concat(ex.alternates);
-    opts.forEach(function (a) {
-      var text = a.main ? ('↩ ' + (ex.display_name || ex.exercise)) : ((lbl[a.reason] || a.reason) + ': ' + a.name + (a.reps ? ' · ' + a.reps : ''));
+    opts.forEach(function (a) {   // reason shown as-is → Phil edits the Alternates 'reason' column for the wording
+      var text = a.main ? ('↩ ' + (ex.display_name || ex.exercise)) : (a.reason + ': ' + a.name + (a.reps ? ' · ' + a.reps : ''));
       var b = el('button', 'swap-opt', text); b.type = 'button';
       b.addEventListener('click', function () {
         cur.exercise = a.main ? ex.exercise : a.name;
@@ -205,49 +207,66 @@
     return row;
   }
 
+  // Exactly two lines: [name .......... ⇄ Swap] / [goal·aim | one control | ✓].
+  // Control rule (Phil 2026-07-15): WEIGHTED lifts adjust weight only (reps are the fixed goal);
+  // BODYWEIGHT/stability lifts adjust reps; loaded carries (wants_load) get a weight field beside the hold.
   function exerciseRow(slot, ex, t, timer, isASide) {
     if (ex.mode === 'conditioning') return conditioningRow(slot, ex, t);
     var isDur = !!t.duration_s, isAcc = ex.mode === 'accessory';
     var row = el('div', 'ex-row' + (t.kind === 'warmup' ? ' warmup' : ''));
     var cur = { exercise: ex.exercise, video: ex.video_url };   // swap target
 
+    // --- line 1: name (+ variant/level) .......... ⇄ Swap ---
+    var l1 = el('div', 'l1');
     var name = el('button', 'ex-name', exLabel(ex)); name.type = 'button';
     if (ex.video_url) name.classList.add('has-video');
     name.addEventListener('click', function () { if (cur.video) window.open(cur.video, '_blank'); });
     if (t.kind === 'warmup') name.appendChild(el('span', 'set-warm', 'warm-up'));
-    row.appendChild(name);
-    if (!isDur) row.appendChild(goalTarget(ex, t));
+    l1.appendChild(name);
+    if (ex.alternates && ex.alternates.length) {
+      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄ Swap';
+      sw.addEventListener('click', function () { toggleSwap(row, ex, cur, name, state); });
+      l1.appendChild(sw);
+    }
+    row.appendChild(l1);
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
     var state = { load: prefill, reps: t.target_reps };
-    var showLoad = (t.target_load !== '' && t.target_load != null) || (isAcc && prefill !== '');
+    // Weighted = has a prescribed load, a loaded accessory with a prefill, or a flagged loaded carry.
+    var weighted = (t.target_load !== '' && t.target_load != null) || (isAcc && prefill !== '') || !!ex.wants_load;
+    if (weighted && (state.load === '' || state.load == null)) state.load = 0;   // carries/blank start at 0 to bump up
 
-    var fields = el('div', 'fields');
-    if (!isDur) {
-      if (showLoad) fields.appendChild(stepper(state, 'load', [-5, -2.5, 2.5, 5], 'lb'));
-      fields.appendChild(stepper(state, 'reps', [-1, 1], 'reps'));
+    // --- line 2: goal/aim [1fr] · one control [auto] · check/start [auto] ---
+    var l2 = el('div', 'l2');
+    if (isDur) {
+      l2.appendChild(el('span', 'gt', t.duration_s + 's hold'));
+      if (weighted) l2.appendChild(stepper(state, 'load', 2.5, 'lb'));   // loaded carry gets a weight field
     } else {
-      fields.appendChild(el('span', 'hint', t.duration_s + 's hold'));
-      if (showLoad) fields.appendChild(stepper(state, 'load', [-5, -2.5, 2.5, 5], 'lb'));
+      l2.appendChild(goalTarget(ex, t));
+      if (weighted) l2.appendChild(stepper(state, 'load', 2.5, ''));      // weight only — reps are the goal (unit implied by goal text)
+      else l2.appendChild(stepper(state, 'reps', 1, ''));                 // bodyweight/stability — adjust reps
     }
-    if (ex.alternates && ex.alternates.length) {
-      var sw = el('button', 'swap', '⇄'); sw.type = 'button';
-      sw.addEventListener('click', function () { toggleSwap(row, ex, cur, name, state); });
-      fields.appendChild(sw);
-    }
-    row.appendChild(fields);
 
-    function commit() {
-      logRows([mkLog(slot, cur.exercise, t, state)]);
+    var lastLogId = null;
+    function commit() {   // checking = "already did it" — the timer is its own Start button, not tied to this
+      var log = mkLog(slot, cur.exercise, t, state); if (isDur) log.duration_s = t.duration_s;
+      lastLogId = log.log_id;
+      logRows([log]);
       row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
-      if (isASide) timer.start();   // rolling complex timer starts on the first A-side set
     }
-    var check = el('button', 'check', isDur ? ('Start ' + t.duration_s + 's') : '✓'); check.type = 'button';
+    function uncheck() {   // undo an accidental check (pulls the log back if not yet sent)
+      if (lastLogId) qDel([lastLogId]).then(updateBadge).catch(function () {});
+      lastLogId = null; row.classList.remove('done'); check.classList.remove('done');
+      check.textContent = isDur ? ('Start ' + t.duration_s + 's') : '✓';
+    }
+    var check = el('button', isDur ? 'startbtn' : 'check', isDur ? ('Start ' + t.duration_s + 's') : '✓'); check.type = 'button';
     check.addEventListener('click', function () {
-      if (check.classList.contains('done') || check.disabled) return;
+      if (check.disabled) return;
+      if (check.classList.contains('done')) { uncheck(); return; }   // tap a done set again to undo
       if (isDur) startHold(check, t.duration_s, commit); else commit();
     });
-    row.appendChild(check);
+    l2.appendChild(check);
+    row.appendChild(l2);
     return row;
   }
 
@@ -282,12 +301,14 @@
     s.slots.forEach(function (slot) {
       var card = el('section', 'slot');
       var head = el('div', 'slot-head');
-      head.appendChild(el('h2', 'slot-title', slot.slot + ' · ' + slot.complex_name));
+      head.appendChild(el('h2', 'slot-title', slotLabel(slot.slot)));   // "Warm Up 1" / "Complex 1"
       var timerNode = el('span', 'timer');
+      var startBtn = el('button', 'tstart', '▶ timer'); startBtn.type = 'button';   // manual start (all complexes incl. warm-ups)
       var pauseBtn = el('button', 'pause', '⏸'); pauseBtn.type = 'button'; pauseBtn.hidden = true;
-      head.appendChild(timerNode); head.appendChild(pauseBtn);
+      head.appendChild(startBtn); head.appendChild(timerNode); head.appendChild(pauseBtn);
       card.appendChild(head);
       var timer = makeTimer(timerNode, pauseBtn, slot.interval_s || 300);
+      startBtn.addEventListener('click', function () { timer.start(); startBtn.hidden = true; });
       var body = el('div', 'sets');
       var aSide = slot.exercises[0];
       var maxSets = 0;

@@ -98,16 +98,14 @@
       set_no: t.set_no, side: '', target_load: t.target_load, target_reps: t.target_reps,
       actual_load: state.load, actual_reps: state.reps, flag: '' };
   }
-  // Goal (pass standard = prescription) + this-week Target (all-time best + bump) side by side.
-  function goalTarget(ex, t) {                        // labeled + compact: "goal 8×92.5 · aim 97.5"
-    var loaded = (t.target_load !== '' && t.target_load != null);
+  // The LEVEL GOAL (rung pass standard) shown as a muted reference — "you don't have to hit this today".
+  // The stepper is prefilled with TODAY'S target (server-computed via Epley), so no second number here.
+  function goalTarget(ex, t) {
     var span = el('span', 'gt');
-    span.appendChild(el('span', 'lbl', 'goal '));
-    span.appendChild(el('span', 'goal', loaded ? (t.target_reps + '×' + t.target_load) : (t.target_reps + ' reps')));
-    if (t.kind !== 'warmup') {
-      var wt = ex.week_target || {}, aim = wt.load != null ? ('' + wt.load) : (wt.reps != null ? (wt.reps + '') : '');
-      if (aim) { span.appendChild(el('span', 'lbl', ' · aim ')); span.appendChild(el('span', 'aim', aim)); }
-    }
+    var lg = ex.level_goal;
+    if (!lg || (lg.load == null && lg.reps == null)) return span;   // accessories have no rung goal
+    span.appendChild(el('span', 'lbl', 'level goal '));
+    span.appendChild(el('span', 'goal', lg.load != null ? (lg.reps + '×' + lg.load) : (lg.reps + ' reps')));
     return span;
   }
   function slotLabel(s) {                              // "WUp1" -> "Warm Up 1"; "Comp1" -> "Complex 1"
@@ -132,13 +130,40 @@
     return f;
   }
 
-  // Show the athlete's actual variant (Level Standards col D), de-duplicated against the base name.
+  // ATHLETE-FACING name: server sends athlete_name = shown_name override (Exercise Videos tab) ||
+  // variant (Level Standards col D) || display_name. The level (3.1) is internal and hidden here.
   function exLabel(ex) {
-    var base = ex.display_name || ex.exercise || '', v = ex.variant_name || '', lvl = ex.level ? ' · L' + ex.level : '';
-    if (!v) return base + lvl;
-    var lv = v.toLowerCase();
-    if (lv.indexOf((ex.exercise || '').toLowerCase()) >= 0 || lv.indexOf(base.toLowerCase()) >= 0) return v + lvl;
-    return base + ' — ' + v + lvl;
+    return ex.athlete_name || ex.variant_name || ex.display_name || ex.exercise || '';
+  }
+
+  // ---- In-app video: play in an overlay dismissed with one ✕ (no leaving the app) ----
+  function videoEmbed(url) {
+    var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+    if (yt) return { type: 'iframe', src: 'https://www.youtube.com/embed/' + yt[1] };
+    var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (vm) return { type: 'iframe', src: 'https://player.vimeo.com/video/' + vm[1] };
+    if (/\.mp4(\?|$)/i.test(url)) return { type: 'video', src: url };
+    return null;   // unknown host -> offer a normal open
+  }
+  function openVideo(url) {
+    if (!url) return;
+    var e = videoEmbed(url);
+    var ov = el('div', 'vov'), box = el('div', 'vbox');
+    var close = el('button', 'vclose', '✕'); close.type = 'button';
+    close.addEventListener('click', function () { ov.remove(); });
+    ov.addEventListener('click', function (ev) { if (ev.target === ov) ov.remove(); });
+    box.appendChild(close);
+    if (e && e.type === 'iframe') {
+      var f = el('iframe'); f.className = 'vframe';
+      f.src = e.src + (e.src.indexOf('?') < 0 ? '?' : '&') + 'autoplay=1';
+      f.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
+      f.setAttribute('allowfullscreen', ''); box.appendChild(f);
+    } else if (e && e.type === 'video') {
+      var v = el('video'); v.className = 'vframe'; v.src = e.src; v.controls = true; v.autoplay = true; v.playsInline = true; box.appendChild(v);
+    } else {
+      var a = el('a', 'vfallback', 'Open video ↗'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; box.appendChild(a);
+    }
+    ov.appendChild(box); document.body.appendChild(ov);
   }
   // Swap panel: pick a reason-tagged alternate; it becomes this row (name, video, its own reps).
   function toggleSwap(row, ex, cur, name, state) {
@@ -181,7 +206,7 @@
   function conditioningRow(slot, ex, t) {
     var row = el('div', 'ex-row cond');
     var name = el('button', 'ex-name', exLabel(ex)); name.type = 'button';
-    if (ex.video_url) { name.classList.add('has-video'); name.addEventListener('click', function () { window.open(ex.video_url, '_blank'); }); }
+    if (ex.video_url) { name.classList.add('has-video'); name.addEventListener('click', function () { openVideo(ex.video_url); }); }
     row.appendChild(name);
     var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
       : ((t.target_reps || 1) + (t.work_s ? (' × ' + t.work_s + 's work / ' + (t.rest_s || 0) + 's rest') : ' reps'));
@@ -220,9 +245,8 @@
     var l1 = el('div', 'l1');
     var name = el('button', 'ex-name', exLabel(ex)); name.type = 'button';
     if (ex.video_url) name.classList.add('has-video');
-    name.addEventListener('click', function () { if (cur.video) window.open(cur.video, '_blank'); });
-    if (t.kind === 'warmup') name.appendChild(el('span', 'set-warm', 'warm-up'));
-    l1.appendChild(name);
+    name.addEventListener('click', function () { openVideo(cur.video); });   // plays in-app
+    l1.appendChild(name);   // warm-up is shown on the Set label (round-title), not after the name
     if (ex.alternates && ex.alternates.length) {
       var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄ Swap';
       sw.addEventListener('click', function () { toggleSwap(row, ex, cur, name, state); });
@@ -257,9 +281,11 @@
     function uncheck() {   // undo an accidental check (pulls the log back if not yet sent)
       if (lastLogId) qDel([lastLogId]).then(updateBadge).catch(function () {});
       lastLogId = null; row.classList.remove('done'); check.classList.remove('done');
-      check.textContent = isDur ? ('Start ' + t.duration_s + 's') : '✓';
+      check.textContent = isDur ? '▶' : '✓';
     }
-    var check = el('button', isDur ? 'startbtn' : 'check', isDur ? ('Start ' + t.duration_s + 's') : '✓'); check.type = 'button';
+    // Same-size control in the rightmost lane for every row: ✓ to log, ▶ to start a timed hold (the
+    // duration is already shown as "Ns hold" in the goal cell), so it lines up with the checkmarks.
+    var check = el('button', 'check', isDur ? '▶' : '✓'); check.type = 'button';
     check.addEventListener('click', function () {
       if (check.disabled) return;
       if (check.classList.contains('done')) { uncheck(); return; }   // tap a done set again to undo
@@ -290,6 +316,12 @@
       });
     }
     if (!d || !d.ok || !d.logged) { app.appendChild(el('p', 'empty', 'Nice work.')); return; }
+    if (d.level_ups && d.level_ups.length) {   // celebrate any rung the athlete passed this session
+      app.appendChild(el('h3', 'sum-t up', 'Leveled up! 🎉'));
+      d.level_ups.forEach(function (u) {
+        app.appendChild(el('div', 'sum-row up levelup', u.exercise + ' → level ' + u.level));
+      });
+    }
     block('Top gains 🔺', d.best, 'up');
     block('Keep an eye on 🔻', d.worst, 'down');
   }
@@ -313,9 +345,13 @@
       var aSide = slot.exercises[0];
       var maxSets = 0;
       slot.exercises.forEach(function (ex) { if (ex.sets.length > maxSets) maxSets = ex.sets.length; });
+      var workNo = 0;   // number the WORK sets 1..n; warm-up rounds are labeled "Warm-up" (not "Set N")
       for (var r = 0; r < maxSets; r++) {
         var roundBox = el('div', 'round');
-        roundBox.appendChild(el('div', 'round-title', 'Set ' + (r + 1)));
+        var aSet = aSide && aSide.sets[r];
+        var isWarmRound = aSet && aSet.kind === 'warmup';
+        var title = isWarmRound ? 'Warm-up' : 'Set ' + (++workNo);
+        roundBox.appendChild(el('div', 'round-title', title));
         var count = 0;
         slot.exercises.forEach(function (ex) {
           if (r < ex.sets.length) { roundBox.appendChild(exerciseRow(slot, ex, ex.sets[r], timer, ex === aSide)); count++; }

@@ -1,8 +1,8 @@
 /* Blueprint Logger PWA.
- * A complex is an interleaved superset: round r = A set r, then the paired exercise(s) set r
- * (an exercise drops out once its sets run out). ONE timer per complex, started by the A-side
- * only, once per round (not reset by the R side or the paired exercise). Interval comes from the
- * server (slot.interval_s), configurable in the Workbook.
+ * Compact logging: a complex is an interleaved superset; each round is a box titled "Set N"
+ * holding the paired exercises. Per exercise: tappable name (opens video when set), inline
+ * weight (−5 −2.5 / +2.5 +5) and reps (− / +) steppers, and one check (both sides assumed).
+ * ONE timer per round, started by the A-side only, once per round. Offline queue drains itself.
  */
 (function () {
   'use strict';
@@ -25,9 +25,7 @@
   function planUrl() { return cfg.WEBAPP_URL + '?action=plan&athlete=' + encodeURIComponent(athlete) + '&date=' + todayISO() + '&token=' + encodeURIComponent(token); }
   function show(msg, cls) { app.innerHTML = ''; app.appendChild(el('p', cls || 'empty', msg)); }
 
-  // ---- offline queue (IndexedDB). Logs are idempotent (client log_id), so the drain is
-  //      fire-and-forget: POST no-cors, and on any resolved send remove from the queue; a
-  //      failed/offline send stays queued and retries. Robust flag reset + periodic retry. ----
+  // ---- offline queue (IndexedDB): fire-and-forget idempotent POST + retry; badge never sticks ----
   function sendLog(rows) {
     return fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: rows }) });
@@ -59,109 +57,222 @@
     return qAll().then(function (rows) {
       if (!rows.length) { draining = false; return; }
       return sendLog(rows)
-        .then(function () { return qDel(rows.map(function (x) { return x.log_id; })); })  // sent (idempotent) -> remove
+        .then(function () { return qDel(rows.map(function (x) { return x.log_id; })); })
         .then(function () { draining = false; return updateBadge(); })
-        .catch(function () { draining = false; });                                        // offline/failed -> keep queued
+        .catch(function () { draining = false; });
     }).catch(function () { draining = false; });
   }
   function logRows(rows) { Promise.all(rows.map(qAdd)).then(updateBadge).then(drain); }
   window.addEventListener('online', drain);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) drain(); });
-  setInterval(function () { if (navigator.onLine) drain(); }, 15000);   // safety-net retry
+  setInterval(function () { if (navigator.onLine) drain(); }, 15000);
 
-  // ---- one timer per complex; restarts each new round when the A-side begins ----
-  function startTimer(node, sec) {
-    if (!node) return;
-    var end = Date.now() + sec * 1000;
+  // ---- one ROLLING timer per complex: starts on the first A-side set, auto-restarts each round
+  //      (rolls through all sets in succession), until the athlete pauses. ----
+  function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  function makeTimer(node, pauseBtn, interval) {
+    var st = { running: false, paused: false, end: 0, rem: interval, t: null };
     function tick() {
-      var left = Math.max(0, Math.round((end - Date.now()) / 1000));
-      node.textContent = left > 0 ? ('next round ' + Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2)) : 'go';
-      if (left > 0) node._t = setTimeout(tick, 250);
+      var left = Math.max(0, Math.round((st.end - Date.now()) / 1000));
+      if (left <= 0) { st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); }
+      node.textContent = 'next ' + fmt(left);
+      st.t = setTimeout(tick, 250);
     }
-    if (node._t) clearTimeout(node._t);
-    tick();
+    pauseBtn.addEventListener('click', function () {
+      if (!st.running) return;
+      if (st.paused) { st.paused = false; st.end = Date.now() + st.rem * 1000; pauseBtn.textContent = '⏸'; tick(); }
+      else { st.paused = true; clearTimeout(st.t); st.rem = Math.max(0, Math.round((st.end - Date.now()) / 1000)); pauseBtn.textContent = '▶'; node.textContent = 'paused ' + fmt(st.rem); }
+    });
+    return { start: function () { if (st.running) return; st.running = true; st.end = Date.now() + interval * 1000; pauseBtn.hidden = false; tick(); } };
+  }
+  function startHold(btn, secs, done) {                    // duration items: countdown then log
+    var rem = secs; btn.disabled = true; btn.classList.add('holding'); btn.textContent = rem + 's';
+    var iv = setInterval(function () {
+      rem--; btn.textContent = rem + 's';
+      if (rem <= 0) { clearInterval(iv); btn.disabled = false; btn.classList.remove('holding'); done(); }
+    }, 1000);
   }
 
-  // ---- labels ----
-  function targetLabel(t) { var noLoad = (t.target_load === '' || t.target_load == null); return noLoad ? (t.target_reps + ' reps') : (t.target_reps + ' × ' + t.target_load + ' lb'); }
-  function accLabel(t, ex) {
-    var s = t.target_reps + ' reps';
-    if (ex.load_prefill !== '' && ex.load_prefill != null) s += ' · ' + ex.load_prefill + ' lb';   // no "log lb" nudge
-    if (ex.intensity_pct != null) s += ' · ~' + ex.intensity_pct + (typeof ex.intensity_pct === 'number' ? '%' : '');
-    return s;
-  }
-  function durLabel(t, ex) {
-    var s = t.duration_s + 's hold';
-    if (ex.load_prefill !== '' && ex.load_prefill != null) s += ' · ' + ex.load_prefill + ' lb';
-    return s;
-  }
-  function mkLog(slot, ex, t, side, state) {
-    return { log_id: uuid(), session_id: SESSION.session_id, complex_name: slot.complex_name, exercise: ex.exercise,
-      set_no: t.set_no, side: side, target_load: t.target_load, target_reps: t.target_reps,
+  function mkLog(slot, exName, t, state) {   // exName may be a swapped-in alternate
+    return { log_id: uuid(), session_id: SESSION.session_id, complex_name: slot.complex_name, exercise: exName,
+      set_no: t.set_no, side: '', target_load: t.target_load, target_reps: t.target_reps,
       actual_load: state.load, actual_reps: state.reps, flag: '' };
   }
-  // Tap the chip to adjust actual reps (+ load, where applicable) before logging.
-  function editChip(labelText, state, showLoad) {
-    var chip = el('button', 'chip', labelText + '  ✎');
-    chip.type = 'button';
-    chip.addEventListener('click', function () {
-      if (chip.dataset.editing) return; chip.dataset.editing = '1'; chip.textContent = '';
-      var reps = el('input'); reps.type = 'number'; reps.value = state.reps; reps.inputMode = 'numeric'; reps.setAttribute('aria-label', 'reps');
-      reps.addEventListener('input', function () { state.reps = reps.value === '' ? '' : Number(reps.value); });
-      if (showLoad) {
-        var load = el('input'); load.type = 'number'; load.value = state.load; load.inputMode = 'decimal'; load.setAttribute('aria-label', 'lb');
-        load.addEventListener('input', function () { state.load = load.value === '' ? '' : Number(load.value); });
-        chip.appendChild(reps); chip.appendChild(el('span', null, ' reps × ')); chip.appendChild(load); chip.appendChild(el('span', null, ' lb'));
-      } else { chip.appendChild(reps); chip.appendChild(el('span', null, ' reps')); }
-      reps.focus();
-    });
-    return chip;
+  // Goal (pass standard = prescription) + this-week Target (all-time best + bump) side by side.
+  function goalTarget(ex, t) {
+    var d = el('div', 'gt' + (t.kind === 'warmup' ? ' warm' : ''));
+    var loaded = (t.target_load !== '' && t.target_load != null);
+    d.appendChild(el('span', 'goal', 'goal ' + (loaded ? (t.target_reps + '×' + t.target_load + 'lb') : (t.target_reps + ' reps'))));
+    if (t.kind !== 'warmup') {
+      var wt = ex.week_target || {}, aim = wt.load != null ? (t.target_reps + '×' + wt.load + 'lb') : (wt.reps != null ? (wt.reps + ' reps') : '—');
+      d.appendChild(el('span', 'aim', 'aim ' + aim));
+    }
+    return d;
   }
 
-  function setRow(slot, ex, t, slotTimer, slotState, interval, isASide) {
-    var isDur = !!t.duration_s, isAcc = ex.mode === 'accessory';
-    var row = el('div', 'set' + (t.kind === 'warmup' ? ' warmup' : ''));
-    var head = el('div', 'set-ex');
-    head.appendChild(el('span', null, (ex.display_name || ex.exercise) + (ex.level ? ' · L' + ex.level : '') + ' · set ' + t.set_no));
-    if (t.kind === 'warmup') head.appendChild(el('span', 'set-warm', 'warm-up'));
-    row.appendChild(head);
+  // Inline +/- stepper bound to state[key]. deltas negatives render left, positives right.
+  function stepper(state, key, deltas, unit) {
+    var f = el('div', 'stepper');
+    var val = el('span', 'val');
+    function draw() { var v = state[key]; val.textContent = (v === '' || v == null) ? '—' : v; }
+    function stepBtn(d) {
+      var b = el('button', 'step', (d > 0 ? '+' : '') + d); b.type = 'button';
+      b.addEventListener('click', function () {
+        var cur = Number(state[key] || 0), nv = Math.round((cur + d) * 10) / 10;
+        if (nv < 0) nv = 0; state[key] = nv; draw();
+      });
+      return b;
+    }
+    deltas.filter(function (d) { return d < 0; }).forEach(function (d) { f.appendChild(stepBtn(d)); });
+    f.appendChild(val); if (unit) f.appendChild(el('span', 'unit', unit));
+    deltas.filter(function (d) { return d > 0; }).forEach(function (d) { f.appendChild(stepBtn(d)); });
+    draw();
+    return f;
+  }
 
-    var controls = el('div', 'set-controls');
+  // Show the athlete's actual variant (Level Standards col D), de-duplicated against the base name.
+  function exLabel(ex) {
+    var base = ex.display_name || ex.exercise || '', v = ex.variant_name || '', lvl = ex.level ? ' · L' + ex.level : '';
+    if (!v) return base + lvl;
+    var lv = v.toLowerCase();
+    if (lv.indexOf((ex.exercise || '').toLowerCase()) >= 0 || lv.indexOf(base.toLowerCase()) >= 0) return v + lvl;
+    return base + ' — ' + v + lvl;
+  }
+  // Swap panel: pick a reason-tagged alternate; it becomes this row (name, video, its own reps).
+  function toggleSwap(row, ex, cur, name, state) {
+    var open = row.querySelector('.swap-panel');
+    if (open) { open.remove(); return; }
+    var panel = el('div', 'swap-panel');
+    var lbl = { pain: 'Pain', noequip: 'No-equip', ue_pain: 'UE pain', equip: 'Equip' };
+    var opts = [{ main: true, name: ex.exercise }].concat(ex.alternates);
+    opts.forEach(function (a) {
+      var text = a.main ? ('↩ ' + (ex.display_name || ex.exercise)) : ((lbl[a.reason] || a.reason) + ': ' + a.name + (a.reps ? ' · ' + a.reps : ''));
+      var b = el('button', 'swap-opt', text); b.type = 'button';
+      b.addEventListener('click', function () {
+        cur.exercise = a.main ? ex.exercise : a.name;
+        cur.video = a.main ? ex.video_url : (a.video_url || '');
+        if (!a.main && a.reps && !isNaN(a.reps)) state.reps = Number(a.reps);
+        name.textContent = a.main ? exLabel(ex) : a.name;
+        name.classList.toggle('has-video', !!cur.video);
+        panel.remove();
+      });
+      panel.appendChild(b);
+    });
+    row.appendChild(panel);
+  }
+
+  // Conditioning: rolling work/rest timer runs all reps hands-free, then log distance.
+  function startIntervals(btn, reps, work, rest, done) {
+    btn.disabled = true; btn.classList.add('holding');
+    var seq = [];
+    for (var i = 0; i < reps; i++) { seq.push({ p: 'WORK', s: work || 0 }); if (i < reps - 1 && rest > 0) seq.push({ p: 'REST', s: rest }); }
+    var idx = 0, rem = seq.length ? seq[0].s : 0, totalWork = 0;
+    var iv = setInterval(function () {
+      if (idx >= seq.length) { clearInterval(iv); btn.disabled = false; btn.classList.remove('holding'); done(totalWork); return; }
+      var cur = seq[idx];
+      btn.textContent = cur.p + ' ' + rem + 's';
+      if (cur.p === 'WORK') totalWork++;
+      rem--;
+      if (rem < 0) { idx++; rem = idx < seq.length ? seq[idx].s : 0; }
+    }, 1000);
+  }
+  function conditioningRow(slot, ex, t) {
+    var row = el('div', 'ex-row cond');
+    var name = el('button', 'ex-name', exLabel(ex)); name.type = 'button';
+    if (ex.video_url) { name.classList.add('has-video'); name.addEventListener('click', function () { window.open(ex.video_url, '_blank'); }); }
+    row.appendChild(name);
+    var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
+      : ((t.target_reps || 1) + (t.work_s ? (' × ' + t.work_s + 's work / ' + (t.rest_s || 0) + 's rest') : ' reps'));
+    row.appendChild(el('div', 'gt', 'Set ' + t.set_no + ' · ' + scheme));
+    var dist = { v: '' };
+    var fields = el('div', 'fields');
+    var di = el('input', 'dist-in'); di.type = 'number'; di.placeholder = 'distance'; di.inputMode = 'decimal';
+    di.addEventListener('input', function () { dist.v = di.value; });
+    fields.appendChild(di); fields.appendChild(el('span', 'unit', 'after each set'));
+    row.appendChild(fields);
+    var check = el('button', 'check', t.work_s ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓')); check.type = 'button';
+    function logIt(dur) {
+      var l = mkLog(slot, ex.exercise, t, { load: '', reps: t.target_reps }); l.duration_s = dur || ''; l.distance = dist.v || '';
+      logRows([l]); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
+    }
+    check.addEventListener('click', function () {
+      if (check.classList.contains('done') || check.disabled) return;
+      if (t.work_s) startIntervals(check, t.target_reps || 1, t.work_s, t.rest_s || 0, logIt);
+      else if (t.duration_s) startHold(check, t.duration_s, function () { logIt(t.duration_s); });
+      else logIt('');
+    });
+    row.appendChild(check);
+    return row;
+  }
+
+  function exerciseRow(slot, ex, t, timer, isASide) {
+    if (ex.mode === 'conditioning') return conditioningRow(slot, ex, t);
+    var isDur = !!t.duration_s, isAcc = ex.mode === 'accessory';
+    var row = el('div', 'ex-row' + (t.kind === 'warmup' ? ' warmup' : ''));
+    var cur = { exercise: ex.exercise, video: ex.video_url };   // swap target
+
+    var name = el('button', 'ex-name', exLabel(ex)); name.type = 'button';
+    if (ex.video_url) name.classList.add('has-video');
+    name.addEventListener('click', function () { if (cur.video) window.open(cur.video, '_blank'); });
+    if (t.kind === 'warmup') name.appendChild(el('span', 'set-warm', 'warm-up'));
+    row.appendChild(name);
+    if (!isDur) row.appendChild(goalTarget(ex, t));
+
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
     var state = { load: prefill, reps: t.target_reps };
-    var showLoad = isAcc || (t.target_load !== '' && t.target_load != null);
-    var labelText = isDur ? durLabel(t, ex) : (isAcc ? accLabel(t, ex) : targetLabel(t));
-    if (isDur) controls.appendChild(el('span', 'set-target', labelText));
-    else controls.appendChild(editChip(labelText, state, showLoad));
+    var showLoad = (t.target_load !== '' && t.target_load != null) || (isAcc && prefill !== '');
 
-    function markDone(side, btn) {
-      logRows([mkLog(slot, ex, t, side, state)]);
-      btn.classList.add('done'); btn.textContent = (side ? side + ' ' : '') + '✓';
-      var bs = row.querySelectorAll('button.tap'), all = true;
-      for (var i = 0; i < bs.length; i++) if (!bs[i].classList.contains('done')) all = false;
-      if (all) row.classList.add('done');
-      // A-side drives the complex timer, once per round — R side and paired exercise don't reset it.
-      if (isASide && t.set_no !== slotState.lastRound) { slotState.lastRound = t.set_no; startTimer(slotTimer, interval); }
+    var fields = el('div', 'fields');
+    if (!isDur) {
+      if (showLoad) fields.appendChild(stepper(state, 'load', [-5, -2.5, 2.5, 5], 'lb'));
+      fields.appendChild(stepper(state, 'reps', [-1, 1], 'reps'));
+    } else {
+      fields.appendChild(el('span', 'hint', t.duration_s + 's hold'));
+      if (showLoad) fields.appendChild(stepper(state, 'load', [-5, -2.5, 2.5, 5], 'lb'));
     }
-    function startHold(side, btn) {
-      var rem = t.duration_s; btn.disabled = true; btn.classList.add('holding');
-      btn.textContent = (side ? side + ' ' : '') + rem + 's';
-      var iv = setInterval(function () {
-        rem--; btn.textContent = (side ? side + ' ' : '') + rem + 's';
-        if (rem <= 0) { clearInterval(iv); btn.disabled = false; btn.classList.remove('holding'); markDone(side, btn); }
-      }, 1000);
+    if (ex.alternates && ex.alternates.length) {
+      var sw = el('button', 'swap', '⇄'); sw.type = 'button';
+      sw.addEventListener('click', function () { toggleSwap(row, ex, cur, name, state); });
+      fields.appendChild(sw);
     }
-    (ex.each_side ? ['L', 'R'] : ['']).forEach(function (side) {
-      var lbl = isDur ? ((side ? side + ' ' : 'Start ') + t.duration_s + 's') : (side || 'Done');
-      var btn = el('button', 'tap' + (side ? ' side' : ''), lbl); btn.type = 'button';
-      btn.addEventListener('click', function () {
-        if (btn.classList.contains('done') || btn.disabled) return;
-        if (isDur) startHold(side, btn); else markDone(side, btn);
-      });
-      controls.appendChild(btn);
+    row.appendChild(fields);
+
+    function commit() {
+      logRows([mkLog(slot, cur.exercise, t, state)]);
+      row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
+      if (isASide) timer.start();   // rolling complex timer starts on the first A-side set
+    }
+    var check = el('button', 'check', isDur ? ('Start ' + t.duration_s + 's') : '✓'); check.type = 'button';
+    check.addEventListener('click', function () {
+      if (check.classList.contains('done') || check.disabled) return;
+      if (isDur) startHold(check, t.duration_s, commit); else commit();
     });
-    row.appendChild(controls);
+    row.appendChild(check);
     return row;
+  }
+
+  function renderSummary(n, d) {
+    app.innerHTML = '';
+    app.appendChild(el('h2', 'sum-h', 'Workout complete 💪'));
+    app.appendChild(el('p', 'sum-sub', n + ' set' + (n === 1 ? '' : 's') + ' logged'));
+    function block(title, items, cls) {
+      if (!items || !items.length) return;
+      app.appendChild(el('h3', 'sum-t ' + cls, title));
+      items.forEach(function (c) {
+        var txt;
+        if (c.first) txt = c.exercise + ' — first time 🎉';
+        else {
+          var parts = [];
+          if (c.intensity_pct != null) parts.push((c.intensity_pct >= 0 ? '+' : '') + c.intensity_pct + '% 1RM');
+          if (c.volume_pct != null) parts.push((c.volume_pct >= 0 ? '+' : '') + c.volume_pct + '% vol');
+          txt = c.exercise + ' — ' + (parts.join(' · ') || 'logged');
+        }
+        app.appendChild(el('div', 'sum-row ' + cls, txt));
+      });
+    }
+    if (!d || !d.ok || !d.logged) { app.appendChild(el('p', 'empty', 'Nice work.')); return; }
+    block('Top gains 🔺', d.best, 'up');
+    block('Keep an eye on 🔻', d.worst, 'down');
   }
 
   function render(s) {
@@ -170,22 +281,25 @@
     app.innerHTML = '';
     s.slots.forEach(function (slot) {
       var card = el('section', 'slot');
-      card.appendChild(el('h2', 'slot-title', slot.slot + ' · ' + slot.complex_name));
+      var head = el('div', 'slot-head');
+      head.appendChild(el('h2', 'slot-title', slot.slot + ' · ' + slot.complex_name));
+      var timerNode = el('span', 'timer');
+      var pauseBtn = el('button', 'pause', '⏸'); pauseBtn.type = 'button'; pauseBtn.hidden = true;
+      head.appendChild(timerNode); head.appendChild(pauseBtn);
+      card.appendChild(head);
+      var timer = makeTimer(timerNode, pauseBtn, slot.interval_s || 300);
       var body = el('div', 'sets');
-      var slotState = { lastRound: null };
-      var interval = slot.interval_s || 300;
       var aSide = slot.exercises[0];
       var maxSets = 0;
       slot.exercises.forEach(function (ex) { if (ex.sets.length > maxSets) maxSets = ex.sets.length; });
-      for (var r = 0; r < maxSets; r++) {                                 // one box per round (the paired sets + their timer)
+      for (var r = 0; r < maxSets; r++) {
         var roundBox = el('div', 'round');
-        var roundTimer = el('div', 'round-timer');
+        roundBox.appendChild(el('div', 'round-title', 'Set ' + (r + 1)));
         var count = 0;
         slot.exercises.forEach(function (ex) {
-          if (r < ex.sets.length) { roundBox.appendChild(setRow(slot, ex, ex.sets[r], roundTimer, slotState, interval, ex === aSide)); count++; }
+          if (r < ex.sets.length) { roundBox.appendChild(exerciseRow(slot, ex, ex.sets[r], timer, ex === aSide)); count++; }
         });
-        if (count > 1) roundBox.classList.add('paired');                  // a genuine superset round
-        roundBox.appendChild(roundTimer);
+        if (count > 1) roundBox.classList.add('paired');
         body.appendChild(roundBox);
       }
       card.appendChild(body);
@@ -193,8 +307,14 @@
     });
     var finish = el('button', 'finish', 'Finish workout');
     finish.addEventListener('click', function () {
-      var n = document.querySelectorAll('button.tap.done').length;
-      show('Workout complete — ' + n + ' set' + (n === 1 ? '' : 's') + ' logged. Nice work.');
+      var n = document.querySelectorAll('.ex-row.done').length;
+      drain();   // flush the queue so the summary sees this session's sets
+      show('Workout complete — ' + n + ' logged. Loading summary…');
+      var url = cfg.WEBAPP_URL + '?action=summary&athlete=' + encodeURIComponent(athlete) +
+        '&session_id=' + encodeURIComponent(SESSION.session_id) + '&token=' + encodeURIComponent(token);
+      setTimeout(function () {
+        fetch(url).then(function (r) { return r.json(); }).then(function (d) { renderSummary(n, d); }).catch(function () {});
+      }, 1800);
     });
     app.appendChild(finish);
   }
@@ -204,7 +324,7 @@
     if (!athlete || !token) return show('Missing athlete or token — open your personal link.', 'err');
     fetch(planUrl()).then(function (r) { return r.json(); }).then(function (data) {
       if (!data.ok) return show('Access denied — check your link.', 'err');
-      if (!data.session) return show('No upcoming session.');
+      if (!data.session) return show('All caught up — no upcoming session.');
       render(data.session);
     }).catch(function () { show('Offline and no cached session yet.', 'err'); });
   }

@@ -41,10 +41,27 @@ body {
 .exercise:first-of-type { border-top: 0; }
 .ex-name { font-size: 16px; margin: 0 0 8px; }
 .sets { display: grid; gap: 12px; }
-.round { border: 1.5px solid var(--line); border-radius: 12px; padding: 8px; display: grid; gap: 8px; }
-.round.paired { border: 2px solid var(--bp); background: #f7f9ff; }
+.round { border: 1.5px solid var(--line); border-radius: 12px; padding: 10px; display: grid; gap: 8px; }
+.round.paired { border: 3px solid var(--ink); background: #eef2fb; }
+.round-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
 .round-timer { text-align: right; font-size: 13px; font-weight: 700; color: var(--warn); font-variant-numeric: tabular-nums; min-height: 16px; padding-right: 4px; }
 .round-timer:empty { display: none; }
+
+.ex-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.ex-row.warmup { background: #fbfbfe; }
+.ex-row.done { border-color: var(--ok); background: #f0faf3; }
+.ex-name { flex: 1 1 100%; text-align: left; background: none; border: 0; font: inherit; font-weight: 600; color: var(--ink); padding: 0; display: flex; align-items: center; gap: 8px; }
+.ex-name.has-video { color: var(--bp); text-decoration: underline; }
+.fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; }
+.stepper { display: flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 8px; padding: 2px; background: #fff; }
+.step { min-width: 36px; min-height: 40px; border: 0; background: #eef1f7; border-radius: 6px; font-weight: 700; font-size: 13px; color: var(--ink); }
+.step:active { background: #dde3ef; }
+.val { min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+.unit { font-size: 12px; color: var(--muted); padding: 0 2px; }
+.hint { font-size: 12px; color: var(--muted); }
+.check { min-width: 54px; min-height: 42px; border: 0; border-radius: 9px; background: var(--bp); color: #fff; font-weight: 700; font-size: 17px; }
+.check.done { background: var(--ok); }
+.check.holding { background: var(--warn); }
 .set {
   display: flex; flex-direction: column; align-items: stretch; gap: 8px;
   border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff;
@@ -76,3 +93,29 @@ body {
   padding: 10px 12px; font: inherit; color: var(--ink); font-variant-numeric: tabular-nums;
 }
 .chip input { width: 58px; padding: 4px 6px; margin: 0 2px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; }
+
+/* UI pass: rolling timer, Goal/Target, swap */
+.slot-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.slot-head .slot-title { margin: 0; }
+.timer { font-size: 15px; font-weight: 800; color: var(--warn); font-variant-numeric: tabular-nums; }
+.timer.flash { color: var(--ok); }
+.pause { min-width: 42px; min-height: 34px; border: 0; border-radius: 8px; background: #eef1f7; font-size: 14px; }
+.gt { display: flex; gap: 12px; font-size: 12px; font-variant-numeric: tabular-nums; margin: 1px 0 2px; }
+.gt.warm { opacity: .65; font-size: 11px; }
+.goal { color: var(--muted); }
+.aim { color: var(--bp); font-weight: 700; }
+.swap { min-width: 42px; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 16px; }
+.swap-panel { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 6px; }
+.swap-opt { text-align: left; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: #f7f9ff; font-size: 13px; }
+
+/* post-workout summary */
+.sum-h { text-align: center; margin: 24px 0 4px; }
+.sum-sub { text-align: center; color: var(--muted); margin: 0 0 16px; }
+.sum-t { margin: 16px 0 6px; font-size: 14px; }
+.sum-t.up { color: var(--ok); } .sum-t.down { color: var(--warn); }
+.sum-row { padding: 10px 12px; border-radius: 8px; background: #fff; border: 1px solid var(--line); margin-bottom: 6px; font-size: 14px; }
+.sum-row.up { border-left: 4px solid var(--ok); } .sum-row.down { border-left: 4px solid var(--warn); }
+
+/* conditioning */
+.ex-row.cond { background: #fff8ef; }
+.dist-in { width: 96px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; }

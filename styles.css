@@ -194,18 +194,18 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 .swapbtn { flex: none; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line);
   border-radius: 8px; background: #f7f9ff; color: var(--bp); font-size: 11px; font-weight: 700; padding: 4px 9px; }
 
-.l2 { display: grid; grid-template-columns: minmax(0,1fr) 112px 40px; align-items: center; gap: 6px; }
-.l2 > .gt { grid-column: 1; justify-self: end; text-align: right; min-width: 0; margin: 0; font-size: 11px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
+/* level goal pinned LEFT; reps-tag + stepper + check packed RIGHT in fixed lanes so they line up */
+.l2 { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.l2 > .gt { margin-right: auto; text-align: left; min-width: 0; font-size: 11px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .l2 > .gt .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .3px; }
-.l2 > .gt .goal { color: var(--ink); font-weight: 700; font-size: 12px; }
-.l2 > .gt .aim { color: var(--bp); font-weight: 800; }
-.l2 > .stepper { grid-column: 2; }
-.l2 > .check { grid-column: 3; }
+.l2 > .gt .goal { color: var(--ink); font-weight: 700; font-size: 13px; }
+.l2 > .reps-tag { flex: none; font-size: 13px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-.l2 .stepper { display: flex; align-items: center; width: 112px; border: 1px solid var(--line); border-radius: 9px; background: #fff; padding: 1px; gap: 0; }
-.l2 .stepper .step { flex: none; width: 34px; min-height: 34px; padding: 0; background: #eef1f7; border-radius: 7px; font-size: 18px; font-weight: 700; color: var(--ink); }
+.l2 .stepper { flex: none; display: flex; align-items: center; width: 124px; border: 1px solid var(--line); border-radius: 9px; background: #fff; padding: 1px; gap: 0; }
+.l2 .stepper .step { flex: none; width: 32px; min-height: 34px; padding: 0; background: #eef1f7; border-radius: 7px; font-size: 18px; font-weight: 700; color: var(--ink); }
 .l2 .stepper .val { flex: 1 1 auto; min-width: 0; text-align: center; font-variant-numeric: tabular-nums; font-weight: 800; font-size: 15px; padding: 0 1px; }
 .l2 .stepper .unit { flex: none; font-size: 10px; color: var(--muted); padding: 0 2px 0 0; }
+.l2 > .check { flex: none; }
 /* lighter, calmer check (repeating) — the dark accent is reserved for the unique slot timer */
 .l2 .check { width: 40px; min-height: 34px; border: 1px solid #cdd8ef; border-radius: 9px; background: #eef2fb; color: var(--bp); font-weight: 700; font-size: 15px; }
 .l2 .check.done { background: var(--ok); border-color: var(--ok); color: #fff; }
@@ -223,3 +223,49 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 /* level-up celebration in the finish summary */
 .sum-row.levelup { border-left: 4px solid var(--ok); font-weight: 700; background: #f0faf3; }
 @media (prefers-color-scheme: dark){ .sum-row.levelup { background: #12261a; } }
+
+/* rest-timer "up" alert — a half-screen banner that flashes then fades as the timer rolls on */
+.talert { position: fixed; left: 0; right: 0; top: 22%; z-index: 60; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; pointer-events: none;
+  opacity: 0; transform: scale(.9); transition: opacity .18s ease, transform .18s ease; }
+.talert.show { opacity: 1; transform: scale(1); }
+.talert-big { background: var(--ok); color: #fff; font-size: 34px; font-weight: 800; letter-spacing: .5px;
+  padding: 18px 40px; border-radius: 18px; box-shadow: 0 10px 40px rgba(20,30,60,.35); }
+.talert-sub { color: var(--ok); font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+@media (prefers-color-scheme: dark){ .talert-sub { color: #4ccf6b; } }
+
+/* ---- calendar home screen ---- */
+.back { background: none; border: 0; color: var(--bp); font-size: 14px; font-weight: 700; padding: 4px 2px; margin-bottom: 6px; }
+.cal { display: flex; flex-direction: column; gap: 6px; }
+.cal-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.cal-cell { min-height: 62px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  padding: 4px 3px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+.cal-cell.empty { background: #fafbfe; border-style: dashed; opacity: .45; }
+.cal-cell.today { border-color: var(--bp); box-shadow: 0 0 0 1px var(--bp) inset; }
+.cal-num { font-size: 11px; font-weight: 700; color: var(--muted); padding-left: 2px; }
+.cal-chip { display: flex; align-items: flex-start; justify-content: space-between; gap: 2px; text-align: left; border: 0;
+  border-left: 3px solid var(--bp); border-radius: 5px; background: #eef2fb; color: var(--ink);
+  font-size: 9.5px; font-weight: 500; line-height: 1.08; padding: 3px; overflow: hidden; }
+.chip-name { overflow: hidden; overflow-wrap: break-word; word-break: normal; }
+.chip-tick { font-weight: 800; flex: none; }
+.cal-chip.st-started { border-left-color: var(--warn); background: #fdf3e6; }
+.cal-chip.st-done { border-left-color: var(--ok); background: #eaf6ee; color: var(--muted); }
+.cal-chip.st-done .chip-tick { color: var(--ok); }
+.cal-chip.st-missed { border-left-color: #c9ccd4; background: #f3f4f6; color: var(--muted); }
+
+/* level goal moved to line 1 (muted, next to the name); line 2 gets room for both adjusters */
+.l1 .goaltag { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.l1 .goaltag .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .3px; }
+.l1 .goaltag .gv { color: var(--ink); font-weight: 700; font-size: 12px; }
+/* secondary/subtle reps stepper for weighted lifts (weight stays the primary control) */
+.l2 .stepper.mini { width: 86px; border-color: #e6e9f1; background: #fafbfe; }
+.l2 .stepper.mini .step { width: 24px; min-height: 30px; font-size: 15px; background: #eef1f7; color: var(--muted); }
+.l2 .stepper.mini .val { font-size: 12px; font-weight: 700; color: var(--muted); }
+.l2 .stepper.mini .unit { font-size: 9px; }
+
+/* move-workout controls (session view, unlogged only) */
+.move-wrap { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; flex-wrap: wrap; }
+.movebtn, .move-go { border: 1px solid var(--line); background: #f7f9ff; color: var(--bp); font-weight: 700; font-size: 13px; border-radius: 9px; padding: 8px 12px; }
+.move-go { background: var(--bp); color: #fff; border-color: var(--bp); }
+.move-date { border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; font-size: 14px; background: #fff; color: var(--ink); }

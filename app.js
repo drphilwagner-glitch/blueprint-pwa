@@ -30,6 +30,16 @@
     return fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: rows }) });
   }
+  // Mark this session done on Finish so reopening advances to the next planned session.
+  function sendComplete(sessionId) {
+    return fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'complete', athlete: athlete, token: token, session_id: sessionId }) }).catch(function () {});
+  }
+  // Move an unlogged session to another day (reschedule).
+  function sendMove(sessionId, toDate) {
+    return fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'move', athlete: athlete, token: token, session_id: sessionId, to_date: toDate }) }).catch(function () {});
+  }
   var DB;
   function idb() {
     if (DB) return Promise.resolve(DB);
@@ -70,11 +80,32 @@
   // ---- one ROLLING timer per complex: starts on the first A-side set, auto-restarts each round
   //      (rolls through all sets in succession), until the athlete pauses. ----
   function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+    // --- rest-timer alert: a beep + vibrate + a half-screen banner when the interval rolls over ---
+    var _ac = null;
+    function primeAudio() { try { _ac = _ac || new (window.AudioContext || window.webkitAudioContext)(); if (_ac.state === 'suspended') _ac.resume(); } catch (e) {} }
+    function beep() {
+      try {
+        primeAudio(); if (!_ac) return;
+        var o = _ac.createOscillator(), g = _ac.createGain();
+        o.type = 'sine'; o.frequency.value = 880; o.connect(g); g.connect(_ac.destination);
+        g.gain.setValueAtTime(0.0001, _ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.35, _ac.currentTime + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + 0.45);
+        o.start(); o.stop(_ac.currentTime + 0.45);
+      } catch (e) {}
+      if (navigator.vibrate) { try { navigator.vibrate([200, 80, 200]); } catch (e) {} }
+    }
+    function timerAlert() {
+      var ov = el('div', 'talert'); ov.appendChild(el('div', 'talert-big', "Rest done")); ov.appendChild(el('div', 'talert-sub', 'next set — go'));
+      document.body.appendChild(ov);
+      requestAnimationFrame(function () { ov.classList.add('show'); });
+      setTimeout(function () { ov.classList.remove('show'); setTimeout(function () { ov.remove(); }, 300); }, 1700);
+    }
   function makeTimer(node, pauseBtn, interval) {
     var st = { running: false, paused: false, end: 0, rem: interval, t: null };
     function tick() {
       var left = Math.max(0, Math.round((st.end - Date.now()) / 1000));
-      if (left <= 0) { st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); }
+      if (left <= 0) { st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert(); }
       node.textContent = 'next ' + fmt(left);
       st.t = setTimeout(tick, 250);
     }
@@ -83,7 +114,7 @@
       if (st.paused) { st.paused = false; st.end = Date.now() + st.rem * 1000; pauseBtn.textContent = '⏸'; tick(); }
       else { st.paused = true; clearTimeout(st.t); st.rem = Math.max(0, Math.round((st.end - Date.now()) / 1000)); pauseBtn.textContent = '▶'; node.textContent = 'paused ' + fmt(st.rem); }
     });
-    return { start: function () { if (st.running) return; st.running = true; st.end = Date.now() + interval * 1000; pauseBtn.hidden = false; tick(); } };
+    return { start: function () { if (st.running) return; primeAudio(); st.running = true; st.end = Date.now() + interval * 1000; pauseBtn.hidden = false; tick(); } };
   }
   function startHold(btn, secs, done) {                    // duration items: countdown then log
     var rem = secs; btn.disabled = true; btn.classList.add('holding'); btn.textContent = rem + 's';
@@ -98,14 +129,16 @@
       set_no: t.set_no, side: '', target_load: t.target_load, target_reps: t.target_reps,
       actual_load: state.load, actual_reps: state.reps, flag: '' };
   }
-  // The LEVEL GOAL (rung pass standard) shown as a muted reference — "you don't have to hit this today".
-  // The stepper is prefilled with TODAY'S target (server-computed via Epley), so no second number here.
+  // LEVEL GOAL (rung pass standard), muted, on line 1 next to the name. ONE value only — the weight, or
+  // the reps for bodyweight. Returns null (nothing shown) for warm-up sets and for non-leveled exercises
+  // (accessories/stability not in Level Standards) so they never show a bogus goal.
   function goalTarget(ex, t) {
-    var span = el('span', 'gt');
+    if (t.kind === 'warmup') return null;
     var lg = ex.level_goal;
-    if (!lg || (lg.load == null && lg.reps == null)) return span;   // accessories have no rung goal
-    span.appendChild(el('span', 'lbl', 'level goal '));
-    span.appendChild(el('span', 'goal', lg.load != null ? (lg.reps + '×' + lg.load) : (lg.reps + ' reps')));
+    if (!lg || (lg.load == null && lg.reps == null)) return null;
+    var span = el('span', 'goaltag');
+    span.appendChild(el('span', 'lbl', 'goal '));
+    span.appendChild(el('span', 'gv', lg.load != null ? (lg.load + ' lb') : (lg.reps + ' reps')));
     return span;
   }
   function slotLabel(s) {                              // "WUp1" -> "Warm Up 1"; "Comp1" -> "Complex 1"
@@ -116,8 +149,9 @@
   }
 
   // Compact −/+ stepper bound to state[key] (single increment; − left, value, + right).
-  function stepper(state, key, delta, unit) {
-    var f = el('div', 'stepper');
+  // extraCls (e.g. 'mini') styles a secondary/subtle stepper.
+  function stepper(state, key, delta, unit, extraCls) {
+    var f = el('div', 'stepper' + (extraCls ? ' ' + extraCls : ''));
     var val = el('span', 'val');
     function draw() { var v = state[key]; val.textContent = (v === '' || v == null) ? '—' : v; }
     function btn(sign) {
@@ -165,23 +199,33 @@
     }
     ov.appendChild(box); document.body.appendChild(ov);
   }
-  // Swap panel: pick a reason-tagged alternate; it becomes this row (name, video, its own reps).
-  function toggleSwap(row, ex, cur, name, state) {
+  // Swap panel: pick a reason-tagged alternate → the row is RE-RENDERED as that alternate with its
+  // OWN dosing (the Alternates-tab reps, no external load), not the original's weight/reps. "Keep
+  // original" reverts. Works from an alternate row too (it remembers the true original via _alt_of).
+  function toggleSwap(row, ex, t, slot, timer, isASide) {
     var open = row.querySelector('.swap-panel');
     if (open) { open.remove(); return; }
+    var origEx = ex._alt_of || ex, origT = ex._alt_t || t;
     var panel = el('div', 'swap-panel');
     panel.appendChild(el('div', 'swap-h', 'Change exercise'));
-    var opts = [{ main: true, name: ex.exercise }].concat(ex.alternates);
+    var opts = [{ main: true }].concat(origEx.alternates || []);
     opts.forEach(function (a) {   // reason shown as-is → Phil edits the Alternates 'reason' column for the wording
-      var text = a.main ? ('↩ ' + (ex.display_name || ex.exercise)) : (a.reason + ': ' + a.name + (a.reps ? ' · ' + a.reps : ''));
+      var text = a.main ? ('↩ ' + exLabel(origEx)) : (a.reason + ': ' + a.name + (a.reps ? ' · ' + a.reps : ''));
       var b = el('button', 'swap-opt', text); b.type = 'button';
       b.addEventListener('click', function () {
-        cur.exercise = a.main ? ex.exercise : a.name;
-        cur.video = a.main ? ex.video_url : (a.video_url || '');
-        if (!a.main && a.reps && !isNaN(a.reps)) state.reps = Number(a.reps);
-        name.textContent = a.main ? exLabel(ex) : a.name;
-        name.classList.toggle('has-video', !!cur.video);
-        panel.remove();
+        var newRow;
+        if (a.main) {
+          newRow = exerciseRow(slot, origEx, origT, timer, isASide);       // revert to the original exercise
+        } else {
+          var numReps = (a.reps !== '' && a.reps != null && !isNaN(a.reps)) ? Number(a.reps) : null;
+          var altEx = { exercise: a.name, display_name: a.name, athlete_name: a.name, variant_name: '', video_url: a.video_url || '',
+            alternates: origEx.alternates, level_goal: null, mode: 'accessory', rest_s: origEx.rest_s, each_side: origEx.each_side,
+            _alt_of: origEx, _alt_t: origT };
+          var altT = { set_no: origT.set_no, kind: origT.kind, target_load: '', target_reps: (numReps == null ? '' : numReps), duration_s: null };
+          newRow = exerciseRow(slot, altEx, altT, timer, isASide);         // reps-based row with the alternate's own reps
+          if (numReps == null && a.reps) { var g = newRow.querySelector('.gt'); if (g) { g.textContent = ''; g.appendChild(el('span', 'lbl', 'do ')); g.appendChild(el('span', 'goal', String(a.reps))); } }
+        }
+        row.replaceWith(newRow);
       });
       panel.appendChild(b);
     });
@@ -241,15 +285,16 @@
     var row = el('div', 'ex-row' + (t.kind === 'warmup' ? ' warmup' : ''));
     var cur = { exercise: ex.exercise, video: ex.video_url };   // swap target
 
-    // --- line 1: name (+ variant/level) .......... ⇄ Swap ---
+    // --- line 1: name · level goal (muted) .......... ⇄ Swap ---
     var l1 = el('div', 'l1');
     var name = el('button', 'ex-name', exLabel(ex)); name.type = 'button';
     if (ex.video_url) name.classList.add('has-video');
     name.addEventListener('click', function () { openVideo(cur.video); });   // plays in-app
     l1.appendChild(name);   // warm-up is shown on the Set label (round-title), not after the name
-    if (ex.alternates && ex.alternates.length) {
+    var gtag = goalTarget(ex, t); if (gtag) l1.appendChild(gtag);   // level goal on line 1 (only for leveled lifts)
+    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
       var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄ Swap';
-      sw.addEventListener('click', function () { toggleSwap(row, ex, cur, name, state); });
+      sw.addEventListener('click', function () { toggleSwap(row, ex, t, slot, timer, isASide); });
       l1.appendChild(sw);
     }
     row.appendChild(l1);
@@ -259,16 +304,25 @@
     // Weighted = has a prescribed load, a loaded accessory with a prefill, or a flagged loaded carry.
     var weighted = (t.target_load !== '' && t.target_load != null) || (isAcc && prefill !== '') || !!ex.wants_load;
     if (weighted && (state.load === '' || state.load == null)) state.load = 0;   // carries/blank start at 0 to bump up
+    // EDIT: if this set was already logged (opening a completed day), show the LOGGED actuals and start
+    // it checked. Uncheck → adjust → re-check appends a correction row (server keeps the latest).
+    var lgd = ex.logged && ex.logged[String(t.set_no) + '|'];
+    var wasLogged = !!lgd;
+    if (lgd) {
+      if (lgd.load !== '' && lgd.load != null) state.load = Number(lgd.load);
+      if (lgd.reps !== '' && lgd.reps != null) state.reps = Number(lgd.reps);
+    }
 
-    // --- line 2: goal/aim [1fr] · one control [auto] · check/start [auto] ---
+    // --- line 2: [hold hint] · [subtle reps] · primary weight/reps stepper · ✓ (right-aligned lanes) ---
     var l2 = el('div', 'l2');
     if (isDur) {
       l2.appendChild(el('span', 'gt', t.duration_s + 's hold'));
       if (weighted) l2.appendChild(stepper(state, 'load', 2.5, 'lb'));   // loaded carry gets a weight field
+    } else if (weighted) {
+      if (t.target_reps !== '' && t.target_reps != null) l2.appendChild(stepper(state, 'reps', 1, 'reps', 'mini'));  // secondary/subtle reps
+      l2.appendChild(stepper(state, 'load', 2.5, ''));                   // primary weight adjuster
     } else {
-      l2.appendChild(goalTarget(ex, t));
-      if (weighted) l2.appendChild(stepper(state, 'load', 2.5, ''));      // weight only — reps are the goal (unit implied by goal text)
-      else l2.appendChild(stepper(state, 'reps', 1, ''));                 // bodyweight/stability — adjust reps
+      l2.appendChild(stepper(state, 'reps', 1, ''));                     // bodyweight/stability — adjust reps (primary)
     }
 
     var lastLogId = null;
@@ -293,6 +347,7 @@
     });
     l2.appendChild(check);
     row.appendChild(l2);
+    if (wasLogged) { row.classList.add('done'); check.classList.add('done'); check.textContent = '✓'; }   // show as logged; tap to edit
     return row;
   }
 
@@ -300,6 +355,8 @@
     app.innerHTML = '';
     app.appendChild(el('h2', 'sum-h', 'Workout complete 💪'));
     app.appendChild(el('p', 'sum-sub', n + ' set' + (n === 1 ? '' : 's') + ' logged'));
+    var home = el('button', 'finish', '← Back to calendar'); home.type = 'button';
+    home.addEventListener('click', function () { loadHome(); }); app.appendChild(home);
     function block(title, items, cls) {
       if (!items || !items.length) return;
       app.appendChild(el('h3', 'sum-t ' + cls, title));
@@ -328,8 +385,22 @@
 
   function render(s) {
     SESSION = s;
-    meta.textContent = (s.is_next_planned ? 'Next session · ' : '') + s.date + ' · ' + s.theme + ' · ' + athlete;
+    meta.textContent = (s.name || s.theme) + ' · ' + s.date;
     app.innerHTML = '';
+    var back = el('button', 'back', '← Calendar'); back.type = 'button';
+    back.addEventListener('click', function () { loadHome(); });
+    app.appendChild(back);
+    // Move an unlogged workout to another day
+    var movable = s.slots.every(function (sl) { return sl.status === 'planned' || sl.status === 'missed'; });
+    if (movable) {
+      var mv = el('div', 'move-wrap');
+      var mBtn = el('button', 'movebtn', '⇄ Move to another day'); mBtn.type = 'button';
+      var dIn = el('input', 'move-date'); dIn.type = 'date'; dIn.hidden = true;
+      var gBtn = el('button', 'move-go', 'Move'); gBtn.type = 'button'; gBtn.hidden = true;
+      mBtn.addEventListener('click', function () { mBtn.hidden = true; dIn.hidden = false; gBtn.hidden = false; });
+      gBtn.addEventListener('click', function () { if (!dIn.value) return; gBtn.textContent = 'Moving…'; sendMove(s.session_id, dIn.value); setTimeout(loadHome, 1300); });
+      mv.appendChild(mBtn); mv.appendChild(dIn); mv.appendChild(gBtn); app.appendChild(mv);
+    }
     s.slots.forEach(function (slot) {
       var card = el('section', 'slot');
       var head = el('div', 'slot-head');
@@ -364,8 +435,10 @@
     });
     var finish = el('button', 'finish', 'Finish workout');
     finish.addEventListener('click', function () {
-      var n = document.querySelectorAll('.ex-row.done').length;
+      var total = document.querySelectorAll('.ex-row').length, n = document.querySelectorAll('.ex-row.done').length;
+      if (n < total && !window.confirm((total - n) + ' of ' + total + ' sets aren’t checked off yet. Finish anyway?')) return;
       drain();   // flush the queue so the summary sees this session's sets
+      sendComplete(SESSION.session_id);   // mark done → reopening advances to the next session
       show('Workout complete — ' + n + ' logged. Loading summary…');
       var url = cfg.WEBAPP_URL + '?action=summary&athlete=' + encodeURIComponent(athlete) +
         '&session_id=' + encodeURIComponent(SESSION.session_id) + '&token=' + encodeURIComponent(token);
@@ -379,11 +452,59 @@
   function load() {
     if (!cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return show('App not configured yet (WEBAPP_URL).', 'err');
     if (!athlete || !token) return show('Missing athlete or token — open your personal link.', 'err');
-    fetch(planUrl()).then(function (r) { return r.json(); }).then(function (data) {
-      if (!data.ok) return show('Access denied — check your link.', 'err');
-      if (!data.session) return show('All caught up — no upcoming session.');
-      render(data.session);
-    }).catch(function () { show('Offline and no cached session yet.', 'err'); });
+    loadHome();
+  }
+
+  // ---- Home = calendar of the athlete's sessions; tap a day to open that workout ----
+  function mondayOf(s) { var x = new Date(s + 'T00:00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+  function ymd(d) { return d.toLocaleDateString('en-CA'); }
+  function loadHome() {
+    show('Loading your plan…');
+    fetch(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+      .then(function (r) { return r.json(); }).then(function (data) {
+        if (!data.ok) return show('Access denied — check your link.', 'err');
+        if (!data.sessions || !data.sessions.length) return show('No workouts scheduled yet.');
+        renderCalendar(data.sessions);
+      }).catch(function () { show('Offline — reconnect to see your plan.', 'err'); });
+  }
+  function renderCalendar(sessions) {
+    SESSION = null; app.innerHTML = '';
+    meta.textContent = athlete + ' · pick a workout';
+    var byDate = {}; sessions.forEach(function (s) { (byDate[s.date] = byDate[s.date] || []).push(s); });   // a day can hold >1
+    var ds = sessions.map(function (s) { return s.date; }).sort();
+    var today = todayISO(), first = ds[0], last = ds[ds.length - 1];
+    var cal = el('div', 'cal');
+    var head = el('div', 'cal-row cal-head'); ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(function (d) { head.appendChild(el('div', 'cal-dow', d)); }); cal.appendChild(head);
+    var mon = mondayOf(first), guard = 0;
+    while (ymd(mon) <= last && guard < 10) {
+      var row = el('div', 'cal-row');
+      for (var i = 0; i < 7; i++) {
+        var d = new Date(mon); d.setDate(d.getDate() + i); var key = ymd(d);
+        var cell = el('div', 'cal-cell'); if (key === today) cell.classList.add('today');
+        cell.appendChild(el('div', 'cal-num', String(d.getDate())));
+        var list = byDate[key] || [];
+        if (!list.length) cell.classList.add('empty');
+        list.forEach(function (s) {   // one tappable chip per workout on this day
+          var chip = el('button', 'cal-chip st-' + s.status); chip.type = 'button';
+          chip.appendChild(el('span', 'chip-name', s.name || s.theme || 'session'));
+          if (s.status === 'done') chip.appendChild(el('span', 'chip-tick', '✓'));
+          else if (s.status === 'missed') chip.appendChild(el('span', 'chip-tick', '–'));
+          (function (sid) { chip.addEventListener('click', function () { openSession(sid); }); })(s.session_id);
+          cell.appendChild(chip);
+        });
+        row.appendChild(cell);
+      }
+      cal.appendChild(row); mon.setDate(mon.getDate() + 7); guard++;
+    }
+    app.appendChild(cal);
+  }
+  function openSession(sessionId) {
+    show('Loading…');
+    fetch(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))
+      .then(function (r) { return r.json(); }).then(function (data) {
+        if (!data.ok || !data.session) return show('No workout that day.');
+        render(data.session);
+      }).catch(function () { show('Offline — reconnect to open this workout.', 'err'); });
   }
 
   load();

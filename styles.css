@@ -421,3 +421,6 @@ span.ex-name.sub { text-decoration: none; display: block; }
 .check { min-width: 44px; min-height: 44px; }
 .tstart, .swapbtn, .back, .vclose, .dist-in, .swap-opt, .movebtn { min-height: 44px; }
 .vclose { min-width: 44px; }
+
+/* S19: an out-of-window estimate is a COACH signal — muted, not a red alarm at the athlete. */
+.ag-st.est-long, .ag-st.est-short { color: var(--warn); }

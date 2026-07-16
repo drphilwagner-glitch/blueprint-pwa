@@ -105,11 +105,20 @@
       requestAnimationFrame(function () { ov.classList.add('show'); });
       setTimeout(function () { ov.classList.remove('show'); setTimeout(function () { ov.remove(); }, 300); }, 1700);
     }
-  function makeTimer(node, pauseBtn, interval) {
+  // `intervals` is one rest per ROUND — a paired round costs more than a round with a single lift
+  // (Deadlift + Step Down = 5:00, Deadlift alone = 3:00). The timer rolls THROUGH that sequence
+  // rather than repeating one number, which is what made a solo work round charge paired rest.
+  function makeTimer(node, pauseBtn, intervals) {
+    var seq = (intervals && intervals.length) ? intervals.slice() : [120];
+    var idx = 0;
+    var interval = seq[0];
     var st = { running: false, paused: false, end: 0, rem: interval, t: null };
     function tick() {
       var left = Math.max(0, Math.round((st.end - Date.now()) / 1000));
-      if (left <= 0) { st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert('Next round', 'go'); }
+      if (left <= 0) {
+        idx = Math.min(idx + 1, seq.length - 1);      // hold the last round's rest once the complex ends
+        interval = seq[idx];
+        st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert('Next round', 'go'); }
       node.textContent = 'next ' + fmt(left);
       st.t = setTimeout(tick, 250);
     }
@@ -471,7 +480,8 @@
     SESSION = s;
     ROW_REG = {}; LEG_REG = {};   // fresh registries per session render
     renderNav('wo');
-    meta.textContent = (s.name || s.theme) + ' · ' + s.date;
+    // S19 AC2: the athlete sees what they're signing up for before they start.
+    meta.textContent = (s.name || s.theme) + ' · ' + s.date + (s.est_min ? ' · ~' + s.est_min + ' min' : '');
     app.innerHTML = '';
     var back = el('button', 'back', '← Calendar'); back.type = 'button';
     back.addEventListener('click', function () { loadHome(); });
@@ -495,11 +505,12 @@
       // "Begin complex · 3:00" — a check means "I already did that set", so the timer can't
       // auto-start off one; it needs an explicit "I'm starting now". The label says what it does
       // and how long the complex runs, so it reads without a coach standing there.
-      var startBtn = el('button', 'tstart', 'Begin complex · ' + fmt(slot.interval_s || 300)); startBtn.type = 'button';
+      var ivs = (slot.round_intervals_s && slot.round_intervals_s.length) ? slot.round_intervals_s : [slot.interval_s || 300];
+      var startBtn = el('button', 'tstart', 'Begin complex · ' + fmt(ivs[0])); startBtn.type = 'button';
       var pauseBtn = el('button', 'pause', '⏸'); pauseBtn.type = 'button'; pauseBtn.hidden = true;
       head.appendChild(startBtn); head.appendChild(timerNode); head.appendChild(pauseBtn);
       card.appendChild(head);
-      var timer = makeTimer(timerNode, pauseBtn, slot.interval_s || 300);
+      var timer = makeTimer(timerNode, pauseBtn, ivs);
       startBtn.addEventListener('click', function () { timer.start(); startBtn.hidden = true; });
 
       // The prescription, stated once — the way a coach writes it on paper.
@@ -616,7 +627,11 @@
       if (s.date === today) when.classList.add('is-today');
       b.appendChild(when);
       b.appendChild(el('span', 'ag-name', s.name || s.theme || 'session'));
-      b.appendChild(el('span', 'ag-st', s.status === 'done' ? '✓ done' : s.status === 'missed' ? 'missed' : s.status === 'started' ? 'started' : ''));
+      var st = s.status === 'done' ? '✓ done' : s.status === 'missed' ? 'missed' : s.status === 'started' ? 'started' : '';
+      var estTxt = s.est_min ? (st ? st + ' · ' : '') + '~' + s.est_min + ' min' : st;
+      var stEl = el('span', 'ag-st', estTxt);
+      if (s.est_flag && s.est_flag !== 'ok') stEl.classList.add('est-' + s.est_flag);   // coach signal, not athlete noise
+      b.appendChild(stEl);
       b.addEventListener('click', function () { openSession(s.session_id); });
       wrap.appendChild(b);
 

@@ -240,18 +240,20 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 /* minmax(0,1fr), not 1fr: each row is its own grid, and plain `1fr` (= minmax(auto,1fr)) can't shrink
    below its content — so one long chip ("Conditioning") widens that column in that row only and the
    calendar's columns wander row to row. Caught by the harness (QA-CAL-FIT). */
-.cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
 .cal-cell, .cal-chip, .chip-name { min-width: 0; }
 .cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
 .cal-cell { min-height: 62px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
-  padding: 4px 3px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+  padding: 3px 2px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
 .cal-cell.empty { background: #fafbfe; border-style: dashed; opacity: .45; }
 .cal-cell.today { border-color: var(--bp); box-shadow: 0 0 0 1px var(--bp) inset; }
 .cal-num { font-size: 11px; font-weight: 700; color: var(--muted); padding-left: 2px; }
-.cal-chip { display: flex; align-items: flex-start; justify-content: space-between; gap: 2px; text-align: left; border: 0;
-  border-left: 3px solid var(--bp); border-radius: 5px; background: #eef2fb; color: var(--ink);
-  font-size: 9.5px; font-weight: 500; line-height: 1.08; padding: 3px; overflow: hidden; }
-.chip-name { overflow: hidden; overflow-wrap: break-word; word-break: normal; }
+/* 44px tall: it opens a workout, so it's a real tap target — and the extra height is also what
+   fills the screen Phil said the calendar was wasting. Width is whatever 7 columns leave in 390px
+   (~45px after trimming the gaps), which is the honest ceiling for a 7-day grid on a phone. */
+.cal-chip { display: flex; align-items: center; justify-content: center; border: 0;
+  border-left: 3px solid var(--bp); border-radius: 5px; background: #eef2fb; color: var(--muted);
+  font-size: 12px; font-weight: 800; line-height: 1; padding: 0; min-height: 44px; }
 .chip-tick { font-weight: 800; flex: none; }
 .cal-chip.st-started { border-left-color: var(--warn); background: #fdf3e6; }
 .cal-chip.st-done { border-left-color: var(--ok); background: #eaf6ee; color: var(--muted); }
@@ -342,3 +344,80 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
   .nav { background: rgba(23,26,34,.96); }
   .p-stat { background: #171a22; }
 }
+
+/* ---- S17 "say it once": the slot legend ----
+   Name, level goal and Swap are properties of the EXERCISE, not of each set. The layout is
+   round-major (round 1: A,B / round 2: A,B / …) because that's how a complex is performed — so
+   rendering those three per row restated them once per round. A coach writes the prescription
+   once at the top ("A1. Chest Supported Row 3×8 @80"); this is that. The rounds below just log. */
+.ex-legend { display: grid; gap: 6px; margin: 0 0 10px; padding: 0 0 10px; border-bottom: 1.5px solid var(--line); }
+.lg-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lg-name { flex: 1 1 auto; font-size: 16px; font-weight: 700; margin: 0; min-height: 44px; }
+.lg-row .goaltag { flex: 0 0 auto; }
+.lg-row .swapbtn { flex: 0 0 auto; margin-left: auto; }
+.lg-row .swap-panel { flex: 1 1 100%; }
+/* In a complex the round still needs to say WHICH lift — but demoted, since the legend named it.
+   In a single-exercise slot the name is dropped entirely and the row is one line. */
+.ex-name.sub { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0; }
+.ex-name.sub.has-video { color: var(--bp); }
+
+/* ---- Calendar: use the screen ----
+   Phil: "the calendar fills up about 10% of the screen". Rows are drawn per week of the plan, so a
+   short plan left the rest of an 844px phone blank. Let the weeks share the leftover height instead
+   of every cell sitting at its 62px floor. min-height stays as the floor for long plans. */
+.cal-cell { min-height: 54px; }
+/* A round's name label is a span now, not a video button — kill the button/link affordances so it
+   reads as the quiet identifier it is. Tapping for video happens once, in the legend. */
+span.ex-name.sub { text-decoration: none; display: block; }
+
+/* ---- Up next ----
+   The grid says WHICH DAYS; this says WHICH WORKOUT. Names live here because here they fit — 7
+   columns on a 390px phone leave ~40px per cell, which shattered "Lower Body" into "Low er Body".
+   It also fills the screen the grid can't: a 3-week plan is ~200px of a 844px phone. */
+.agenda { display: grid; gap: 6px; }
+.agenda-h { font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 700; }
+.ag-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  border: 1.5px solid var(--line); border-radius: 12px; background: #fff; border-left: 4px solid var(--bp); }
+.ag-open { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; text-align: left;
+  min-height: 52px; padding: 8px 4px 8px 12px; border: 0; background: none; color: inherit; font: inherit; min-width: 0; }
+/* S16: move a workout off the calendar. 44px — a gym tap, not a mouse click (QA-TAP-44). */
+.ag-move { flex: 0 0 auto; width: 44px; height: 44px; margin-right: 6px; border: 1.5px solid var(--line);
+  border-radius: 10px; background: #f6f7fb; color: var(--muted); font-size: 17px; font-weight: 700; }
+.move-panel { flex: 1 1 100%; border-top: 1.5px solid var(--line); padding: 10px 12px; display: grid; gap: 8px; }
+.move-h { font-size: 12px; font-weight: 700; color: var(--muted); }
+.move-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.move-opt { flex: 1 1 auto; min-height: 44px; padding: 0 10px; border: 1.5px solid var(--line);
+  border-radius: 10px; background: #fff; font: inherit; font-weight: 600; color: var(--ink); }
+.move-any { display: flex; gap: 6px; align-items: center; }
+.move-any .move-date { flex: 1 1 auto; min-height: 44px; min-width: 0; border: 1.5px solid var(--line);
+  border-radius: 10px; padding: 0 8px; font: inherit; background: #fff; }
+.move-any .move-go { flex: 0 0 auto; min-height: 44px; padding: 0 14px; border: 0; border-radius: 10px;
+  background: var(--bp); color: #fff; font: inherit; font-weight: 700; }
+.ag-when { flex: 0 0 62px; font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.ag-when.is-today { color: var(--bp); }
+.ag-name { flex: 1 1 auto; font-size: 15px; font-weight: 600; min-width: 0; }
+.ag-st { flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--muted); }
+.ag-row.st-done { border-left-color: var(--ok); background: #f7fbf8; }
+.ag-row.st-done .ag-st { color: var(--ok); }
+.ag-row.st-started { border-left-color: var(--warn); background: #fdf9f3; }
+.ag-row.st-missed { border-left-color: #c9ccd4; color: var(--muted); }
+.ag-row.st-done, .ag-row.st-started { }
+
+.vopen { display: block; min-height: 44px; line-height: 44px; }
+
+/* ---- QA-TAP-44: the controls a sweaty 15-year-old actually hits ----
+   .step (−/+) was 32×34 and .check (✓) 40×34, against a 44px minimum. These are THE two controls in
+   the app — a missed tap between sets is a missed rep. "Never more than two lines" is a constraint on
+   TEXT, not on height: a 44px control adds no line. Width stays modest so the row still fits 390px;
+   the harness fails the build (QA-NO-HSCROLL) if that stops being true. */
+/* Specificity, not order, decides: `.l2 .stepper .step` (0,3,0) beat a bare `.step` (0,1,0), so the
+   first attempt at this silently did nothing. Match the winning selector or don't bother. The shells
+   have fixed widths, so they widen too — otherwise 44px buttons just overflow their own container. */
+.l2 .stepper { width: 158px; }
+.l2 .stepper .step { width: auto; min-width: 44px; min-height: 44px; }
+.l2 .stepper.mini { width: 136px; }
+.l2 .stepper.mini .step { width: auto; min-width: 44px; min-height: 44px; }
+.l2 .check { width: auto; min-width: 44px; min-height: 44px; }
+.check { min-width: 44px; min-height: 44px; }
+.tstart, .swapbtn, .back, .vclose, .dist-in, .swap-opt, .movebtn { min-height: 44px; }
+.vclose { min-width: 44px; }

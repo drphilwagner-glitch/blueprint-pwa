@@ -218,6 +218,33 @@
     var k = (entry.ex._alt_of || entry.ex).exercise;
     (ROW_REG[k] = ROW_REG[k] || []).push(entry);
   }
+
+  // ---- Say it once (S17) ----
+  // A coach writes a complex as "A1. Chest Supported Row 3×8 @80 / A2. Incline Bench 3×8 @135" —
+  // each fact stated ONCE, and the rounds are understood. We were doing the opposite: because the
+  // layout is round-major (round 1: row, bench / round 2: row, bench / …), every round redrew the
+  // name, the level goal AND the Swap button — 3 rounds × 2 lifts × 3 facts = 18 restatements of 6.
+  // The legend below states each exercise once; the rounds under it are pure logging.
+  var LEG_REG = {};
+  function legendRow(slot, ex, timer) {
+    var lr = el('div', 'lg-row');
+    var nm = el('button', 'ex-name lg-name', exLabel(ex)); nm.type = 'button';
+    if (ex.video_url) nm.classList.add('has-video');
+    nm.addEventListener('click', function () { openVideo(ex.video_url); });
+    lr.appendChild(nm);
+    // The level goal is a property of the exercise's rung, identical on every work set — so read it
+    // off the first work set and show it here, not once per round.
+    var firstWork = null;
+    (ex.sets || []).forEach(function (t) { if (!firstWork && t.kind !== 'warmup') firstWork = t; });
+    var gt = firstWork ? goalTarget(ex, firstWork) : null;
+    if (gt) lr.appendChild(gt);
+    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
+      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄ Swap';
+      sw.addEventListener('click', function () { toggleSwap(lr, ex); });
+      lr.appendChild(sw);
+    }
+    return lr;
+  }
   // Build the row descriptor for one choice — either the original exercise, or an alternate carrying
   // its OWN dosing (Alternates-tab reps, no external load).
   function swapTarget(a, oEx, oT) {
@@ -240,12 +267,23 @@
       var newRow = exerciseRow(en.slot, tgt.ex, tgt.t, en.timer, en.isASide);
       if (en.row.parentNode) en.row.replaceWith(newRow);
     });
+    // The legend now owns the name/goal/Swap, so a swap has to redraw it too — otherwise the header
+    // would still name the exercise you just swapped away from.
+    var lg = LEG_REG[key];
+    if (lg) {
+      var lEx = lg.ex._alt_of || lg.ex;
+      var tgt2 = swapTarget(a, lEx, (lEx.sets && lEx.sets[0]) || {});
+      tgt2.ex.sets = lEx.sets;              // alternates carry no sets[]; the goal lookup needs them
+      var newLeg = legendRow(lg.slot, tgt2.ex, lg.timer);
+      if (lg.node.parentNode) lg.node.replaceWith(newLeg);
+      LEG_REG[key] = { node: newLeg, ex: tgt2.ex, slot: lg.slot, timer: lg.timer };
+    }
   }
   // Swap panel: pick a reason-tagged alternate → every set of that exercise becomes it, with the
   // alternate's own dosing. "Keep original" reverts. Works from an alternate row too (_alt_of).
   // PRINCIPLES 1+2: the reason is shown as-is (Phil edits the Alternates 'reason' column to plain
   // words), and the list shows only the reason + movement — never the dosing.
-  function toggleSwap(row, ex, t, slot, timer, isASide) {
+  function toggleSwap(row, ex) {
     var open = row.querySelector('.swap-panel');
     if (open) { open.remove(); return; }
     var origEx = ex._alt_of || ex;
@@ -296,9 +334,7 @@
   }
   function conditioningRow(slot, ex, t) {
     var row = el('div', 'ex-row cond');
-    var name = el('button', 'ex-name', exLabel(ex)); name.type = 'button';
-    if (ex.video_url) { name.classList.add('has-video'); name.addEventListener('click', function () { openVideo(ex.video_url); }); }
-    row.appendChild(name);
+    if (slot.exercises && slot.exercises.length > 1) row.appendChild(el('span', 'ex-name sub', exLabel(ex)));
     var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
       : ((t.target_reps || 1) + (t.work_s ? (' × ' + t.work_s + 's work / ' + (t.rest_s || 0) + 's rest') : ' reps'));
     row.appendChild(el('div', 'gt', 'Set ' + t.set_no + ' · ' + scheme));
@@ -332,19 +368,19 @@
     var row = el('div', 'ex-row' + (t.kind === 'warmup' ? ' warmup' : ''));
     var cur = { exercise: ex.exercise, video: ex.video_url };   // swap target
 
-    // --- line 1: name · level goal (muted) .......... ⇄ Swap ---
-    var l1 = el('div', 'l1');
-    var name = el('button', 'ex-name', exLabel(ex)); name.type = 'button';
-    if (ex.video_url) name.classList.add('has-video');
-    name.addEventListener('click', function () { openVideo(cur.video); });   // plays in-app
-    l1.appendChild(name);   // warm-up is shown on the Set label (round-title), not after the name
-    var gtag = goalTarget(ex, t); if (gtag) l1.appendChild(gtag);   // level goal on line 1 (only for leveled lifts)
-    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
-      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄ Swap';
-      sw.addEventListener('click', function () { toggleSwap(row, ex, t, slot, timer, isASide); });
-      l1.appendChild(sw);
+    // --- line 1: the name, ONLY when the round needs it to tell two lifts apart ---
+    // Name, level goal and Swap now live once in the slot legend (S17). In a complex you still need
+    // to know which lift this row is, so the name stays — demoted. In a single-exercise slot the
+    // legend already said it, and repeating it on every set is pure noise: the row drops to one line.
+    var multi = !!(slot.exercises && slot.exercises.length > 1);
+    if (multi) {
+      var l1 = el('div', 'l1');
+      // Deliberately NOT a video link: the legend above owns that. A blue underlined name on every
+      // set made the most repeated fact the loudest thing on screen. Here it's a quiet label.
+      var name = el('span', 'ex-name sub', exLabel(ex));
+      l1.appendChild(name);
+      row.appendChild(l1);
     }
-    row.appendChild(l1);
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
     var state = { load: prefill, reps: t.target_reps };
@@ -433,7 +469,7 @@
 
   function render(s) {
     SESSION = s;
-    ROW_REG = {};   // fresh row registry per session render
+    ROW_REG = {}; LEG_REG = {};   // fresh registries per session render
     renderNav('wo');
     meta.textContent = (s.name || s.theme) + ' · ' + s.date;
     app.innerHTML = '';
@@ -465,6 +501,16 @@
       card.appendChild(head);
       var timer = makeTimer(timerNode, pauseBtn, slot.interval_s || 300);
       startBtn.addEventListener('click', function () { timer.start(); startBtn.hidden = true; });
+
+      // The prescription, stated once — the way a coach writes it on paper.
+      var legend = el('div', 'ex-legend');
+      slot.exercises.forEach(function (ex) {
+        var lr = legendRow(slot, ex, timer);
+        LEG_REG[(ex._alt_of || ex).exercise] = { node: lr, ex: ex, slot: slot, timer: timer };
+        legend.appendChild(lr);
+      });
+      card.appendChild(legend);
+
       var body = el('div', 'sets');
       var aSide = slot.exercises[0];
       var maxSets = 0;
@@ -539,11 +585,14 @@
         cell.appendChild(el('div', 'cal-num', String(d.getDate())));
         var list = byDate[key] || [];
         if (!list.length) cell.classList.add('empty');
-        list.forEach(function (s) {   // one tappable chip per workout on this day
+        // A 390px phone gives each of 7 columns ~40px. "Lower Body" cannot fit in 40px, so it was
+        // being shattered mid-word ("Low er Body", "Conditi oning"). The grid answers "which days do
+        // I train, and did I?" — a status bar answers that in 40px. The NAME is answered by the list
+        // below, where there's room to read it.
+        list.forEach(function (s) {
           var chip = el('button', 'cal-chip st-' + s.status); chip.type = 'button';
-          chip.appendChild(el('span', 'chip-name', s.name || s.theme || 'session'));
-          if (s.status === 'done') chip.appendChild(el('span', 'chip-tick', '✓'));
-          else if (s.status === 'missed') chip.appendChild(el('span', 'chip-tick', '–'));
+          chip.title = s.name || s.theme || 'session';
+          chip.appendChild(el('span', 'chip-tick', s.status === 'done' ? '✓' : s.status === 'missed' ? '–' : ''));
           (function (sid) { chip.addEventListener('click', function () { openSession(sid); }); })(s.session_id);
           cell.appendChild(chip);
         });
@@ -552,6 +601,84 @@
       cal.appendChild(row); mon.setDate(mon.getDate() + 7); guard++;
     }
     app.appendChild(cal);
+
+    // ---- Up next: the workout names, where they actually fit ----
+    // This is also what fills the screen. Phil: "the calendar fills up about 10% of the screen" — the
+    // grid is only ~3 rows tall on a short plan, and the rest of an 844px phone was blank.
+    var upcoming = sessions.filter(function (s) { return s.date >= today || s.status === 'started' || s.status === 'missed'; });
+    if (!upcoming.length) upcoming = sessions.slice(-4);
+    var lst = el('div', 'agenda');
+    lst.appendChild(el('div', 'agenda-h', 'Up next'));
+    upcoming.slice(0, 8).forEach(function (s) {
+      var wrap = el('div', 'ag-row st-' + s.status);
+      var b = el('button', 'ag-open'); b.type = 'button';       // a <button> can't nest a <button>
+      var when = el('span', 'ag-when', s.date === today ? 'Today' : dowLabel(s.date));
+      if (s.date === today) when.classList.add('is-today');
+      b.appendChild(when);
+      b.appendChild(el('span', 'ag-name', s.name || s.theme || 'session'));
+      b.appendChild(el('span', 'ag-st', s.status === 'done' ? '✓ done' : s.status === 'missed' ? 'missed' : s.status === 'started' ? 'started' : ''));
+      b.addEventListener('click', function () { openSession(s.session_id); });
+      wrap.appendChild(b);
+
+      // S16: move a workout from the calendar — "if u miss one, you can move it forward".
+      // Only offered where it can actually succeed: the server freezes any session that has logged
+      // sets, and sendMove is a no-cors POST whose response we CANNOT read — so an offer we can't
+      // honour would fail silently and look like the app ignored the tap. done/started have logs.
+      if (s.status === 'planned' || s.status === 'missed') {
+        var mv = el('button', 'ag-move', '⇄'); mv.type = 'button';
+        mv.title = 'Move to another day';
+        mv.addEventListener('click', function () { toggleMove(wrap, s); });
+        wrap.appendChild(mv);
+      }
+      lst.appendChild(wrap);
+    });
+    app.appendChild(lst);
+  }
+  // Move panel, opened from an agenda row. Two ways to land a date: the quick chips (what an athlete
+  // actually wants — "push it to tomorrow"), or a date field for anything else.
+  function toggleMove(wrap, s) {
+    var open = wrap.querySelector('.move-panel');
+    if (open) { open.remove(); return; }
+    var p = el('div', 'move-panel');
+    p.appendChild(el('div', 'move-h', 'Move “' + (s.name || s.theme || 'workout') + '” to'));
+    function go(iso) {
+      p.innerHTML = ''; p.appendChild(el('div', 'move-h', 'Moving to ' + dowLabel(iso) + '…'));
+      sendMove(s.session_id, iso);
+      setTimeout(loadHome, 1300);   // re-read the week; the server bumped the plan version
+    }
+    // A MISSED workout is moved FORWARD from today ("if u miss one, you can move it forward") — its
+    // own date is in the past, so "tomorrow" relative to THAT is still in the past. A workout still
+    // ahead of you is pushed back from where it sits. Same button, two honest meanings.
+    var today2 = todayISO(), past = s.date < today2;
+    var quick = el('div', 'move-quick');
+    var opts = past ? [['Today', 0], ['Tomorrow', 1], ['Next week', 7]]
+                    : [['+1 day', 1], ['+2 days', 2], ['+1 week', 7]];
+    opts.forEach(function (q) {
+      var b = el('button', 'move-opt', q[0]); b.type = 'button';
+      b.addEventListener('click', function () { go(addDays(past ? today2 : s.date, q[1])); });
+      quick.appendChild(b);
+    });
+    p.appendChild(quick);
+    var row = el('div', 'move-any');
+    var dIn = el('input', 'move-date'); dIn.type = 'date';
+    dIn.value = past ? today2 : s.date;      // never open the picker on a date that's already gone
+    dIn.min = today2;                        // and never let one be chosen
+    var gBtn = el('button', 'move-go', 'Move'); gBtn.type = 'button';
+    gBtn.addEventListener('click', function () { if (dIn.value) go(dIn.value); });
+    row.appendChild(dIn); row.appendChild(gBtn); p.appendChild(row);
+    wrap.appendChild(p);
+  }
+  function addDays(iso, n) {
+    var p = String(iso).split('-');
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    d.setDate(d.getDate() + n);
+    return ymd(d);
+  }
+  // "2026-07-20" -> "Mon 20" — parsed as local, not UTC (new Date("YYYY-MM-DD") is UTC and can slip a day).
+  function dowLabel(iso) {
+    var p = String(iso).split('-');
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] + ' ' + d.getDate();
   }
   // ---- bottom nav: Calendar / Workout / Profile, reachable from any screen (S18 AC1) ----
   var NAV = null;

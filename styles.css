@@ -237,7 +237,11 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 /* ---- calendar home screen ---- */
 .back { background: none; border: 0; color: var(--bp); font-size: 14px; font-weight: 700; padding: 4px 2px; margin-bottom: 6px; }
 .cal { display: flex; flex-direction: column; gap: 6px; }
-.cal-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+/* minmax(0,1fr), not 1fr: each row is its own grid, and plain `1fr` (= minmax(auto,1fr)) can't shrink
+   below its content — so one long chip ("Conditioning") widens that column in that row only and the
+   calendar's columns wander row to row. Caught by the harness (QA-CAL-FIT). */
+.cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal-cell, .cal-chip, .chip-name { min-width: 0; }
 .cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
 .cal-cell { min-height: 62px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
   padding: 4px 3px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
@@ -269,3 +273,72 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 .movebtn, .move-go { border: 1px solid var(--line); background: #f7f9ff; color: var(--bp); font-weight: 700; font-size: 13px; border-radius: 9px; padding: 8px 12px; }
 .move-go { background: var(--bp); color: #fff; border-color: var(--bp); }
 .move-date { border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; font-size: 14px; background: #fff; color: var(--ink); }
+
+/* ============================================================================
+   Defect batch (qa/ISSUES.md D-02, D-03, D-08) — see QA-CHECKLIST.md QA-02, QA-07.
+   ========================================================================== */
+/* D-08 / QA-07: the slot title takes the slack so the timer cluster pins RIGHT
+   (it was spreading to the middle under space-between with 4 children). */
+.slot-head .slot-title { flex: 1 1 auto; min-width: 0; }
+
+/* D-02 / QA-02: the secondary reps stepper was too narrow, so the value overran the
+   "reps" unit and it read "EPS". Wider tile + the unit never shrinks. */
+.l2 .stepper.mini { width: 106px; }
+.l2 .stepper.mini .step { width: 26px; }
+.l2 .stepper.mini .val { min-width: 0; padding: 0; }
+.l2 .stepper .unit { flex: 0 0 auto; white-space: nowrap; }
+
+/* D-03 / QA-02: long athlete-facing names were ellipsized and unreadable
+   ("bilateral chest supported row"). Wrap instead of hiding. */
+.l1 .ex-name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word; }
+.l1 { align-items: flex-start; }
+.l1 .goaltag, .l1 .swapbtn { margin-top: 1px; }
+
+/* QA-04: escape hatch under a blocked embed */
+.vopen { display: block; margin-top: 10px; text-align: center; color: #fff; opacity: .85; font-size: 13px; font-weight: 600; text-decoration: underline; }
+
+/* Timer batch: "Begin complex · 3:00" is the one control that must get pressed (it sets the whole
+   rest stimulus), so it stays the dark accent and gets real presence. PRINCIPLES 7: the dark accent
+   is reserved for the one unique control on screen. */
+.tstart { min-height: 38px; font-size: 13px; font-weight: 800; padding: 0 14px; border-radius: 9px;
+  letter-spacing: .2px; box-shadow: 0 2px 8px rgba(11,61,145,.28); }
+
+/* REST phase of a conditioning interval reads amber; WORK/GO stays green. */
+.talert.rest .talert-big { background: var(--warn); }
+.talert.rest .talert-sub { color: var(--warn); }
+
+/* ============================================================================
+   S18 Athlete Profile + bottom nav.
+   Designed around DISTANCE-TO-NEXT-RUNG: a sub-level takes 3-12 weeks, so a table of
+   bests would sit frozen for months. The bar is the unit of hope; bests are the record.
+   ========================================================================== */
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(3, 1fr);
+  background: rgba(255,255,255,.96); border-top: 1px solid var(--line); backdrop-filter: blur(8px);
+  padding-bottom: env(safe-area-inset-bottom); }
+.nav-b { border: 0; background: none; padding: 8px 4px 7px; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); }
+.nav-i { font-size: 17px; line-height: 1; filter: grayscale(1); opacity: .55; }
+.nav-t { font-size: 10px; font-weight: 700; letter-spacing: .2px; }
+.nav-b.on { color: var(--bp); }
+.nav-b.on .nav-i { filter: none; opacity: 1; }
+#app { padding-bottom: 76px; }   /* clear the fixed nav */
+
+.pcard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px;
+  box-shadow: 0 1px 2px rgba(20,30,60,.04); display: grid; gap: 7px; }
+.p-top { display: flex; align-items: center; gap: 8px; }
+.p-name { flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 700; overflow-wrap: break-word; }
+.p-lvl { flex: none; font-size: 11px; font-weight: 800; color: var(--bp); background: #eef2fb; border-radius: 999px; padding: 3px 9px; letter-spacing: .3px; }
+.p-lvl.maxed { color: var(--ok); background: #eaf6ee; }
+.p-togo { font-size: 17px; font-weight: 800; color: var(--ink); letter-spacing: -.2px; }
+.p-togo.maxed { color: var(--ok); font-size: 15px; }
+.p-bar { height: 8px; border-radius: 999px; background: #eef1f7; overflow: hidden; }
+.p-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--bp), #3f6fd1); transition: width .4s ease; }
+.p-goal { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.p-empty { font-size: 12px; color: var(--muted); font-style: italic; }
+.p-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 1px; }
+.p-stat { background: #fafbfe; border: 1px solid var(--line); border-radius: 9px; padding: 7px 9px; }
+.p-sv { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.p-sl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; margin-top: 1px; }
+@media (prefers-color-scheme: dark) {
+  .nav { background: rgba(23,26,34,.96); }
+  .p-stat { background: #171a22; }
+}

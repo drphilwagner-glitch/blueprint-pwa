@@ -95,8 +95,12 @@
       } catch (e) {}
       if (navigator.vibrate) { try { navigator.vibrate([200, 80, 200]); } catch (e) {} }
     }
-    function timerAlert() {
-      var ov = el('div', 'talert'); ov.appendChild(el('div', 'talert-big', "Rest done")); ov.appendChild(el('div', 'talert-sub', 'next set — go'));
+    // Half-screen banner. Used by every timer that ends or changes phase — the complex roll-over,
+    // conditioning WORK<->REST changes, and hold completion. `cls` tints it (rest = amber).
+    function timerAlert(big, sub, cls) {
+      var ov = el('div', 'talert' + (cls ? ' ' + cls : ''));
+      ov.appendChild(el('div', 'talert-big', big || 'Rest done'));
+      ov.appendChild(el('div', 'talert-sub', sub || 'next set — go'));
       document.body.appendChild(ov);
       requestAnimationFrame(function () { ov.classList.add('show'); });
       setTimeout(function () { ov.classList.remove('show'); setTimeout(function () { ov.remove(); }, 300); }, 1700);
@@ -105,7 +109,7 @@
     var st = { running: false, paused: false, end: 0, rem: interval, t: null };
     function tick() {
       var left = Math.max(0, Math.round((st.end - Date.now()) / 1000));
-      if (left <= 0) { st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert(); }
+      if (left <= 0) { st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert('Next round', 'go'); }
       node.textContent = 'next ' + fmt(left);
       st.t = setTimeout(tick, 250);
     }
@@ -117,10 +121,15 @@
     return { start: function () { if (st.running) return; primeAudio(); st.running = true; st.end = Date.now() + interval * 1000; pauseBtn.hidden = false; tick(); } };
   }
   function startHold(btn, secs, done) {                    // duration items: countdown then log
+    primeAudio();                                          // unlock audio on the tap that starts it (iOS)
     var rem = secs; btn.disabled = true; btn.classList.add('holding'); btn.textContent = rem + 's';
     var iv = setInterval(function () {
       rem--; btn.textContent = rem + 's';
-      if (rem <= 0) { clearInterval(iv); btn.disabled = false; btn.classList.remove('holding'); done(); }
+      if (rem <= 0) {
+        clearInterval(iv); btn.disabled = false; btn.classList.remove('holding');
+        beep(); timerAlert('Done', 'hold complete');       // was silent — you'd have to watch the button
+        done();
+      }
     }, 1000);
   }
 
@@ -197,54 +206,92 @@
     } else {
       var a = el('a', 'vfallback', 'Open video ↗'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; box.appendChild(a);
     }
+    // QA-04: some sources block embedding ("Video unavailable"), and we can't detect that across
+    // origins — so ALWAYS offer a way out rather than leaving a dead player.
+    if (e) { var esc = el('a', 'vopen', "Video won't play? Open it ↗"); esc.href = url; esc.target = '_blank'; esc.rel = 'noopener'; box.appendChild(esc); }
     ov.appendChild(box); document.body.appendChild(ov);
   }
-  // Swap panel: pick a reason-tagged alternate → the row is RE-RENDERED as that alternate with its
-  // OWN dosing (the Alternates-tab reps, no external load), not the original's weight/reps. "Keep
-  // original" reverts. Works from an alternate row too (it remembers the true original via _alt_of).
+  // Registry of rendered rows, keyed by the ORIGINAL exercise, so a swap can reach every set of that
+  // exercise (QA-05), not just the row it was tapped from. Reset per render(); rebuilt rows re-register.
+  var ROW_REG = {};
+  function regRow(entry) {
+    var k = (entry.ex._alt_of || entry.ex).exercise;
+    (ROW_REG[k] = ROW_REG[k] || []).push(entry);
+  }
+  // Build the row descriptor for one choice — either the original exercise, or an alternate carrying
+  // its OWN dosing (Alternates-tab reps, no external load).
+  function swapTarget(a, oEx, oT) {
+    if (a.main) return { ex: oEx, t: oT };
+    var numReps = (a.reps !== '' && a.reps != null && !isNaN(a.reps)) ? Number(a.reps) : null;
+    return {
+      ex: { exercise: a.name, display_name: a.name, athlete_name: a.name, variant_name: '', video_url: a.video_url || '',
+        alternates: oEx.alternates, level_goal: null, mode: 'accessory', rest_s: oEx.rest_s, each_side: oEx.each_side,
+        _alt_of: oEx, _alt_t: oT },
+      t: { set_no: oT.set_no, kind: oT.kind, target_load: '', target_reps: (numReps == null ? '' : numReps), duration_s: null }
+    };
+  }
+  // QA-05: apply the choice to EVERY set of that exercise in the session.
+  function applySwapAll(key, a) {
+    var entries = (ROW_REG[key] || []).slice();
+    ROW_REG[key] = [];                      // the rebuilt rows re-register themselves
+    entries.forEach(function (en) {
+      var oEx = en.ex._alt_of || en.ex, oT = en.ex._alt_t || en.t;   // each set keeps its own set_no
+      var tgt = swapTarget(a, oEx, oT);
+      var newRow = exerciseRow(en.slot, tgt.ex, tgt.t, en.timer, en.isASide);
+      if (en.row.parentNode) en.row.replaceWith(newRow);
+    });
+  }
+  // Swap panel: pick a reason-tagged alternate → every set of that exercise becomes it, with the
+  // alternate's own dosing. "Keep original" reverts. Works from an alternate row too (_alt_of).
+  // PRINCIPLES 1+2: the reason is shown as-is (Phil edits the Alternates 'reason' column to plain
+  // words), and the list shows only the reason + movement — never the dosing.
   function toggleSwap(row, ex, t, slot, timer, isASide) {
     var open = row.querySelector('.swap-panel');
     if (open) { open.remove(); return; }
-    var origEx = ex._alt_of || ex, origT = ex._alt_t || t;
+    var origEx = ex._alt_of || ex;
     var panel = el('div', 'swap-panel');
     panel.appendChild(el('div', 'swap-h', 'Change exercise'));
     var opts = [{ main: true }].concat(origEx.alternates || []);
-    opts.forEach(function (a) {   // reason shown as-is → Phil edits the Alternates 'reason' column for the wording
-      var text = a.main ? ('↩ ' + exLabel(origEx)) : (a.reason + ': ' + a.name + (a.reps ? ' · ' + a.reps : ''));
+    opts.forEach(function (a) {
+      var text = a.main ? ('↩ ' + exLabel(origEx)) : (a.reason + ': ' + a.name);
       var b = el('button', 'swap-opt', text); b.type = 'button';
-      b.addEventListener('click', function () {
-        var newRow;
-        if (a.main) {
-          newRow = exerciseRow(slot, origEx, origT, timer, isASide);       // revert to the original exercise
-        } else {
-          var numReps = (a.reps !== '' && a.reps != null && !isNaN(a.reps)) ? Number(a.reps) : null;
-          var altEx = { exercise: a.name, display_name: a.name, athlete_name: a.name, variant_name: '', video_url: a.video_url || '',
-            alternates: origEx.alternates, level_goal: null, mode: 'accessory', rest_s: origEx.rest_s, each_side: origEx.each_side,
-            _alt_of: origEx, _alt_t: origT };
-          var altT = { set_no: origT.set_no, kind: origT.kind, target_load: '', target_reps: (numReps == null ? '' : numReps), duration_s: null };
-          newRow = exerciseRow(slot, altEx, altT, timer, isASide);         // reps-based row with the alternate's own reps
-          if (numReps == null && a.reps) { var g = newRow.querySelector('.gt'); if (g) { g.textContent = ''; g.appendChild(el('span', 'lbl', 'do ')); g.appendChild(el('span', 'goal', String(a.reps))); } }
-        }
-        row.replaceWith(newRow);
-      });
+      b.addEventListener('click', function () { applySwapAll(origEx.exercise, a); });
       panel.appendChild(b);
     });
     row.appendChild(panel);
   }
 
   // Conditioning: rolling work/rest timer runs all reps hands-free, then log distance.
+  // This is the one place where TIME IS THE EXERCISE (30s on / 60s off), so every phase change
+  // gets a sound + vibration + banner — you can't be expected to watch a button in the gym.
+  function cuePhase(p) {
+    beep();
+    if (p === 'WORK') timerAlert('GO', 'work');
+    else timerAlert('REST', 'recover', 'rest');
+  }
   function startIntervals(btn, reps, work, rest, done) {
+    primeAudio();                                          // unlock audio on the starting tap (iOS)
     btn.disabled = true; btn.classList.add('holding');
     var seq = [];
     for (var i = 0; i < reps; i++) { seq.push({ p: 'WORK', s: work || 0 }); if (i < reps - 1 && rest > 0) seq.push({ p: 'REST', s: rest }); }
-    var idx = 0, rem = seq.length ? seq[0].s : 0, totalWork = 0;
+    if (!seq.length) { btn.disabled = false; btn.classList.remove('holding'); done(0); return; }
+    var idx = 0, rem = seq[0].s, totalWork = 0;
+    cuePhase(seq[0].p);                                    // cue the first phase immediately
     var iv = setInterval(function () {
-      if (idx >= seq.length) { clearInterval(iv); btn.disabled = false; btn.classList.remove('holding'); done(totalWork); return; }
       var cur = seq[idx];
-      btn.textContent = cur.p + ' ' + rem + 's';
+      btn.textContent = cur.p + ' ' + Math.max(0, rem) + 's';
       if (cur.p === 'WORK') totalWork++;
       rem--;
-      if (rem < 0) { idx++; rem = idx < seq.length ? seq[idx].s : 0; }
+      if (rem < 0) {
+        idx++;
+        if (idx >= seq.length) {                           // all intervals done
+          clearInterval(iv); btn.disabled = false; btn.classList.remove('holding');
+          beep(); timerAlert('Done', 'intervals complete');
+          done(totalWork); return;
+        }
+        rem = seq[idx].s;
+        cuePhase(seq[idx].p);                              // sound + banner on every WORK<->REST change
+      }
     }, 1000);
   }
   function conditioningRow(slot, ex, t) {
@@ -348,6 +395,7 @@
     l2.appendChild(check);
     row.appendChild(l2);
     if (wasLogged) { row.classList.add('done'); check.classList.add('done'); check.textContent = '✓'; }   // show as logged; tap to edit
+    regRow({ row: row, slot: slot, ex: ex, t: t, timer: timer, isASide: isASide });   // so a swap can reach every set (QA-05)
     return row;
   }
 
@@ -385,6 +433,8 @@
 
   function render(s) {
     SESSION = s;
+    ROW_REG = {};   // fresh row registry per session render
+    renderNav('wo');
     meta.textContent = (s.name || s.theme) + ' · ' + s.date;
     app.innerHTML = '';
     var back = el('button', 'back', '← Calendar'); back.type = 'button';
@@ -406,7 +456,10 @@
       var head = el('div', 'slot-head');
       head.appendChild(el('h2', 'slot-title', slotLabel(slot.slot)));   // "Warm Up 1" / "Complex 1"
       var timerNode = el('span', 'timer');
-      var startBtn = el('button', 'tstart', '▶ timer'); startBtn.type = 'button';   // manual start (all complexes incl. warm-ups)
+      // "Begin complex · 3:00" — a check means "I already did that set", so the timer can't
+      // auto-start off one; it needs an explicit "I'm starting now". The label says what it does
+      // and how long the complex runs, so it reads without a coach standing there.
+      var startBtn = el('button', 'tstart', 'Begin complex · ' + fmt(slot.interval_s || 300)); startBtn.type = 'button';
       var pauseBtn = el('button', 'pause', '⏸'); pauseBtn.type = 'button'; pauseBtn.hidden = true;
       head.appendChild(startBtn); head.appendChild(timerNode); head.appendChild(pauseBtn);
       card.appendChild(head);
@@ -416,12 +469,14 @@
       var aSide = slot.exercises[0];
       var maxSets = 0;
       slot.exercises.forEach(function (ex) { if (ex.sets.length > maxSets) maxSets = ex.sets.length; });
-      var workNo = 0;   // number the WORK sets 1..n; warm-up rounds are labeled "Warm-up" (not "Set N")
+      // QA-06: ordinals match the athlete's real count — warm-ups are sets too, so the work sets
+      // continue from them (3 warm-ups -> the work sets read Set 4, 5, 6), never restarting at 1.
+      var warmNo = 0;
       for (var r = 0; r < maxSets; r++) {
         var roundBox = el('div', 'round');
         var aSet = aSide && aSide.sets[r];
         var isWarmRound = aSet && aSet.kind === 'warmup';
-        var title = isWarmRound ? 'Warm-up' : 'Set ' + (++workNo);
+        var title = isWarmRound ? ('Warm-up ' + (++warmNo)) : ('Set ' + (r + 1));
         roundBox.appendChild(el('div', 'round-title', title));
         var count = 0;
         slot.exercises.forEach(function (ex) {
@@ -468,7 +523,7 @@
       }).catch(function () { show('Offline — reconnect to see your plan.', 'err'); });
   }
   function renderCalendar(sessions) {
-    SESSION = null; app.innerHTML = '';
+    SESSION = null; app.innerHTML = ''; renderNav('cal');
     meta.textContent = athlete + ' · pick a workout';
     var byDate = {}; sessions.forEach(function (s) { (byDate[s.date] = byDate[s.date] || []).push(s); });   // a day can hold >1
     var ds = sessions.map(function (s) { return s.date; }).sort();
@@ -498,6 +553,80 @@
     }
     app.appendChild(cal);
   }
+  // ---- bottom nav: Calendar / Workout / Profile, reachable from any screen (S18 AC1) ----
+  var NAV = null;
+  function renderNav(active) {
+    if (!NAV) {
+      NAV = el('nav', 'nav');
+      [['cal', '📅', 'Calendar', function () { loadHome(); }],
+       ['wo', '🏋️', 'Workout', function () { openToday(); }],
+       ['prof', '📈', 'Profile', function () { loadProfile(); }]].forEach(function (d) {
+        var b = el('button', 'nav-b'); b.type = 'button'; b.dataset.k = d[0];
+        b.appendChild(el('span', 'nav-i', d[1])); b.appendChild(el('span', 'nav-t', d[2]));
+        b.addEventListener('click', d[3]);
+        NAV.appendChild(b);
+      });
+      document.body.appendChild(NAV);
+    }
+    Array.prototype.forEach.call(NAV.querySelectorAll('.nav-b'), function (b) { b.classList.toggle('on', b.dataset.k === active); });
+  }
+  // "Workout" = today's session, else the next planned one (the legacy advance endpoint does this).
+  function openToday() {
+    show('Loading…'); renderNav('wo');
+    fetch(planUrl()).then(function (r) { return r.json(); }).then(function (data) {
+      if (!data.ok) return show('Access denied — check your link.', 'err');
+      if (!data.session) return show('All caught up — no upcoming session.');
+      render(data.session);
+    }).catch(function () { show('Offline — reconnect to open your workout.', 'err'); });
+  }
+
+  // ---- Profile: distance-to-next-rung first; bests are the record, not the headline ----
+  function loadProfile() {
+    show('Loading your progress…'); renderNav('prof');
+    fetch(cfg.WEBAPP_URL + '?action=profile&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+      .then(function (r) { return r.json(); }).then(function (data) {
+        if (!data.ok) return show('Access denied — check your link.', 'err');
+        renderProfile(data.exercises || []);
+      }).catch(function () { show('Offline — reconnect to see your progress.', 'err'); });
+  }
+  function renderProfile(list) {
+    SESSION = null; app.innerHTML = '';
+    meta.textContent = athlete + ' · your progress';
+    if (!list.length) { app.appendChild(el('p', 'empty', 'No exercises yet.')); return; }
+    list.forEach(function (x) {
+      var card = el('section', 'pcard');
+      var top = el('div', 'p-top');
+      top.appendChild(el('div', 'p-name', x.name));
+      if (x.level) top.appendChild(el('div', 'p-lvl' + (x.maxed ? ' maxed' : ''), x.maxed ? 'TOP' : ('L' + x.level)));
+      card.appendChild(top);
+
+      if (x.level && !x.maxed && x.to_go != null) {          // the motivating unit
+        var goalTxt = x.goal.load != null ? (x.goal.load + ' lb × ' + x.goal.reps) : (x.goal.reps + ' reps');
+        var toGoTxt = x.goal.load != null ? (x.to_go + ' lb to go') : (x.to_go + (x.to_go === 1 ? ' rep to go' : ' reps to go'));
+        card.appendChild(el('div', 'p-togo', x.to_go === 0 ? 'Ready to level up' : toGoTxt));
+        var bar = el('div', 'p-bar'); var fill = el('div', 'p-fill');
+        fill.style.width = Math.round((x.progress || 0) * 100) + '%'; bar.appendChild(fill); card.appendChild(bar);
+        card.appendChild(el('div', 'p-goal', 'next level: ' + goalTxt));
+      } else if (x.maxed) {
+        card.appendChild(el('div', 'p-togo maxed', 'Top of the ladder 🏆'));
+      }
+
+      if (!x.has_data) {                                     // AC5: explicit empty state, never a blank/zero
+        card.appendChild(el('div', 'p-empty', 'No sets logged yet — log one and your bests show up here.'));
+      } else {
+        // Only render a stat that actually applies — a bodyweight lift has no 1RM, and an em-dash
+        // in a stat tile is a blank pretending to be data (AC5).
+        var st = el('div', 'p-stats'), n = 0;
+        function stat(lbl, val) { var d = el('div', 'p-stat'); d.appendChild(el('div', 'p-sv', val)); d.appendChild(el('div', 'p-sl', lbl)); return d; }
+        if (x.best_1rm != null) { st.appendChild(stat('best est. 1RM', x.best_1rm + ' lb')); n++; }
+        if (x.best_volume != null) { st.appendChild(stat('best volume', x.best_volume + (x.volume_unit === 'reps' ? ' reps' : ' lb'))); n++; }
+        if (n === 1) st.style.gridTemplateColumns = '1fr';
+        if (n) card.appendChild(st);
+      }
+      app.appendChild(card);
+    });
+  }
+
   function openSession(sessionId) {
     show('Loading…');
     fetch(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))

@@ -444,7 +444,10 @@ span.ex-name.sub { text-decoration: none; display: block; }
 .day-dow { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .3px; }
 .day-date { font-size: 17px; font-weight: 700; color: var(--ink); }   /* "7/14", not "14" */
 .day-wos { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.wo-wrap { display: flex; align-items: stretch; gap: 6px; }
+/* column, not row: the move panel is appended here and a flex ROW squeezed it to zero width —
+   the button "did nothing" and the athlete tapped the tile instead. */
+.wo-wrap { display: flex; flex-direction: column; gap: 6px; }
+.wo-line { display: flex; align-items: stretch; gap: 6px; }
 .wo { flex: 1 1 auto; min-width: 0; text-align: left; border: 0; border-left: 4px solid var(--bp);
   border-radius: 10px; background: #f4f6fb; padding: 10px 12px; font: inherit; min-height: 56px; }
 .wo-name { font-size: 15px; font-weight: 700; color: var(--ink); overflow-wrap: break-word; }
@@ -452,3 +455,33 @@ span.ex-name.sub { text-decoration: none; display: block; }
 .wo.st-done { border-left-color: var(--ok); background: #f0faf3; }
 .wo.st-missed { border-left-color: #c9ccd4; opacity: .7; }
 .wo.st-started { border-left-color: var(--warn); background: #fdf6ec; }
+
+/* Swap: far left of the input line (Phil), so line 1 is just name + level goal and a long variant
+   name has room to stay on ONE line. */
+.l2 .swapbtn { flex: 0 0 auto; width: 40px; min-height: 44px; padding: 0; font-size: 15px;
+  border: 1.5px solid var(--line); border-radius: 9px; background: #f6f7fb; color: var(--muted); }
+.l1 .goaltag { margin-left: auto; }
+
+/* ---- S21 profile: trends are the headline, level is demoted ---- */
+.p-ai { background: #f4f6fb; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.p-ai-h { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
+.p-ai-b { font-size: 13px; color: var(--ink); margin-top: 3px; }
+.pcard { display: flex; flex-direction: column; gap: 9px; }
+.p-name { font-size: 15px; font-weight: 700; overflow-wrap: break-word; }
+/* headline stat: label, big value, then the two trends — the thing Phil wants to read first */
+.p-stat { background: #fafbfe; border: 1px solid var(--line); border-radius: 11px; padding: 9px 11px; }
+.p-sl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.p-sv { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 1px 0 6px; }
+.p-trends { display: flex; gap: 8px; }
+.p-trow { flex: 1 1 0; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; min-height: 30px; }
+.p-tw { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.p-tr { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.p-tr.up { color: var(--ok); }
+.p-tr.down { color: #c0392b; }
+.p-tr.flat { color: var(--muted); }
+.p-tr.none { font-size: 10px; font-weight: 600; color: #aab; }
+/* level: quiet, non-bold, third */
+.p-level { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--muted); }
+.p-level-l { font-weight: 700; color: var(--ink); }
+.p-level-g { font-size: 11px; }

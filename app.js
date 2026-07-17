@@ -386,11 +386,6 @@
     name.addEventListener('click', function () { openVideo(cur.video); });
     l1.appendChild(name);
     var gtag = goalTarget(ex, t); if (gtag) l1.appendChild(gtag);
-    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
-      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄ Swap';
-      sw.addEventListener('click', function () { toggleSwap(row, ex); });
-      l1.appendChild(sw);
-    }
     row.appendChild(l1);
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
@@ -409,6 +404,13 @@
 
     // --- line 2: [hold hint] · [subtle reps] · primary weight/reps stepper · ✓ (right-aligned lanes) ---
     var l2 = el('div', 'l2');
+    // Swap sits far left on the input line, out of the name's way — one less thing crowding line 1.
+    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
+      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
+      sw.title = 'Change exercise';
+      sw.addEventListener('click', function () { toggleSwap(row, ex); });
+      l2.appendChild(sw);
+    }
     if (isDur) {
       l2.appendChild(el('span', 'gt', t.duration_s + 's hold'));
       if (weighted) l2.appendChild(stepper(state, 'load', 2.5, 'lb'));   // loaded carry gets a weight field
@@ -608,6 +610,7 @@
       var slot = el('div', 'day-wos');
       (byDate[k] || []).forEach(function (s) {
         var wrap = el('div', 'wo-wrap');
+        var line = el('div', 'wo-line');
         var b = el('button', 'wo st-' + s.status); b.type = 'button';
         b.appendChild(el('div', 'wo-name', s.name || s.theme || 'session'));
         var sub = (s.n_ex ? s.n_ex + ' exercise' + (s.n_ex === 1 ? '' : 's') : '');
@@ -616,12 +619,13 @@
         else if (s.status === 'started') sub = 'started' + (sub ? ' · ' + sub : '');
         b.appendChild(el('div', 'wo-sub', sub));
         b.addEventListener('click', function () { openSession(s.session_id); });
-        wrap.appendChild(b);
+        line.appendChild(b);
         if (s.status === 'planned' || s.status === 'missed') {   // S16: move, from the calendar
           var mv = el('button', 'ag-move', '⇄'); mv.type = 'button'; mv.title = 'Move to another day';
-          mv.addEventListener('click', function () { toggleMove(wrap, s); });
-          wrap.appendChild(mv);
+          mv.addEventListener('click', function (ev) { ev.stopPropagation(); toggleMove(wrap, s); });
+          line.appendChild(mv);
         }
+        wrap.appendChild(line);       // the panel is appended to `wrap`, BELOW this line, full width
         slot.appendChild(wrap);
       });
       row.appendChild(slot);
@@ -631,6 +635,46 @@
     app.appendChild(list);
   }
   function dowName(d) { return ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][d.getDay()]; }
+  function dowLabel(iso) { var p = String(iso).split('-'); var d = new Date(+p[0], +p[1] - 1, +p[2]); return dowName(d) + ' ' + (d.getMonth() + 1) + '/' + d.getDate(); }
+  function addDays(iso, n) {
+    var p = String(iso).split('-');
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    d.setDate(d.getDate() + n);
+    return ymd(d);
+  }
+
+  // Move panel, opened from a day row. A MISSED workout moves FORWARD from today ("if u miss one,
+  // you can move it forward") — "tomorrow" relative to its own past date is still in the past. One
+  // still ahead of you is pushed back from where it sits.
+  function toggleMove(wrap, s) {
+    var open = wrap.querySelector('.move-panel');
+    if (open) { open.remove(); return; }
+    var p = el('div', 'move-panel');
+    p.appendChild(el('div', 'move-h', 'Move \u201c' + (s.name || s.theme || 'workout') + '\u201d to'));
+    function go(iso) {
+      p.innerHTML = ''; p.appendChild(el('div', 'move-h', 'Moving to ' + dowLabel(iso) + '\u2026'));
+      sendMove(s.session_id, iso);
+      setTimeout(loadHome, 1300);
+    }
+    var today2 = todayISO(), past = s.date < today2;
+    var quick = el('div', 'move-quick');
+    var opts = past ? [['Today', 0], ['Tomorrow', 1], ['Next week', 7]]
+                    : [['+1 day', 1], ['+2 days', 2], ['+1 week', 7]];
+    opts.forEach(function (q) {
+      var b = el('button', 'move-opt', q[0]); b.type = 'button';
+      b.addEventListener('click', function () { go(addDays(past ? today2 : s.date, q[1])); });
+      quick.appendChild(b);
+    });
+    p.appendChild(quick);
+    var rowEl = el('div', 'move-any');
+    var dIn = el('input', 'move-date'); dIn.type = 'date';
+    dIn.value = past ? today2 : s.date;
+    dIn.min = today2;
+    var gBtn = el('button', 'move-go', 'Move'); gBtn.type = 'button';
+    gBtn.addEventListener('click', function () { if (dIn.value) go(dIn.value); });
+    rowEl.appendChild(dIn); rowEl.appendChild(gBtn); p.appendChild(rowEl);
+    wrap.appendChild(p);
+  }
 
   // ---- bottom nav: Calendar / Workout / Profile, reachable from any screen (S18 AC1) ----
   var NAV = null;
@@ -668,39 +712,62 @@
         renderProfile(data.exercises || []);
       }).catch(function () { show('Offline — reconnect to see your progress.', 'err'); });
   }
+  // S21 profile (Phil): the two things that matter per exercise are "is my best one-set up or down"
+  // and "is my volume up or down" — 7-day and 30-day. Those are the HEADLINE. Where you sit on the
+  // level ladder is a demoted, non-bold third line. No 1RM on a bodyweight lift; no reps stat on a
+  // weighted one.
+  function trendChip(tr) {
+    // tr: { dir:'up'|'down'|'flat', pct, from, to } or null (not enough history)
+    if (!tr) { return el('span', 'p-tr none', '— not yet'); }
+    var arrow = tr.dir === 'up' ? '▲' : tr.dir === 'down' ? '▼' : '▬';
+    var txt = arrow + (tr.pct != null ? ' ' + (tr.pct > 0 ? '+' : '') + tr.pct + '%' : '');
+    return el('span', 'p-tr ' + tr.dir, txt);
+  }
+  function statBlock(label, value, t7, t30) {
+    var b = el('div', 'p-stat');
+    b.appendChild(el('div', 'p-sl', label));
+    b.appendChild(el('div', 'p-sv', value));
+    var tr = el('div', 'p-trends');
+    var w7 = el('div', 'p-trow'); w7.appendChild(el('span', 'p-tw', '7-day')); w7.appendChild(trendChip(t7)); tr.appendChild(w7);
+    var w30 = el('div', 'p-trow'); w30.appendChild(el('span', 'p-tw', '30-day')); w30.appendChild(trendChip(t30)); tr.appendChild(w30);
+    b.appendChild(tr);
+    return b;
+  }
   function renderProfile(list) {
     SESSION = null; app.innerHTML = '';
     meta.textContent = athlete + ' · your progress';
     if (!list.length) { app.appendChild(el('p', 'empty', 'No exercises yet.')); return; }
+
+    // AI summary slot — Phil is undecided ("I don't know if we even have an AI summary"). Reserved,
+    // not built: a labelled placeholder so the layout is designed for it, wired to nothing.
+    var ai = el('div', 'p-ai');
+    ai.appendChild(el('div', 'p-ai-h', 'Summary'));
+    ai.appendChild(el('div', 'p-ai-b', 'A short read on where you’re trending will appear here.'));
+    app.appendChild(ai);
+
     list.forEach(function (x) {
       var card = el('section', 'pcard');
-      var top = el('div', 'p-top');
-      top.appendChild(el('div', 'p-name', x.name));
-      if (x.level) top.appendChild(el('div', 'p-lvl' + (x.maxed ? ' maxed' : ''), x.maxed ? 'TOP' : ('L' + x.level)));
-      card.appendChild(top);
+      card.appendChild(el('div', 'p-name', x.name));
 
-      if (x.level && !x.maxed && x.to_go != null) {          // the motivating unit
-        var goalTxt = x.goal.load != null ? (x.goal.load + ' lb × ' + x.goal.reps) : (x.goal.reps + ' reps');
-        var toGoTxt = x.goal.load != null ? (x.to_go + ' lb to go') : (x.to_go + (x.to_go === 1 ? ' rep to go' : ' reps to go'));
-        card.appendChild(el('div', 'p-togo', x.to_go === 0 ? 'Ready to level up' : toGoTxt));
-        var bar = el('div', 'p-bar'); var fill = el('div', 'p-fill');
-        fill.style.width = Math.round((x.progress || 0) * 100) + '%'; bar.appendChild(fill); card.appendChild(bar);
-        card.appendChild(el('div', 'p-goal', 'next level: ' + goalTxt));
-      } else if (x.maxed) {
-        card.appendChild(el('div', 'p-togo maxed', 'Top of the ladder 🏆'));
-      }
-
-      if (!x.has_data) {                                     // AC5: explicit empty state, never a blank/zero
+      if (!x.has_data) {
         card.appendChild(el('div', 'p-empty', 'No sets logged yet — log one and your bests show up here.'));
       } else {
-        // Only render a stat that actually applies — a bodyweight lift has no 1RM, and an em-dash
-        // in a stat tile is a blank pretending to be data (AC5).
-        var st = el('div', 'p-stats'), n = 0;
-        function stat(lbl, val) { var d = el('div', 'p-stat'); d.appendChild(el('div', 'p-sv', val)); d.appendChild(el('div', 'p-sl', lbl)); return d; }
-        if (x.best_1rm != null) { st.appendChild(stat('best est. 1RM', x.best_1rm + ' lb')); n++; }
-        if (x.best_volume != null) { st.appendChild(stat('best volume', x.best_volume + (x.volume_unit === 'reps' ? ' reps' : ' lb'))); n++; }
-        if (n === 1) st.style.gridTemplateColumns = '1fr';
-        if (n) card.appendChild(st);
+        var tr = x.trend || {};
+        if (x.best_one != null) card.appendChild(statBlock('Best one set', x.best_one + ' ' + (x.best_one_unit || ''), tr.one_7, tr.one_30));
+        if (x.best_volume != null) card.appendChild(statBlock('Best volume', x.best_volume + (x.volume_unit === 'reps' ? ' reps' : ' lb·reps'), tr.vol_7, tr.vol_30));
+      }
+
+      // Level: demoted, non-bold, third. Where you are on the climb and how far to go.
+      if (x.level && !x.maxed && x.to_go != null) {
+        var toGoTxt = x.goal.load != null ? (x.to_go + ' lb to next level') : (x.to_go + (x.to_go === 1 ? ' rep to next level' : ' reps to next level'));
+        var lv = el('div', 'p-level');
+        lv.appendChild(el('span', 'p-level-l', 'Level ' + x.level));
+        lv.appendChild(el('span', 'p-level-g', x.to_go === 0 ? 'ready to level up' : toGoTxt));
+        card.appendChild(lv);
+        var bar = el('div', 'p-bar'); var fill = el('div', 'p-fill');
+        fill.style.width = Math.round((x.progress || 0) * 100) + '%'; bar.appendChild(fill); card.appendChild(bar);
+      } else if (x.maxed) {
+        card.appendChild(el('div', 'p-level', 'Top of the ladder 🏆'));
       }
       app.appendChild(card);
     });

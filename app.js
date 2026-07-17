@@ -116,9 +116,17 @@
     function tick() {
       var left = Math.max(0, Math.round((st.end - Date.now()) / 1000));
       if (left <= 0) {
-        idx = Math.min(idx + 1, seq.length - 1);      // hold the last round's rest once the complex ends
+        // The complex is OVER once the last round's rest has elapsed. A 1-round slot (a single carry)
+        // announcing "next round" is announcing a round that does not exist.
+        if (idx >= seq.length - 1) {
+          clearTimeout(st.t); st.running = false; st.t = null;
+          node.textContent = 'complex done'; pauseBtn.hidden = true;
+          beep(); timerAlert('Complex done', 'move on');
+          return;
+        }
+        idx += 1;
         interval = seq[idx];
-        st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert('Next round', 'go'); }
+        st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert('Next set', 'go'); }
       node.textContent = 'next ' + fmt(left);
       st.t = setTimeout(tick, 250);
     }
@@ -155,9 +163,8 @@
     var lg = ex.level_goal;
     if (!lg || (lg.load == null && lg.reps == null)) return null;
     var span = el('span', 'goaltag');
-    span.appendChild(el('span', 'lbl', 'goal'));
-    span.appendChild(el('span', 'gv', lg.load != null ? String(lg.load) : String(lg.reps)));
-    span.title = 'level goal: ' + (lg.load != null ? lg.load + ' lb' : lg.reps + ' reps');
+    span.appendChild(el('span', 'lbl', 'level goal '));
+    span.appendChild(el('span', 'gv', lg.load != null ? (lg.load + ' lb') : (lg.reps + ' reps')));
     return span;
   }
   function slotLabel(s) {                              // "WUp1" -> "Warm Up 1"; "Comp1" -> "Complex 1"
@@ -372,9 +379,19 @@
     var row = el('div', 'ex-row' + (t.kind === 'warmup' ? ' warmup' : ''));
     var cur = { exercise: ex.exercise, video: ex.video_url };   // swap target
 
-    // No name here. The legend names the exercise once (S17 AC1); a row is that set's inputs and
-    // its check (S17 AC4). Phil, seeing the half-done version: "exercise for each set and as header".
-    // In a complex the rows appear in the legend's own order, so the legend reads as the key.
+    // --- line 1: name · level goal .......... ⇄ Swap ---
+    var l1 = el('div', 'l1');
+    var name = el('button', 'ex-name', exLabel(ex)); name.type = 'button';
+    if (cur.video) name.classList.add('has-video');
+    name.addEventListener('click', function () { openVideo(cur.video); });
+    l1.appendChild(name);
+    var gtag = goalTarget(ex, t); if (gtag) l1.appendChild(gtag);
+    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
+      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄ Swap';
+      sw.addEventListener('click', function () { toggleSwap(row, ex); });
+      l1.appendChild(sw);
+    }
+    row.appendChild(l1);
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
     var state = { load: prefill, reps: t.target_reps };
@@ -392,7 +409,6 @@
 
     // --- line 2: [hold hint] · [subtle reps] · primary weight/reps stepper · ✓ (right-aligned lanes) ---
     var l2 = el('div', 'l2');
-    var gt2 = goalTarget(ex, t); if (gt2) l2.appendChild(gt2);   // goal sits WITH the inputs it judges
     if (isDur) {
       l2.appendChild(el('span', 'gt', t.duration_s + 's hold'));
       if (weighted) l2.appendChild(stepper(state, 'load', 2.5, 'lb'));   // loaded carry gets a weight field
@@ -472,17 +488,9 @@
     var back = el('button', 'back', '← Calendar'); back.type = 'button';
     back.addEventListener('click', function () { loadHome(); });
     app.appendChild(back);
-    // Move an unlogged workout to another day
-    var movable = s.slots.every(function (sl) { return sl.status === 'planned' || sl.status === 'missed'; });
-    if (movable) {
-      var mv = el('div', 'move-wrap');
-      var mBtn = el('button', 'movebtn', '⇄ Move to another day'); mBtn.type = 'button';
-      var dIn = el('input', 'move-date'); dIn.type = 'date'; dIn.hidden = true;
-      var gBtn = el('button', 'move-go', 'Move'); gBtn.type = 'button'; gBtn.hidden = true;
-      mBtn.addEventListener('click', function () { mBtn.hidden = true; dIn.hidden = false; gBtn.hidden = false; });
-      gBtn.addEventListener('click', function () { if (!dIn.value) return; gBtn.textContent = 'Moving…'; sendMove(s.session_id, dIn.value); setTimeout(loadHome, 1300); });
-      mv.appendChild(mBtn); mv.appendChild(dIn); mv.appendChild(gBtn); app.appendChild(mv);
-    }
+    // Moving a workout lives on the CALENDAR (S16), not here. Phil: "We don't need to move to
+    // another day on the workout that's shown. I would remove it." You decide what to shuffle while
+    // looking at the week, not while standing in the gym with the session open.
     s.slots.forEach(function (slot) {
       var card = el('section', 'slot');
       var head = el('div', 'slot-head');
@@ -499,14 +507,6 @@
       var timer = makeTimer(timerNode, pauseBtn, ivs);
       startBtn.addEventListener('click', function () { timer.start(); startBtn.hidden = true; });
 
-      // The prescription, stated once — the way a coach writes it on paper.
-      var legend = el('div', 'ex-legend');
-      slot.exercises.forEach(function (ex) {
-        var lr = legendRow(slot, ex, timer);
-        LEG_REG[(ex._alt_of || ex).exercise] = { node: lr, ex: ex, slot: slot, timer: timer };
-        legend.appendChild(lr);
-      });
-      card.appendChild(legend);
 
       var body = el('div', 'sets');
       var aSide = slot.exercises[0];
@@ -565,122 +565,73 @@
         renderCalendar(data.sessions);
       }).catch(function () { show('Offline — reconnect to see your plan.', 'err'); });
   }
+  // Calendar = a CURRENT-WEEK strip + a day list. Phil, after using the month grid: "the list is
+  // probably better than the calendar above. I don't know why we have the calendar above." He was
+  // right — 7 columns on a 390px phone gives each day ~40px, which is why workout names had to move
+  // out of it in the first place. The strip keeps the week at a glance; the list does the work.
+  //
+  // The DATE is its own column, not part of the tile: "some days might be zero workouts and some
+  // days might have 2". A tile-per-day can't express either.
   function renderCalendar(sessions) {
     SESSION = null; app.innerHTML = ''; renderNav('cal');
     meta.textContent = athlete + ' · pick a workout';
-    var byDate = {}; sessions.forEach(function (s) { (byDate[s.date] = byDate[s.date] || []).push(s); });   // a day can hold >1
+    var byDate = {}; sessions.forEach(function (s) { (byDate[s.date] = byDate[s.date] || []).push(s); });
+    var today = todayISO();
+
+    // --- current week strip (this week only) ---
+    var strip = el('div', 'wk');
+    var mon = mondayOf(today);
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(mon); d.setDate(d.getDate() + i);
+      var key = ymd(d);
+      var c = el('div', 'wk-d');
+      c.appendChild(el('div', 'wk-dow', ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]));
+      var num = el('div', 'wk-n', String(d.getDate()));
+      if (key === today) num.classList.add('is-today');
+      if ((byDate[key] || []).length) num.classList.add('has-wo');
+      c.appendChild(num);
+      strip.appendChild(c);
+    }
+    app.appendChild(strip);
+
+    // --- day list: every day from the first session to the last, workouts or not ---
     var ds = sessions.map(function (s) { return s.date; }).sort();
-    var today = todayISO(), first = ds[0], last = ds[ds.length - 1];
-    var cal = el('div', 'cal');
-    var head = el('div', 'cal-row cal-head'); ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(function (d) { head.appendChild(el('div', 'cal-dow', d)); }); cal.appendChild(head);
-    var mon = mondayOf(first), guard = 0;
-    while (ymd(mon) <= last && guard < 10) {
-      var row = el('div', 'cal-row');
-      for (var i = 0; i < 7; i++) {
-        var d = new Date(mon); d.setDate(d.getDate() + i); var key = ymd(d);
-        var cell = el('div', 'cal-cell'); if (key === today) cell.classList.add('today');
-        cell.appendChild(el('div', 'cal-num', String(d.getDate())));
-        var list = byDate[key] || [];
-        if (!list.length) cell.classList.add('empty');
-        // A 390px phone gives each of 7 columns ~40px. "Lower Body" cannot fit in 40px, so it was
-        // being shattered mid-word ("Low er Body", "Conditi oning"). The grid answers "which days do
-        // I train, and did I?" — a status bar answers that in 40px. The NAME is answered by the list
-        // below, where there's room to read it.
-        list.forEach(function (s) {
-          var chip = el('button', 'cal-chip st-' + s.status); chip.type = 'button';
-          chip.title = s.name || s.theme || 'session';
-          chip.appendChild(el('span', 'chip-tick', s.status === 'done' ? '✓' : s.status === 'missed' ? '–' : ''));
-          (function (sid) { chip.addEventListener('click', function () { openSession(sid); }); })(s.session_id);
-          cell.appendChild(chip);
-        });
-        row.appendChild(cell);
-      }
-      cal.appendChild(row); mon.setDate(mon.getDate() + 7); guard++;
+    var list = el('div', 'days');
+    var cur = mondayOf(ds[0] || today), last = ds[ds.length - 1] || today, guard = 0;
+    while (ymd(cur) <= last && guard++ < 70) {
+      var k = ymd(cur);
+      var row = el('div', 'day-row'); if (k === today) row.classList.add('today');
+      var g = el('div', 'day-g');
+      g.appendChild(el('div', 'day-dow', dowName(cur)));
+      g.appendChild(el('div', 'day-date', (cur.getMonth() + 1) + '/' + cur.getDate()));   // "7/14", not "14"
+      row.appendChild(g);
+      var slot = el('div', 'day-wos');
+      (byDate[k] || []).forEach(function (s) {
+        var wrap = el('div', 'wo-wrap');
+        var b = el('button', 'wo st-' + s.status); b.type = 'button';
+        b.appendChild(el('div', 'wo-name', s.name || s.theme || 'session'));
+        var sub = (s.n_ex ? s.n_ex + ' exercise' + (s.n_ex === 1 ? '' : 's') : '');
+        if (s.status === 'done') sub = '✓ done' + (sub ? ' · ' + sub : '');
+        else if (s.status === 'missed') sub = 'missed' + (sub ? ' · ' + sub : '');
+        else if (s.status === 'started') sub = 'started' + (sub ? ' · ' + sub : '');
+        b.appendChild(el('div', 'wo-sub', sub));
+        b.addEventListener('click', function () { openSession(s.session_id); });
+        wrap.appendChild(b);
+        if (s.status === 'planned' || s.status === 'missed') {   // S16: move, from the calendar
+          var mv = el('button', 'ag-move', '⇄'); mv.type = 'button'; mv.title = 'Move to another day';
+          mv.addEventListener('click', function () { toggleMove(wrap, s); });
+          wrap.appendChild(mv);
+        }
+        slot.appendChild(wrap);
+      });
+      row.appendChild(slot);
+      list.appendChild(row);
+      cur.setDate(cur.getDate() + 1);
     }
-    app.appendChild(cal);
+    app.appendChild(list);
+  }
+  function dowName(d) { return ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][d.getDay()]; }
 
-    // ---- Up next: the workout names, where they actually fit ----
-    // This is also what fills the screen. Phil: "the calendar fills up about 10% of the screen" — the
-    // grid is only ~3 rows tall on a short plan, and the rest of an 844px phone was blank.
-    var upcoming = sessions.filter(function (s) { return s.date >= today || s.status === 'started' || s.status === 'missed'; });
-    if (!upcoming.length) upcoming = sessions.slice(-4);
-    var lst = el('div', 'agenda');
-    lst.appendChild(el('div', 'agenda-h', 'Up next'));
-    upcoming.slice(0, 8).forEach(function (s) {
-      var wrap = el('div', 'ag-row st-' + s.status);
-      var b = el('button', 'ag-open'); b.type = 'button';       // a <button> can't nest a <button>
-      var when = el('span', 'ag-when', s.date === today ? 'Today' : dowLabel(s.date));
-      if (s.date === today) when.classList.add('is-today');
-      b.appendChild(when);
-      b.appendChild(el('span', 'ag-name', s.name || s.theme || 'session'));
-      var st = s.status === 'done' ? '✓ done' : s.status === 'missed' ? 'missed' : s.status === 'started' ? 'started' : '';
-      var estTxt = s.est_min ? (st ? st + ' · ' : '') + '~' + s.est_min + ' min' : st;
-      var stEl = el('span', 'ag-st', estTxt);
-      if (s.est_flag && s.est_flag !== 'ok') stEl.classList.add('est-' + s.est_flag);   // coach signal, not athlete noise
-      b.appendChild(stEl);
-      b.addEventListener('click', function () { openSession(s.session_id); });
-      wrap.appendChild(b);
-
-      // S16: move a workout from the calendar — "if u miss one, you can move it forward".
-      // Only offered where it can actually succeed: the server freezes any session that has logged
-      // sets, and sendMove is a no-cors POST whose response we CANNOT read — so an offer we can't
-      // honour would fail silently and look like the app ignored the tap. done/started have logs.
-      if (s.status === 'planned' || s.status === 'missed') {
-        var mv = el('button', 'ag-move', '⇄'); mv.type = 'button';
-        mv.title = 'Move to another day';
-        mv.addEventListener('click', function () { toggleMove(wrap, s); });
-        wrap.appendChild(mv);
-      }
-      lst.appendChild(wrap);
-    });
-    app.appendChild(lst);
-  }
-  // Move panel, opened from an agenda row. Two ways to land a date: the quick chips (what an athlete
-  // actually wants — "push it to tomorrow"), or a date field for anything else.
-  function toggleMove(wrap, s) {
-    var open = wrap.querySelector('.move-panel');
-    if (open) { open.remove(); return; }
-    var p = el('div', 'move-panel');
-    p.appendChild(el('div', 'move-h', 'Move “' + (s.name || s.theme || 'workout') + '” to'));
-    function go(iso) {
-      p.innerHTML = ''; p.appendChild(el('div', 'move-h', 'Moving to ' + dowLabel(iso) + '…'));
-      sendMove(s.session_id, iso);
-      setTimeout(loadHome, 1300);   // re-read the week; the server bumped the plan version
-    }
-    // A MISSED workout is moved FORWARD from today ("if u miss one, you can move it forward") — its
-    // own date is in the past, so "tomorrow" relative to THAT is still in the past. A workout still
-    // ahead of you is pushed back from where it sits. Same button, two honest meanings.
-    var today2 = todayISO(), past = s.date < today2;
-    var quick = el('div', 'move-quick');
-    var opts = past ? [['Today', 0], ['Tomorrow', 1], ['Next week', 7]]
-                    : [['+1 day', 1], ['+2 days', 2], ['+1 week', 7]];
-    opts.forEach(function (q) {
-      var b = el('button', 'move-opt', q[0]); b.type = 'button';
-      b.addEventListener('click', function () { go(addDays(past ? today2 : s.date, q[1])); });
-      quick.appendChild(b);
-    });
-    p.appendChild(quick);
-    var row = el('div', 'move-any');
-    var dIn = el('input', 'move-date'); dIn.type = 'date';
-    dIn.value = past ? today2 : s.date;      // never open the picker on a date that's already gone
-    dIn.min = today2;                        // and never let one be chosen
-    var gBtn = el('button', 'move-go', 'Move'); gBtn.type = 'button';
-    gBtn.addEventListener('click', function () { if (dIn.value) go(dIn.value); });
-    row.appendChild(dIn); row.appendChild(gBtn); p.appendChild(row);
-    wrap.appendChild(p);
-  }
-  function addDays(iso, n) {
-    var p = String(iso).split('-');
-    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-    d.setDate(d.getDate() + n);
-    return ymd(d);
-  }
-  // "2026-07-20" -> "Mon 20" — parsed as local, not UTC (new Date("YYYY-MM-DD") is UTC and can slip a day).
-  function dowLabel(iso) {
-    var p = String(iso).split('-');
-    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-    return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] + ' ' + d.getDate();
-  }
   // ---- bottom nav: Calendar / Workout / Profile, reachable from any screen (S18 AC1) ----
   var NAV = null;
   function renderNav(active) {

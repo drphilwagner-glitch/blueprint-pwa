@@ -236,29 +236,13 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 
 /* ---- calendar home screen ---- */
 .back { background: none; border: 0; color: var(--bp); font-size: 14px; font-weight: 700; padding: 4px 2px; margin-bottom: 6px; }
-.cal { display: flex; flex-direction: column; gap: 6px; }
-/* minmax(0,1fr), not 1fr: each row is its own grid, and plain `1fr` (= minmax(auto,1fr)) can't shrink
-   below its content — so one long chip ("Conditioning") widens that column in that row only and the
-   calendar's columns wander row to row. Caught by the harness (QA-CAL-FIT). */
-.cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
-.cal-cell, .cal-chip, .chip-name { min-width: 0; }
-.cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
-.cal-cell { min-height: 62px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
   padding: 3px 2px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
-.cal-cell.empty { background: #fafbfe; border-style: dashed; opacity: .45; }
-.cal-cell.today { border-color: var(--bp); box-shadow: 0 0 0 1px var(--bp) inset; }
-.cal-num { font-size: 11px; font-weight: 700; color: var(--muted); padding-left: 2px; }
 /* 44px tall: it opens a workout, so it's a real tap target — and the extra height is also what
    fills the screen Phil said the calendar was wasting. Width is whatever 7 columns leave in 390px
    (~45px after trimming the gaps), which is the honest ceiling for a 7-day grid on a phone. */
-.cal-chip { display: flex; align-items: center; justify-content: center; border: 0;
   border-left: 3px solid var(--bp); border-radius: 5px; background: #eef2fb; color: var(--muted);
   font-size: 12px; font-weight: 800; line-height: 1; padding: 0; min-height: 44px; }
 .chip-tick { font-weight: 800; flex: none; }
-.cal-chip.st-started { border-left-color: var(--warn); background: #fdf3e6; }
-.cal-chip.st-done { border-left-color: var(--ok); background: #eaf6ee; color: var(--muted); }
-.cal-chip.st-done .chip-tick { color: var(--ok); }
-.cal-chip.st-missed { border-left-color: #c9ccd4; background: #f3f4f6; color: var(--muted); }
 
 /* level goal moved to line 1 (muted, next to the name); line 2 gets room for both adjusters */
 .l1 .goaltag { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -365,7 +349,6 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
    Phil: "the calendar fills up about 10% of the screen". Rows are drawn per week of the plan, so a
    short plan left the rest of an 844px phone blank. Let the weeks share the leftover height instead
    of every cell sitting at its 62px floor. min-height stays as the floor for long plans. */
-.cal-cell { min-height: 54px; }
 /* A round's name label is a span now, not a video button — kill the button/link affordances so it
    reads as the quiet identifier it is. Tapping for video happens once, in the legend. */
 span.ex-name.sub { text-decoration: none; display: block; }
@@ -436,3 +419,36 @@ span.ex-name.sub { text-decoration: none; display: block; }
 
 /* S19: an out-of-window estimate is a COACH signal — muted, not a red alarm at the athlete. */
 .ag-st.est-long, .ag-st.est-short { color: var(--warn); }
+
+/* ---- Calendar: current-week strip + day list ----
+   The month grid is gone. Phil: "the list is probably better than the calendar above. I don't know
+   why we have the calendar above." Seven columns on a 390px phone leaves ~40px per day — which is
+   why the workout names had to be evicted from it in the first place. The strip answers "where am I
+   in the week" at a glance; the list does the actual work. */
+.wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px;
+  background: #fff; border: 1.5px solid var(--line); border-radius: 14px; padding: 8px 4px; }
+.wk-d { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.wk-dow { font-size: 11px; font-weight: 700; color: var(--muted); }
+.wk-n { font-size: 15px; font-weight: 700; color: var(--ink); width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.wk-n.has-wo { background: #eef2fb; color: var(--bp); }
+.wk-n.is-today { box-shadow: 0 0 0 2px var(--bp) inset; color: var(--bp); }
+
+/* The DATE is its own column, never part of the tile: "some days might be zero workouts and some
+   days might have 2" — a tile-per-day can express neither. */
+.days { display: flex; flex-direction: column; }
+.day-row { display: grid; grid-template-columns: 60px 1fr; gap: 10px; align-items: start;
+  padding: 10px 0; border-bottom: 1px solid var(--line); min-height: 56px; }
+.day-row.today .day-dow, .day-row.today .day-date { color: var(--bp); }
+.day-g { display: flex; flex-direction: column; }
+.day-dow { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .3px; }
+.day-date { font-size: 17px; font-weight: 700; color: var(--ink); }   /* "7/14", not "14" */
+.day-wos { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.wo-wrap { display: flex; align-items: stretch; gap: 6px; }
+.wo { flex: 1 1 auto; min-width: 0; text-align: left; border: 0; border-left: 4px solid var(--bp);
+  border-radius: 10px; background: #f4f6fb; padding: 10px 12px; font: inherit; min-height: 56px; }
+.wo-name { font-size: 15px; font-weight: 700; color: var(--ink); overflow-wrap: break-word; }
+.wo-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.wo.st-done { border-left-color: var(--ok); background: #f0faf3; }
+.wo.st-missed { border-left-color: #c9ccd4; opacity: .7; }
+.wo.st-started { border-left-color: var(--warn); background: #fdf6ec; }

@@ -155,8 +155,9 @@
     var lg = ex.level_goal;
     if (!lg || (lg.load == null && lg.reps == null)) return null;
     var span = el('span', 'goaltag');
-    span.appendChild(el('span', 'lbl', 'goal '));
-    span.appendChild(el('span', 'gv', lg.load != null ? (lg.load + ' lb') : (lg.reps + ' reps')));
+    span.appendChild(el('span', 'lbl', 'goal'));
+    span.appendChild(el('span', 'gv', lg.load != null ? String(lg.load) : String(lg.reps)));
+    span.title = 'level goal: ' + (lg.load != null ? lg.load + ' lb' : lg.reps + ' reps');
     return span;
   }
   function slotLabel(s) {                              // "WUp1" -> "Warm Up 1"; "Comp1" -> "Complex 1"
@@ -241,12 +242,6 @@
     if (ex.video_url) nm.classList.add('has-video');
     nm.addEventListener('click', function () { openVideo(ex.video_url); });
     lr.appendChild(nm);
-    // The level goal is a property of the exercise's rung, identical on every work set — so read it
-    // off the first work set and show it here, not once per round.
-    var firstWork = null;
-    (ex.sets || []).forEach(function (t) { if (!firstWork && t.kind !== 'warmup') firstWork = t; });
-    var gt = firstWork ? goalTarget(ex, firstWork) : null;
-    if (gt) lr.appendChild(gt);
     if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
       var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄ Swap';
       sw.addEventListener('click', function () { toggleSwap(lr, ex); });
@@ -377,19 +372,9 @@
     var row = el('div', 'ex-row' + (t.kind === 'warmup' ? ' warmup' : ''));
     var cur = { exercise: ex.exercise, video: ex.video_url };   // swap target
 
-    // --- line 1: the name, ONLY when the round needs it to tell two lifts apart ---
-    // Name, level goal and Swap now live once in the slot legend (S17). In a complex you still need
-    // to know which lift this row is, so the name stays — demoted. In a single-exercise slot the
-    // legend already said it, and repeating it on every set is pure noise: the row drops to one line.
-    var multi = !!(slot.exercises && slot.exercises.length > 1);
-    if (multi) {
-      var l1 = el('div', 'l1');
-      // Deliberately NOT a video link: the legend above owns that. A blue underlined name on every
-      // set made the most repeated fact the loudest thing on screen. Here it's a quiet label.
-      var name = el('span', 'ex-name sub', exLabel(ex));
-      l1.appendChild(name);
-      row.appendChild(l1);
-    }
+    // No name here. The legend names the exercise once (S17 AC1); a row is that set's inputs and
+    // its check (S17 AC4). Phil, seeing the half-done version: "exercise for each set and as header".
+    // In a complex the rows appear in the legend's own order, so the legend reads as the key.
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
     var state = { load: prefill, reps: t.target_reps };
@@ -407,6 +392,7 @@
 
     // --- line 2: [hold hint] · [subtle reps] · primary weight/reps stepper · ✓ (right-aligned lanes) ---
     var l2 = el('div', 'l2');
+    var gt2 = goalTarget(ex, t); if (gt2) l2.appendChild(gt2);   // goal sits WITH the inputs it judges
     if (isDur) {
       l2.appendChild(el('span', 'gt', t.duration_s + 's hold'));
       if (weighted) l2.appendChild(stepper(state, 'load', 2.5, 'lb'));   // loaded carry gets a weight field

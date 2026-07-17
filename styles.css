@@ -413,11 +413,23 @@ span.ex-name.sub { text-decoration: none; display: block; }
 /* Specificity, not order, decides: `.l2 .stepper .step` (0,3,0) beat a bare `.step` (0,1,0), so the
    first attempt at this silently did nothing. Match the winning selector or don't bother. The shells
    have fixed widths, so they widen too — otherwise 44px buttons just overflow their own container. */
-.l2 .stepper { width: 158px; }
-.l2 .stepper .step { width: auto; min-width: 44px; min-height: 44px; }
-.l2 .stepper.mini { width: 136px; }
-.l2 .stepper.mini .step { width: auto; min-width: 44px; min-height: 44px; }
-.l2 .check { width: auto; min-width: 44px; min-height: 44px; }
+/* The busiest row is goal + reps + weight + check — four things in ~350px at 390px wide, and the
+   check is the one that fell off. Budget, measured: goal 62 + mini 84 + weight 116 + check 40 +
+   3 gaps at 4 = 314. Fits 375px too (~335 available), which is Phil's stated floor.
+   Heights stay 44 (free horizontally); widths yield. "It's off screen" beats the HIG. */
+.l2 { gap: 4px; }
+.l2 .stepper { width: 116px; }
+.l2 .stepper .step { width: 30px; min-width: 0; min-height: 44px; }
+.l2 .stepper.mini { width: 84px; }
+.l2 .stepper.mini .step { width: 24px; min-width: 0; min-height: 44px; }
+.l2 .check { width: 40px; min-width: 0; min-height: 44px; }
+/* The goal, inline with the inputs it judges — Phil: "goals not by actuals". Abbreviated hard
+   because it competes with two steppers for the same 350px: "goal 262.5 lb" doesn't fit, "262.5" does.
+   The unit is already on the stepper beside it, so it isn't repeated here. */
+.l2 .goaltag { flex: 0 0 auto; font-size: 11px; line-height: 1.1; color: var(--muted); white-space: nowrap;
+  max-width: 62px; overflow: hidden; text-align: right; }
+.l2 .goaltag .lbl { display: block; font-size: 9px; letter-spacing: .2px; }
+.l2 .goaltag .gv { font-weight: 800; }
 .check { min-width: 44px; min-height: 44px; }
 .tstart, .swapbtn, .back, .vclose, .dist-in, .swap-opt, .movebtn { min-height: 44px; }
 .vclose { min-width: 44px; }

@@ -95,15 +95,28 @@
       } catch (e) {}
       if (navigator.vibrate) { try { navigator.vibrate([200, 80, 200]); } catch (e) {} }
     }
-    // Half-screen banner. Used by every timer that ends or changes phase — the complex roll-over,
-    // conditioning WORK<->REST changes, and hold completion. `cls` tints it (rest = amber).
-    function timerAlert(big, sub, cls) {
-      var ov = el('div', 'talert' + (cls ? ' ' + cls : ''));
+    // Phase banner. `sticky` = stays until the athlete taps it (the ROBUST cue: on iOS the ringer
+    // switch mutes WebAudio, so a gym phone on silent gets NO beep — Phil got exactly this). A
+    // banner that vanishes in 1.7s is missed if you glanced away; a persistent one can't be. Auto
+    // (non-sticky) is kept for fast conditioning WORK<->REST flips where a tap-to-clear would nag.
+    var _talert = null;
+    function timerAlert(big, sub, cls, sticky) {
+      if (_talert) { _talert.remove(); _talert = null; }
+      var ov = el('div', 'talert' + (cls ? ' ' + cls : '') + (sticky ? ' sticky' : ''));
       ov.appendChild(el('div', 'talert-big', big || 'Rest done'));
       ov.appendChild(el('div', 'talert-sub', sub || 'next set — go'));
+      if (sticky) ov.appendChild(el('div', 'talert-tap', 'tap to dismiss'));
       document.body.appendChild(ov);
       requestAnimationFrame(function () { ov.classList.add('show'); });
-      setTimeout(function () { ov.classList.remove('show'); setTimeout(function () { ov.remove(); }, 300); }, 1700);
+      if (sticky) {
+        _talert = ov;
+        var clear = function () { ov.classList.remove('show'); setTimeout(function () { ov.remove(); }, 300); if (_talert === ov) _talert = null; };
+        ov.addEventListener('click', clear);
+        // pulse the beep a few times while it's up — best-effort, in case the ringer IS on
+        var pulses = 0, pv = setInterval(function () { if (++pulses >= 3 || !ov.parentNode) { clearInterval(pv); return; } beep(); }, 700);
+      } else {
+        setTimeout(function () { ov.classList.remove('show'); setTimeout(function () { ov.remove(); }, 300); }, 1700);
+      }
     }
   // `intervals` is one rest per ROUND — a paired round costs more than a round with a single lift
   // (Deadlift + Step Down = 5:00, Deadlift alone = 3:00). The timer rolls THROUGH that sequence
@@ -121,12 +134,12 @@
         if (idx >= seq.length - 1) {
           clearTimeout(st.t); st.running = false; st.t = null;
           node.textContent = 'complex done'; pauseBtn.hidden = true;
-          beep(); timerAlert('Complex done', 'move on');
+          beep(); timerAlert('Complex done', 'move on', '', true);   // sticky — the last cue must not be missed
           return;
         }
         idx += 1;
         interval = seq[idx];
-        st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert('Next set', 'go'); }
+        st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert('Next set', 'go', '', true); }
       node.textContent = 'next ' + fmt(left);
       st.t = setTimeout(tick, 250);
     }
@@ -602,7 +615,7 @@
     var cur = mondayOf(ds[0] || today), last = ds[ds.length - 1] || today, guard = 0;
     while (ymd(cur) <= last && guard++ < 70) {
       var k = ymd(cur);
-      var row = el('div', 'day-row'); if (k === today) row.classList.add('today');
+      var row = el('div', 'day-row'); row.dataset.date = k; if (k === today) row.classList.add('today');   // dataset.date: drop target
       var g = el('div', 'day-g');
       g.appendChild(el('div', 'day-dow', dowName(cur)));
       g.appendChild(el('div', 'day-date', (cur.getMonth() + 1) + '/' + cur.getDate()));   // "7/14", not "14"
@@ -624,6 +637,7 @@
           var mv = el('button', 'ag-move', '⇄'); mv.type = 'button'; mv.title = 'Move to another day';
           mv.addEventListener('click', function (ev) { ev.stopPropagation(); toggleMove(wrap, s); });
           line.appendChild(mv);
+          attachDrag(b, s);   // long-press to drag onto another day (the ⇄ button stays for tap users)
         }
         wrap.appendChild(line);       // the panel is appended to `wrap`, BELOW this line, full width
         slot.appendChild(wrap);
@@ -633,6 +647,76 @@
       cur.setDate(cur.getDate() + 1);
     }
     app.appendChild(list);
+  }
+  // Long-press to pick up a workout, drag over a day, release to move it there (S22). Phil asked if
+  // moving days could be "hold it down, ideally, and move the date". Pointer Events cover touch AND
+  // mouse in one path. The ⇄ button stays for anyone who'd rather tap. Only planned/missed tiles are
+  // draggable — the server freezes anything with logged sets, and sendMove is a no-cors POST we can't
+  // read, so an un-honourable drag would fail silently.
+  function attachDrag(tile, s) {
+    var HOLD = 350, MOVE_CANCEL = 10;   // ms to arm; px of finger travel that counts as a scroll, not a hold
+    var timer = null, armed = false, ghost = null, startX = 0, startY = 0, lastRow = null;
+
+    function cleanup() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (ghost) { ghost.remove(); ghost = null; }
+      document.querySelectorAll('.day-row.drop-hi').forEach(function (r) { r.classList.remove('drop-hi'); });
+      document.body.classList.remove('dragging');
+      tile.classList.remove('lifted');
+      armed = false; lastRow = null;
+    }
+    function rowUnder(x, y) {
+      if (ghost) ghost.style.display = 'none';
+      var el0 = document.elementFromPoint(x, y);
+      if (ghost) ghost.style.display = '';
+      return el0 && el0.closest ? el0.closest('.day-row') : null;
+    }
+
+    tile.addEventListener('pointerdown', function (e) {
+      if (e.button != null && e.button !== 0) return;
+      startX = e.clientX; startY = e.clientY;
+      timer = setTimeout(function () {
+        armed = true;
+        document.body.classList.add('dragging');
+        tile.classList.add('lifted');
+        ghost = el('div', 'wo-ghost', s.name || s.theme || 'workout');
+        document.body.appendChild(ghost);
+        moveGhost(startX, startY);
+        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e2) {} }
+        try { tile.setPointerCapture(e.pointerId); } catch (e2) {}
+      }, HOLD);
+    });
+    function moveGhost(x, y) { if (ghost) { ghost.style.left = x + 'px'; ghost.style.top = y + 'px'; } }
+    tile.addEventListener('pointermove', function (e) {
+      if (!armed) {
+        // moved too far before the hold armed -> it's a scroll, not a drag; abort the pickup
+        if (timer && (Math.abs(e.clientX - startX) > MOVE_CANCEL || Math.abs(e.clientY - startY) > MOVE_CANCEL)) { clearTimeout(timer); timer = null; }
+        return;
+      }
+      e.preventDefault();
+      moveGhost(e.clientX, e.clientY);
+      var r = rowUnder(e.clientX, e.clientY);
+      if (r !== lastRow) {
+        if (lastRow) lastRow.classList.remove('drop-hi');
+        if (r && r.dataset.date !== s.date) r.classList.add('drop-hi');   // don't highlight its own day
+        lastRow = r;
+      }
+    });
+    tile.addEventListener('pointerup', function (e) {
+      if (!armed) { if (timer) { clearTimeout(timer); timer = null; } return; }   // was a tap/hold that never armed -> let click fire
+      var r = rowUnder(e.clientX, e.clientY);
+      var to = r && r.dataset.date;
+      cleanup();
+      if (to && to !== s.date) {
+        e.preventDefault();
+        show('Moving “' + (s.name || s.theme || 'workout') + '” to ' + dowLabel(to) + '…');
+        sendMove(s.session_id, to);
+        setTimeout(loadHome, 1300);
+      }
+    });
+    tile.addEventListener('pointercancel', cleanup);
+    // a drag must not also fire the tile's openSession click
+    tile.addEventListener('click', function (e) { if (armed) { e.preventDefault(); e.stopPropagation(); } }, true);
   }
   function dowName(d) { return ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][d.getDay()]; }
   function dowLabel(iso) { var p = String(iso).split('-'); var d = new Date(+p[0], +p[1] - 1, +p[2]); return dowName(d) + ' ' + (d.getMonth() + 1) + '/' + d.getDate(); }
@@ -709,7 +793,7 @@
     fetch(cfg.WEBAPP_URL + '?action=profile&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (r) { return r.json(); }).then(function (data) {
         if (!data.ok) return show('Access denied — check your link.', 'err');
-        renderProfile(data.exercises || []);
+        renderProfile(data.exercises || [], data.summary || '');
       }).catch(function () { show('Offline — reconnect to see your progress.', 'err'); });
   }
   // S21 profile (Phil): the two things that matter per exercise are "is my best one-set up or down"
@@ -733,17 +817,19 @@
     b.appendChild(tr);
     return b;
   }
-  function renderProfile(list) {
+  function renderProfile(list, summary) {
     SESSION = null; app.innerHTML = '';
     meta.textContent = athlete + ' · your progress';
     if (!list.length) { app.appendChild(el('p', 'empty', 'No exercises yet.')); return; }
 
-    // AI summary slot — Phil is undecided ("I don't know if we even have an AI summary"). Reserved,
-    // not built: a labelled placeholder so the layout is designed for it, wired to nothing.
-    var ai = el('div', 'p-ai');
-    ai.appendChild(el('div', 'p-ai-h', 'Summary'));
-    ai.appendChild(el('div', 'p-ai-b', 'A short read on where you’re trending will appear here.'));
-    app.appendChild(ai);
+    // Summary: a short coaching read on where the athlete is trending, from the server (deterministic
+    // from the same trend data the cards show, so it can't contradict them).
+    if (summary) {
+      var ai = el('div', 'p-ai');
+      ai.appendChild(el('div', 'p-ai-h', 'Summary'));
+      ai.appendChild(el('div', 'p-ai-b', summary));
+      app.appendChild(ai);
+    }
 
     list.forEach(function (x) {
       var card = el('section', 'pcard');

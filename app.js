@@ -394,11 +394,24 @@
 
     // --- line 1: name · level goal .......... ⇄ Swap ---
     var l1 = el('div', 'l1');
-    var name = el('button', 'ex-name', exLabel(ex)); name.type = 'button';
-    if (cur.video) name.classList.add('has-video');
-    name.addEventListener('click', function () { openVideo(cur.video); });
+    // Only render a tappable name when there IS a clip (QA-03). Swapped-in alternates mostly have no
+    // video in the Workbook, and a button that opens nothing reads as broken.
+    var name;
+    if (cur.video) {
+      name = el('button', 'ex-name has-video', exLabel(ex)); name.type = 'button';
+      name.addEventListener('click', function () { openVideo(cur.video); });
+    } else {
+      name = el('span', 'ex-name', exLabel(ex));
+    }
     l1.appendChild(name);
-    var gtag = goalTarget(ex, t); if (gtag) l1.appendChild(gtag);
+    // The level goal now lives in the grid's GOAL column (directly left of the weight it judges), so
+    // it must NOT also sit up here — that was the "eyes darting" split Phil described.
+    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
+      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
+      sw.title = 'Change exercise';
+      sw.addEventListener('click', function () { toggleSwap(row, ex); });
+      l1.appendChild(sw);   // one consistent spot: with the name, never inside the number grid
+    }
     row.appendChild(l1);
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
@@ -417,22 +430,24 @@
 
     // --- line 2: [hold hint] · [subtle reps] · primary weight/reps stepper · ✓ (right-aligned lanes) ---
     var l2 = el('div', 'l2');
-    // Swap sits far left on the input line, out of the name's way — one less thing crowding line 1.
-    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
-      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
-      sw.title = 'Change exercise';
-      sw.addEventListener('click', function () { toggleSwap(row, ex); });
-      l2.appendChild(sw);
+    // GOAL cell — first column, immediately LEFT of the weight it judges.
+    var goalCell = el('div', 'c-goal');
+    if (isDur) goalCell.textContent = t.duration_s + 's';
+    else if (ex.level_goal && t.kind !== 'warmup') {
+      var lg2 = ex.level_goal;
+      goalCell.textContent = lg2.load != null ? String(lg2.load) : (lg2.reps != null ? lg2.reps + 'r' : '');
     }
-    if (isDur) {
-      l2.appendChild(el('span', 'gt', t.duration_s + 's hold'));
-      if (weighted) l2.appendChild(stepper(state, 'load', 2.5, 'lb'));   // loaded carry gets a weight field
-    } else if (weighted) {
-      if (t.target_reps !== '' && t.target_reps != null) l2.appendChild(stepper(state, 'reps', 1, 'reps', 'mini'));  // secondary/subtle reps
-      l2.appendChild(stepper(state, 'load', 2.5, ''));                   // primary weight adjuster
-    } else {
-      l2.appendChild(stepper(state, 'reps', 1, ''));                     // bodyweight/stability — adjust reps (primary)
-    }
+    l2.appendChild(goalCell);
+
+    // WEIGHT column (middle) — empty placeholder when the lift carries no load, so the grid still lines up.
+    var wCell = el('div', 'c-load');
+    if ((isDur && weighted) || (!isDur && weighted)) wCell.appendChild(stepper(state, 'load', 2.5, ''));
+    l2.appendChild(wCell);
+
+    // REPS column (far) — always present: "you're always gonna have reps, but you might not have weight".
+    var rCell = el('div', 'c-reps');
+    if (!isDur && (t.target_reps !== '' && t.target_reps != null)) rCell.appendChild(stepper(state, 'reps', 1, ''));
+    l2.appendChild(rCell);
 
     var lastLogId = null;
     function commit() {   // checking = "already did it" — the timer is its own Start button, not tied to this
@@ -523,6 +538,14 @@
       startBtn.addEventListener('click', function () { timer.start(); startBtn.hidden = true; });
 
 
+      // Column headers once per slot — Phil's Everfit reference: you read the columns once, then
+      // every row's numbers land in the same place under them.
+      var hdr = el('div', 'l2 col-head');
+      hdr.appendChild(el('div', 'c-goal', 'GOAL'));
+      hdr.appendChild(el('div', 'c-load', 'WEIGHT'));
+      hdr.appendChild(el('div', 'c-reps', 'REPS'));
+      hdr.appendChild(el('div', 'c-chk', ''));
+      card.appendChild(hdr);
       var body = el('div', 'sets');
       var aSide = slot.exercises[0];
       var maxSets = 0;
@@ -565,6 +588,8 @@
   function load() {
     if (!cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return show('App not configured yet (WEBAPP_URL).', 'err');
     if (!athlete || !token) return show('Missing athlete or token — open your personal link.', 'err');
+    var open = null; try { open = sessionStorage.getItem('bp_open_session'); } catch (e) {}
+    if (open) return openSession(open);   // restore the workout a reload interrupted
     loadHome();
   }
 
@@ -588,6 +613,7 @@
   // The DATE is its own column, not part of the tile: "some days might be zero workouts and some
   // days might have 2". A tile-per-day can't express either.
   function renderCalendar(sessions) {
+    try { sessionStorage.removeItem('bp_open_session'); } catch (e) {}   // back on the calendar: forget it
     SESSION = null; app.innerHTML = ''; renderNav('cal');
     meta.textContent = athlete + ' · pick a workout';
     var byDate = {}; sessions.forEach(function (s) { (byDate[s.date] = byDate[s.date] || []).push(s); });
@@ -834,6 +860,7 @@
     list.forEach(function (x) {
       var card = el('section', 'pcard');
       card.appendChild(el('div', 'p-name', x.name));
+      if (x.variant && x.variant !== x.name) card.appendChild(el('div', 'p-var', 'currently: ' + x.variant));
 
       if (!x.has_data) {
         card.appendChild(el('div', 'p-empty', 'No sets logged yet — log one and your bests show up here.'));
@@ -860,6 +887,7 @@
   }
 
   function openSession(sessionId) {
+    try { sessionStorage.setItem('bp_open_session', sessionId); } catch (e) {}
     show('Loading…');
     fetch(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))
       .then(function (r) { return r.json(); }).then(function (data) {

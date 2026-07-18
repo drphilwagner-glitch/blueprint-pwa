@@ -278,7 +278,7 @@
       ex: { exercise: a.name, display_name: a.name, athlete_name: a.name, variant_name: '', video_url: a.video_url || '',
         alternates: oEx.alternates, level_goal: null, mode: 'accessory', rest_s: oEx.rest_s, each_side: oEx.each_side,
         _alt_of: oEx, _alt_t: oT },
-      t: { set_no: oT.set_no, kind: oT.kind, target_load: '', target_reps: (numReps == null ? '' : numReps), duration_s: null }
+      t: { set_no: oT.set_no, kind: oT.kind, target_load: '', target_reps: (numReps == null ? oT.target_reps : numReps), duration_s: null }
     };
   }
   // QA-05: apply the choice to EVERY set of that exercise in the session.
@@ -410,7 +410,7 @@
       var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
       sw.title = 'Change exercise';
       sw.addEventListener('click', function () { toggleSwap(row, ex); });
-      l1.appendChild(sw);   // one consistent spot: with the name, never inside the number grid
+      l1.appendChild(sw);   // directly beside the name — a button belongs next to what it changes
     }
     row.appendChild(l1);
 
@@ -432,21 +432,22 @@
     var l2 = el('div', 'l2');
     // GOAL cell — first column, immediately LEFT of the weight it judges.
     var goalCell = el('div', 'c-goal');
-    if (isDur) goalCell.textContent = t.duration_s + 's';
+    if (isDur) { goalCell.appendChild(el('span', 'cv', t.duration_s + 's')); }
     else if (ex.level_goal && t.kind !== 'warmup') {
       var lg2 = ex.level_goal;
-      goalCell.textContent = lg2.load != null ? String(lg2.load) : (lg2.reps != null ? lg2.reps + 'r' : '');
+      goalCell.appendChild(el('span', 'cl', 'goal'));          // label rides WITH its number
+      goalCell.appendChild(el('span', 'cv', lg2.load != null ? String(lg2.load) : String(lg2.reps)));
     }
     l2.appendChild(goalCell);
 
     // WEIGHT column (middle) — empty placeholder when the lift carries no load, so the grid still lines up.
     var wCell = el('div', 'c-load');
-    if ((isDur && weighted) || (!isDur && weighted)) wCell.appendChild(stepper(state, 'load', 2.5, ''));
+    if (weighted) wCell.appendChild(stepper(state, 'load', 2.5, 'lb'));
     l2.appendChild(wCell);
 
     // REPS column (far) — always present: "you're always gonna have reps, but you might not have weight".
     var rCell = el('div', 'c-reps');
-    if (!isDur && (t.target_reps !== '' && t.target_reps != null)) rCell.appendChild(stepper(state, 'reps', 1, ''));
+    if (!isDur && (t.target_reps !== '' && t.target_reps != null)) rCell.appendChild(stepper(state, 'reps', 1, 'reps'));
     l2.appendChild(rCell);
 
     var lastLogId = null;
@@ -538,14 +539,6 @@
       startBtn.addEventListener('click', function () { timer.start(); startBtn.hidden = true; });
 
 
-      // Column headers once per slot — Phil's Everfit reference: you read the columns once, then
-      // every row's numbers land in the same place under them.
-      var hdr = el('div', 'l2 col-head');
-      hdr.appendChild(el('div', 'c-goal', 'GOAL'));
-      hdr.appendChild(el('div', 'c-load', 'WEIGHT'));
-      hdr.appendChild(el('div', 'c-reps', 'REPS'));
-      hdr.appendChild(el('div', 'c-chk', ''));
-      card.appendChild(hdr);
       var body = el('div', 'sets');
       var aSide = slot.exercises[0];
       var maxSets = 0;

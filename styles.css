@@ -50,7 +50,7 @@ body {
 .ex-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
 .ex-row.warmup { background: #fbfbfe; }
 .ex-row.done { border-color: var(--ok); background: #f0faf3; }
-.ex-name { flex: 1 1 100%; text-align: left; background: none; border: 0; font: inherit; font-weight: 600; color: var(--ink); padding: 0; display: flex; align-items: center; gap: 8px; }
+.ex-name { flex: 0 1 auto; text-align: left; background: none; border: 0; font: inherit; font-weight: 600; color: var(--ink); padding: 0; display: flex; align-items: center; gap: 8px; }
 .ex-name.has-video { color: var(--bp); text-decoration: underline; }
 .fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; }
 .stepper { display: flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 8px; padding: 2px; background: #fff; }
@@ -188,7 +188,7 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 .ex-row.done { border-color: var(--ok); background: #f0faf3; }
 
 .l1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.l1 .ex-name { flex: 1 1 auto; min-width: 0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.l1 .ex-name { flex: 0 1 auto; min-width: 0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-size: 14px; font-weight: 600; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); }
 .l1 .ex-name.has-video { color: var(--bp); text-decoration: underline; }
 .swapbtn { flex: none; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line);
@@ -527,21 +527,32 @@ button, input, select, .step, .check, .swapbtn, .ag-move, .wo, .nav-b, .tstart, 
    goal sits directly left of the weight it judges (no eye-darting across the row), and the reps
    column is ALWAYS there even when a lift carries no weight — so nothing shifts and nothing covers
    anything. Replaces the flex row where a long value pushed everything sideways. */
-.l2 { display: grid; grid-template-columns: 40px 1fr 84px 40px; gap: 4px; align-items: center; }
-.c-goal { font-size: 11px; font-weight: 700; color: var(--muted); text-align: right;
-  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+/* Labels ride WITH their values (Phil: "Any labels should be right next to what it is"). The goal
+   cell carries its own "goal" caption; lb and reps live inside their steppers. No header row — a
+   label at the top of the slot is nowhere near the number it names. */
+.l2 { display: grid; grid-template-columns: 40px 1fr 96px 40px; gap: 4px; align-items: center; }
+.c-goal { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; overflow: hidden; }
+.c-goal .cl { font-size: 8px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); }
+.c-goal .cv { font-size: 13px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 .c-load, .c-reps { min-width: 0; display: flex; }
 .c-load .stepper, .c-reps .stepper { width: 100%; }
 /* headers: same grid, so the labels sit exactly over their columns */
 /* the rows live two containers deeper (.round + .ex-row borders/padding = ~16px), so the header
    must inset by the same amount or the labels float off their columns */
-.l2.col-head { margin: 0 0 5px; padding: 0 16px; }
-.l2.col-head div { font-size: 9px; font-weight: 800; letter-spacing: .5px; color: var(--muted); text-align: center; }
-.l2.col-head .c-goal { text-align: right; }
+
+
 /* swap lives with the name now */
-.l1 .swapbtn { flex: 0 0 auto; margin-left: auto; width: 40px; min-height: 34px; padding: 0;
+.l1 .swapbtn { flex: 0 0 auto; width: 38px; min-height: 32px; padding: 0;
   font-size: 15px; color: var(--bp); background: #eef2fb; border: 1.5px solid #cdd8ef; border-radius: 9px; }
 
 /* profile: the lift is the headline, the variant you're currently on is a quiet sub-label */
 .p-var { font-size: 11px; color: var(--muted); margin-top: -4px; }
 span.ex-name { display: block; }
+
+/* unit inside the stepper, right against its number */
+.l2 .stepper .unit { flex: 0 0 auto; font-size: 8px; font-weight: 700; color: var(--muted); padding: 0 1px 0 0; white-space: nowrap; }
+.l2 .stepper .val { font-size: 14px; }
+
+/* the number must win the space fight with its own unit */
+.l2 .stepper .step { width: 26px; min-width: 26px; flex: 0 0 26px; }
+.l2 .stepper .val { flex: 1 1 auto; min-width: 0; }

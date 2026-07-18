@@ -35,11 +35,24 @@
     return fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'complete', athlete: athlete, token: token, session_id: sessionId }) }).catch(function () {});
   }
-  // Move an unlogged session to another day (reschedule).
+  // Move an unlogged session to another day (reschedule). GET, not the no-cors POST the rest of the
+  // writes use: a no-cors response is opaque, so the old version could not tell success from failure
+  // and just reloaded on a timer. A move that silently does nothing is indistinguishable from a
+  // broken app — resolves to the server's actual answer so the caller can report it.
   function sendMove(sessionId, toDate) {
-    return fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'move', athlete: athlete, token: token, session_id: sessionId, to_date: toDate }) }).catch(function () {});
+    var url = cfg.WEBAPP_URL + '?action=move&athlete=' + encodeURIComponent(athlete) +
+      '&token=' + encodeURIComponent(token) + '&session_id=' + encodeURIComponent(sessionId) +
+      '&to_date=' + encodeURIComponent(toDate);
+    return fetch(url).then(function (r) { return r.json(); })
+      .catch(function () { return { ok: false, error: 'offline' }; });
   }
+  var MOVE_ERR = {
+    logged_cannot_move: 'That workout already has logged sets, so it stays put.',
+    not_found: 'Could not find that workout to move.',
+    forbidden: 'Access denied — check your link.',
+    offline: 'No connection — reconnect and try again.',
+    bad_args: 'Something was missing. Try again.'
+  };
   var DB;
   function idb() {
     if (DB) return Promise.resolve(DB);
@@ -230,14 +243,21 @@
   // LEVEL GOAL (rung pass standard), muted, on line 1 next to the name. ONE value only — the weight, or
   // the reps for bodyweight. Returns null (nothing shown) for warm-up sets and for non-leveled exercises
   // (accessories/stability not in Level Standards) so they never show a bogus goal.
-  function goalTarget(ex, t) {
+  function goalValue(ex, t) {
     if (t.kind === 'warmup') return null;
     var lg = ex.level_goal;
     if (!lg || (lg.load == null && lg.reps == null)) return null;
-    var span = el('span', 'goaltag');
-    span.appendChild(el('span', 'lbl', 'level goal '));
-    span.appendChild(el('span', 'gv', lg.load != null ? (lg.load + ' lb') : (lg.reps + ' reps')));
-    return span;
+    return lg.load != null ? (lg.load + ' lb') : (lg.reps + ' reps');
+  }
+  // A lane = a small uppercase header + the control under it. Phil 2026-07-18: "reps and lb so
+  // small, better place as header or someehre else" — the units used to be an 8px scrap wedged
+  // between the number and the + button. As a lane header they're legible, they say what the number
+  // IS, and they cost no width. The stepper below shows the bare number.
+  function lane(cls, label, node) {
+    var d = el('div', cls);
+    d.appendChild(el('span', 'lane-l', label || ''));
+    if (node) d.appendChild(node);
+    return d;
   }
   function slotLabel(s) {                              // "WUp1" -> "Warm Up 1"; "Comp1" -> "Complex 1"
     s = String(s || '');
@@ -273,13 +293,22 @@
   }
 
   // ---- In-app video: play in an overlay dismissed with one ✕ (no leaving the app) ----
+  // Phil 2026-07-18: "some videos autoplay (side lying hip, suitcase) and some dont (4" box single
+  // leg calf raise, band pull apart)". The split is exactly Vimeo vs YouTube: the two that play are
+  // Vimeo, the two that don't are YouTube. A browser will not autoplay a clip that could make NOISE,
+  // and YouTube's embed honours that strictly — so autoplay=1 alone is silently ignored. mute=1 is
+  // what actually makes it start. These are silent demo loops, so muting costs nothing.
+  // playsinline stops iOS hijacking the whole screen into its native fullscreen player.
   function videoEmbed(url) {
     var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
-    if (yt) return { type: 'iframe', src: 'https://www.youtube.com/embed/' + yt[1] };
+    if (yt) return { type: 'iframe', src: 'https://www.youtube.com/embed/' + yt[1] + '?autoplay=1&mute=1&playsinline=1&rel=0' };
     var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-    if (vm) return { type: 'iframe', src: 'https://player.vimeo.com/video/' + vm[1] };
+    if (vm) return { type: 'iframe', src: 'https://player.vimeo.com/video/' + vm[1] + '?autoplay=1&muted=1&playsinline=1' };
     if (/\.mp4(\?|$)/i.test(url)) return { type: 'video', src: url };
-    return null;   // unknown host -> offer a normal open
+    // A vimeo.com/share/<uuid> link carries NO video id, so there is nothing to embed. That is
+    // Phil's "walking lunge" — the name is tappable, the overlay opens, and the player is empty.
+    // It's a data shape, not a code bug: those rows need a plain vimeo.com/<number> URL.
+    return { type: 'link', share: /vimeo\.com\/share\//i.test(url) };
   }
   function openVideo(url) {
     if (!url) return;
@@ -291,12 +320,17 @@
     box.appendChild(close);
     if (e && e.type === 'iframe') {
       var f = el('iframe'); f.className = 'vframe';
-      f.src = e.src + (e.src.indexOf('?') < 0 ? '?' : '&') + 'autoplay=1';
+      f.src = e.src;                                   // autoplay/mute params are set in videoEmbed
       f.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
       f.setAttribute('allowfullscreen', ''); box.appendChild(f);
     } else if (e && e.type === 'video') {
-      var v = el('video'); v.className = 'vframe'; v.src = e.src; v.controls = true; v.autoplay = true; v.playsInline = true; box.appendChild(v);
+      // muted is REQUIRED for autoplay here too — an unmuted <video> is blocked exactly like the
+      // YouTube embed was, which is why some clips sat on a black frame.
+      var v = el('video'); v.className = 'vframe'; v.src = e.src;
+      v.controls = true; v.autoplay = true; v.muted = true; v.playsInline = true; v.loop = true;
+      box.appendChild(v);
     } else {
+      if (e && e.share) box.appendChild(el('div', 'vnote', 'This clip is a Vimeo “share” link, which can’t play inside the app.'));
       var a = el('a', 'vfallback', 'Open video ↗'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; box.appendChild(a);
     }
     // QA-04: some sources block embedding ("Video unavailable"), and we can't detect that across
@@ -425,20 +459,18 @@
     var row = el('div', 'ex-row cond');
     var l1 = el('div', 'l1');
     l1.appendChild(el('span', 'ex-name', exLabel(ex)));
-    var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
-      : ((t.target_reps || 1) + (t.work_s ? (' × ' + t.work_s + 's work / ' + (t.rest_s || 0) + 's rest') : ' reps'));
-    l1.appendChild(el('span', 'goaltag', scheme));
     row.appendChild(l1);
+    var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
+      : ((t.target_reps || 1) + (t.work_s ? ('×' + t.work_s + 's') : ' reps'));
     var dist = { v: '' };
     var l2 = el('div', 'l2');
-    var aCell = el('div', 'c-actual');
-    var di = el('input', 'dist-in'); di.type = 'number'; di.placeholder = 'distance'; di.inputMode = 'decimal';
+    var di = el('input', 'dist-in'); di.type = 'number'; di.placeholder = '—'; di.inputMode = 'decimal';
     di.addEventListener('input', function () { dist.v = di.value; });
-    aCell.appendChild(di);
-    var bCell = el('div', 'c-second');
-    if (t.duration_s) bCell.appendChild(el('span', 'cv', Math.round(t.duration_s / 60) + ' min'));
-    else if (t.work_s) bCell.appendChild(el('span', 'cv', t.work_s + 's'));
-    l2.appendChild(aCell); l2.appendChild(bCell); l2.appendChild(el('div', 'c-swap'));
+    l2.appendChild(lane('c-goal', 'prescribed', el('span', 'cv goal-v', scheme)));
+    l2.appendChild(lane('c-actual', 'distance', di));
+    l2.appendChild(lane('c-second', t.duration_s ? 'time' : (t.work_s ? 'work' : ''),
+      t.duration_s ? el('span', 'cv', Math.round(t.duration_s / 60) + ' min')
+        : (t.work_s ? el('span', 'cv', t.work_s + 's') : null)));
     row.appendChild(l2);
     var check = el('button', 'check cond-go', t.work_s ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓')); check.type = 'button';
     function logIt(dur) {
@@ -451,7 +483,7 @@
       else if (t.duration_s) startHold(check, t.duration_s, function () { logIt(t.duration_s); });
       else logIt('');
     });
-    l2.appendChild(check);
+    l1.appendChild(check);   // same as a lifting row: the action rides with the name
     return row;
   }
 
@@ -476,8 +508,16 @@
       name = el('span', 'ex-name', exLabel(ex));
     }
     l1.appendChild(name);
-    var gtag = goalTarget(ex, t); if (gtag) l1.appendChild(gtag);   // rule 8: quiet, pushed right
-    row.appendChild(l1);
+    // d. SWAP — against the name, left-aligned and centred on it. Phil: "left aligned swap icon,
+    // need tile? not vertical align with name" — it acts on the exercise, so it belongs beside it,
+    // and it loses the boxed tile that made it read as a third control.
+    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
+      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
+      sw.title = 'Change exercise';
+      sw.addEventListener('click', function () { toggleSwap(row, ex); });
+      l1.appendChild(sw);
+    }
+    row.appendChild(l1);   // the ✓ is appended to l1 further down, once it exists
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
     var state = { load: prefill, reps: t.target_reps };
@@ -530,36 +570,33 @@
 
     var hasReps = !isDur && (t.target_reps !== '' && t.target_reps != null);
     function repsStepper() {
-      var s = stepper(state, 'reps', 1, 'reps', '', critical === 'reps' ? confirmActual : null);
+      var s = stepper(state, 'reps', 1, '', '', critical === 'reps' ? confirmActual : null);
       if (needsConfirm && critical === 'reps') s.classList.add('unconfirmed');
       return s;
     }
-    // b. THE ACTUAL — always this column, whatever kind of number it is.
-    var aCell = el('div', 'c-actual');
-    // c. THE SECONDARY — empty cell when there isn't one, so the columns still line up (rule 6).
-    var bCell = el('div', 'c-second');
-    if (weighted) {
-      var wStep = stepper(state, 'load', 2.5, 'lb', '', critical === 'load' ? confirmActual : null);
-      if (needsConfirm && critical === 'load') wStep.classList.add('unconfirmed');
-      aCell.appendChild(wStep);
-      if (isDur) bCell.appendChild(el('span', 'cv', t.duration_s + 's'));   // loaded carry: time is secondary
-      else if (hasReps) bCell.appendChild(repsStepper());
-    } else if (isDur) {
-      aCell.appendChild(el('span', 'cv', t.duration_s + 's'));              // a hold: the time IS the actual
-    } else if (hasReps) {
-      aCell.appendChild(repsStepper());                                     // bodyweight: reps ARE the actual
-    }
-    l2.appendChild(aCell); l2.appendChild(bCell);
+    // a. GOAL — first lane. Phil: "level goal not goal" (the label keeps the word LEVEL) and "why
+    // number bolded?" — it is coach-facing context, so it is NOT bold and never competes with the
+    // actual (rule 8).
+    var gv = goalValue(ex, t);
+    if (!gv) row.classList.add('no-goal');   // "collapse set to be shorter if no goal"
+    l2.appendChild(lane('c-goal', 'level goal', gv ? el('span', 'cv goal-v', gv) : null));
 
-    // d. SWAP — acts on the exercise, but sits in its own fixed lane so every row is the same shape.
-    var swCell = el('div', 'c-swap');
-    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
-      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
-      sw.title = 'Change exercise';
-      sw.addEventListener('click', function () { toggleSwap(row, ex); });
-      swCell.appendChild(sw);
+    // b. THE ACTUAL — always this lane, whatever kind of number it is.
+    // c. THE SECONDARY — the lane still exists when empty, so every row is the same shape (rule 6).
+    var aLabel = 'reps', bLabel = '', aNode = null, bNode = null;
+    if (weighted) {
+      var wStep = stepper(state, 'load', 2.5, '', '', critical === 'load' ? confirmActual : null);
+      if (needsConfirm && critical === 'load') wStep.classList.add('unconfirmed');
+      aLabel = 'lb'; aNode = wStep;
+      if (isDur) { bLabel = 'time'; bNode = el('span', 'cv', t.duration_s + 's'); }   // carry: time is secondary
+      else if (hasReps) { bLabel = 'reps'; bNode = repsStepper(); }
+    } else if (isDur) {
+      aLabel = 'time'; aNode = el('span', 'cv', t.duration_s + 's');                  // a hold: time IS the actual
+    } else if (hasReps) {
+      aLabel = 'reps'; aNode = repsStepper();                                         // bodyweight: reps ARE the actual
     }
-    l2.appendChild(swCell);
+    l2.appendChild(lane('c-actual', aLabel, aNode));
+    l2.appendChild(lane('c-second', bLabel, bNode));
 
     var lastLogId = null;
     function commit() {   // checking = "already did it" — the timer is its own Start button, not tied to this
@@ -592,7 +629,10 @@
       if (isDur) startHold(check, t.duration_s, commit); else commit();
     });
     if (needsConfirm && isDur) { check.disabled = true; check.classList.add('locked'); }
-    l2.appendChild(check);
+    // Phil: "4 tiles is too much per row (goal, actual, reps, and checkmark) so maybe move checkmark
+    // to be same row as exercise name and swap icon". So line 1 carries name + swap + ✓, and the
+    // value line is down to three lanes.
+    l1.appendChild(check);
     row.appendChild(l2);
     if (wasLogged) { row.classList.add('done'); check.classList.add('done'); check.textContent = '✓'; }   // show as logged; tap to edit
     regRow({ row: row, slot: slot, ex: ex, t: t, timer: timer, isASide: isASide });   // so a swap can reach every set (QA-05)
@@ -760,7 +800,12 @@
         var roundBox = el('div', 'round');
         var aSet = aSide && aSide.sets[r];
         var isWarmRound = aSet && aSet.kind === 'warmup';
-        var title = isWarmRound ? ('Warm-up ' + (++warmNo)) : ('Set ' + (r + 1));
+        // Phil: "'warm-up 2' as set header should be 'set 2 (warm-up)' to not confuse with complex
+        // naming of warm up 1 or warm up 2". The SLOT is called "Warm Up 1"; a ROUND inside it being
+        // called "Warm-up 2" read as a second warm-up slot. Now every round counts on one sequence
+        // and the ramp sets are annotated, which also keeps QA-06 (ordinals match the real count).
+        var title = 'Set ' + (r + 1) + (isWarmRound ? ' (warm-up)' : '');
+        if (isWarmRound) warmNo++;
         roundBox.setAttribute('data-title', title);   // the NOW tag and the collapsed lines both read this
         roundBox.appendChild(el('div', 'round-title', title));
         var count = 0;
@@ -768,6 +813,12 @@
           if (r < ex.sets.length) { roundBox.appendChild(exerciseRow(slot, ex, ex.sets[r], timer, ex === aSide)); count++; }
         });
         if (count > 1) roundBox.classList.add('paired');
+        // "collapse set to be shorter if no goal" — but the goal lane is dropped for the ROUND, never
+        // for a single row. A warm-up row (no goal) sitting beside a work row (goal) with different
+        // lane counts would put their weights at different x, which is exactly the raggedness the
+        // symmetry pass fixed. Collapse only when nothing in the round has a goal.
+        var rr = [].slice.call(roundBox.querySelectorAll('.ex-row'));
+        if (rr.length && rr.every(function (r) { return r.classList.contains('no-goal'); })) roundBox.classList.add('no-goal');
         // One Log button per round (rule 2). Rounds made entirely of timed holds don't get one — the
         // hold's own ▶ IS the action, and you can't log a 45s hold you haven't stood through.
         var loggable = [].slice.call(roundBox.querySelectorAll('.ex-row')).some(function (r) { return r._commit && !r._isDur; });
@@ -983,16 +1034,30 @@
     p.appendChild(el('div', 'move-h', 'Move \u201c' + (s.name || s.theme || 'workout') + '\u201d to'));
     function go(iso) {
       p.innerHTML = ''; p.appendChild(el('div', 'move-h', 'Moving to ' + dowLabel(iso) + '\u2026'));
-      sendMove(s.session_id, iso);
-      setTimeout(loadHome, 1300);
+      // Reload only once the server has ANSWERED. The old code reloaded after a fixed 1300ms, which
+      // is often shorter than an Apps Script cold start \u2014 so the calendar re-read the cache before
+      // the move had landed and showed the old day.
+      sendMove(s.session_id, iso).then(function (res) {
+        if (res && res.ok) { loadHome(); return; }
+        p.innerHTML = '';
+        p.appendChild(el('div', 'move-h err', MOVE_ERR[res && res.error] || 'Move failed \u2014 try again.'));
+        var again = el('button', 'move-opt', 'Back'); again.type = 'button';
+        again.addEventListener('click', function () { p.remove(); toggleMove(wrap, s); });
+        p.appendChild(again);
+      });
     }
     var today2 = todayISO(), past = s.date < today2;
     var quick = el('div', 'move-quick');
-    var opts = past ? [['Today', 0], ['Tomorrow', 1], ['Next week', 7]]
-                    : [['+1 day', 1], ['+2 days', 2], ['+1 week', 7]];
+    // Phil 2026-07-18: "4 option + 1 day, +2 days, -1 day, -2 days...no 1 week needed". Moving a
+    // session EARLIER was the one thing the old panel couldn't do \u2014 and moving 7/27 to 7/26 is
+    // exactly what he tried. A past/missed session can only come forward, so it gets today/tomorrow.
+    var opts = past ? [['Today', 0], ['Tomorrow', 1], ['+2 days', 2]]
+                    : [['-2 days', -2], ['-1 day', -1], ['+1 day', 1], ['+2 days', 2]];
     opts.forEach(function (q) {
+      var target = addDays(past ? today2 : s.date, q[1]);
       var b = el('button', 'move-opt', q[0]); b.type = 'button';
-      b.addEventListener('click', function () { go(addDays(past ? today2 : s.date, q[1])); });
+      if (target < today2) b.disabled = true;   // nothing moves into the past
+      b.addEventListener('click', function () { go(target); });
       quick.appendChild(b);
     });
     p.appendChild(quick);

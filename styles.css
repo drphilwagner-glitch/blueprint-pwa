@@ -707,3 +707,55 @@ body.has-tbar #app { padding-bottom: 128px; }
 /* the level goal keeps to line 1 with the name it judges (rule 8, unchanged) */
 .l1 { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
 .l1 .goaltag { margin-left: auto; }
+
+.move-h.err { color: var(--danger); font-weight: 700; }
+.move-opt[disabled] { opacity: .38; }
+.move-quick { display: flex; gap: var(--sp-6); }
+.move-quick .move-opt { flex: 1 1 0; min-width: 0; padding: 0 2px; white-space: nowrap; }
+
+/* ============================================================================
+   ROW v2 — Phil's device feedback, 2026-07-18.
+   Line 1: name + swap ............ ✓      (the action rides with the exercise)
+   Line 2: goal | actual | reps            (three lanes, was four tiles)
+   Units are LANE HEADERS, not 8px scraps wedged inside the stepper.
+   ============================================================================ */
+.l1 { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
+.l1 .ex-name { flex: 0 1 auto; min-width: 0; }
+/* swap: against the name, centred on it, no tile */
+.l1 .swapbtn { flex: 0 0 auto; width: 30px; height: 30px; min-height: 0; padding: 0;
+  border: 0; background: none; color: var(--bp); font-size: var(--fs-17); line-height: 1; }
+/* ✓ pushed to the far right of line 1 */
+.l1 .check { flex: 0 0 auto; margin-left: auto; width: 50px; height: 38px; min-height: 0;
+  font-size: var(--fs-19); }
+
+/* three lanes; the goal lane disappears entirely when there's no goal to show */
+.l2 { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1.1fr) minmax(0, 1fr);
+      gap: var(--sp-6); align-items: end; }
+.round.no-goal .l2 { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+.round.no-goal .c-goal { display: none; }
+.round.no-goal .ex-row { padding-top: 5px; padding-bottom: 5px; }
+/* a goal-less row inside a round that HAS goals keeps its lane, empty, so columns still line up */
+.ex-row.no-goal .c-goal > * { visibility: hidden; }
+
+.c-goal, .c-actual, .c-second { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lane-l { font-size: var(--fs-10); font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lane-l:empty { min-height: 12px; }              /* an empty lane still holds its column open */
+.c-goal .cv, .c-second .cv, .c-actual .cv { width: 100%; text-align: center;
+  font-variant-numeric: tabular-nums; }
+/* goal: context, NOT bold — "why number bolded?" */
+.c-goal .goal-v { font-size: var(--fs-14); font-weight: 400; color: var(--ink); }
+/* secondary: quieter than the actual, and NOT bold — "why reps bolded now too for exercises where
+   weight is actual?" It isn't the number being decided. */
+.c-second .stepper { background: var(--surface-2); border-color: var(--line-soft); }
+.c-second .stepper .val { font-size: var(--fs-14); font-weight: 500; color: var(--muted); }
+.c-second .stepper .step { opacity: .55; }
+.c-second .cv { font-size: var(--fs-14); font-weight: 500; color: var(--muted); }
+/* the actual is the one bold number on the row */
+.c-actual .stepper .val { font-size: var(--fs-16); font-weight: 800; color: var(--ink); }
+.c-actual .cv { font-size: var(--fs-16); font-weight: 800; color: var(--ink); }
+.c-actual .stepper, .c-second .stepper { width: 100%; }
+.l2 .dist-in { width: 100%; min-width: 0; height: 38px; padding: 0 var(--sp-8); font-size: var(--fs-15);
+  border: 1px solid var(--line); border-radius: var(--r-9); text-align: center; }
+
+.vnote { color: var(--white); font-size: var(--fs-13); text-align: center; padding: 0 12px 10px; opacity: .85; }

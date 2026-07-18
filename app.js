@@ -121,11 +121,52 @@
   // `intervals` is one rest per ROUND — a paired round costs more than a round with a single lift
   // (Deadlift + Step Down = 5:00, Deadlift alone = 3:00). The timer rolls THROUGH that sequence
   // rather than repeating one number, which is what made a solo work round charge paired rest.
-  function makeTimer(node, pauseBtn, intervals) {
+  // ---- rule 5: the running timer holds ONE fixed position ----
+  // The slot header scrolls away as soon as you're two sets down, so the countdown was only findable,
+  // not glanceable. Phil: "ideally timer stays in view since user might need to scroll but still is in
+  // same complex. one timer can only run at a time i guess though" — that last clause is what makes a
+  // single pinned bar correct rather than ambiguous: starting a timer stops any other, so the bar
+  // never has to answer "which complex is this?".
+  var TBAR = null, ACTIVE_TIMER = null;
+  function tbar() {
+    if (!TBAR) {
+      TBAR = el('div', 'tbar'); TBAR.hidden = true;
+      TBAR._l = el('span', 'tb-l'); TBAR._v = el('span', 'tb-v');
+      TBAR._p = el('button', 'tb-p', '⏸'); TBAR._p.type = 'button';
+      TBAR.appendChild(TBAR._l); TBAR.appendChild(TBAR._v); TBAR.appendChild(TBAR._p);
+      TBAR._p.addEventListener('click', function () { if (ACTIVE_TIMER) ACTIVE_TIMER.toggle(); });
+      document.body.appendChild(TBAR);
+    }
+    return TBAR;
+  }
+  function clearTimerBar() {   // new session render — nothing is running
+    if (ACTIVE_TIMER) ACTIVE_TIMER.stop();
+    ACTIVE_TIMER = null;
+    if (TBAR) TBAR.hidden = true;
+    document.body.classList.remove('has-tbar');
+  }
+
+  function makeTimer(node, pauseBtn, intervals, label) {
     var seq = (intervals && intervals.length) ? intervals.slice() : [120];
     var idx = 0;
     var interval = seq[0];
     var st = { running: false, paused: false, end: 0, rem: interval, t: null };
+    var api;
+    function pub(txt) {            // mirror this timer into the pinned bar (rule 5)
+      if (ACTIVE_TIMER !== api) return;
+      var b = tbar(); b.hidden = false;
+      b._l.textContent = label || 'Complex';
+      b._v.textContent = txt;
+      b._p.hidden = !st.running;
+      b._p.textContent = st.paused ? '▶' : '⏸';
+      document.body.classList.add('has-tbar');
+    }
+    function unpub() {
+      if (ACTIVE_TIMER !== api) return;
+      ACTIVE_TIMER = null;
+      if (TBAR) TBAR.hidden = true;
+      document.body.classList.remove('has-tbar');
+    }
     function tick() {
       var left = Math.max(0, Math.round((st.end - Date.now()) / 1000));
       if (left <= 0) {
@@ -134,6 +175,7 @@
         if (idx >= seq.length - 1) {
           clearTimeout(st.t); st.running = false; st.t = null;
           node.textContent = 'complex done'; pauseBtn.hidden = true;
+          pub('complex done'); setTimeout(unpub, 8000);   // hold the last cue, then give the space back
           beep(); timerAlert('Complex done', 'move on', '', true);   // sticky — the last cue must not be missed
           return;
         }
@@ -141,14 +183,31 @@
         interval = seq[idx];
         st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert('Next set', 'go', '', true); }
       node.textContent = 'next ' + fmt(left);
+      pub('next ' + fmt(left));
       st.t = setTimeout(tick, 250);
     }
-    pauseBtn.addEventListener('click', function () {
+    function toggle() {
       if (!st.running) return;
       if (st.paused) { st.paused = false; st.end = Date.now() + st.rem * 1000; pauseBtn.textContent = '⏸'; tick(); }
-      else { st.paused = true; clearTimeout(st.t); st.rem = Math.max(0, Math.round((st.end - Date.now()) / 1000)); pauseBtn.textContent = '▶'; node.textContent = 'paused ' + fmt(st.rem); }
-    });
-    return { start: function () { if (st.running) return; primeAudio(); st.running = true; st.end = Date.now() + interval * 1000; pauseBtn.hidden = false; tick(); } };
+      else {
+        st.paused = true; clearTimeout(st.t);
+        st.rem = Math.max(0, Math.round((st.end - Date.now()) / 1000));
+        pauseBtn.textContent = '▶'; node.textContent = 'paused ' + fmt(st.rem); pub('paused ' + fmt(st.rem));
+      }
+    }
+    pauseBtn.addEventListener('click', toggle);
+    api = {
+      toggle: toggle,
+      stop: function () { clearTimeout(st.t); st.t = null; st.running = false; st.paused = false; node.textContent = ''; pauseBtn.hidden = true; },
+      start: function () {
+        if (st.running) return;
+        // one timer at a time — this is what lets the pinned bar be unambiguous
+        if (ACTIVE_TIMER && ACTIVE_TIMER !== api) ACTIVE_TIMER.stop();
+        ACTIVE_TIMER = api;
+        primeAudio(); st.running = true; st.end = Date.now() + interval * 1000; pauseBtn.hidden = false; tick();
+      }
+    };
+    return api;
   }
   function startHold(btn, secs, done) {                    // duration items: countdown then log
     primeAudio();                                          // unlock audio on the tap that starts it (iOS)
@@ -189,16 +248,20 @@
 
   // Compact −/+ stepper bound to state[key] (single increment; − left, value, + right).
   // extraCls (e.g. 'mini') styles a secondary/subtle stepper.
-  function stepper(state, key, delta, unit, extraCls) {
+  function stepper(state, key, delta, unit, extraCls, onTouch) {
     var f = el('div', 'stepper' + (extraCls ? ' ' + extraCls : ''));
     var val = el('span', 'val');
     function draw() { var v = state[key]; val.textContent = (v === '' || v == null) ? '—' : v; }
+    // Touching the number in any way is the athlete asserting it's what they actually did — adjusting
+    // it, or tapping it to confirm the prescribed value stands. Both count (rule 2b).
+    function touched() { f.classList.remove('unconfirmed'); if (onTouch) onTouch(); }
     function btn(sign) {
       var b = el('button', 'step', sign > 0 ? '+' : '−'); b.type = 'button';
-      b.addEventListener('click', function () { var c = Number(state[key] || 0), nv = Math.round((c + sign * delta) * 10) / 10; if (nv < 0) nv = 0; state[key] = nv; draw(); });
+      b.addEventListener('click', function () { var c = Number(state[key] || 0), nv = Math.round((c + sign * delta) * 10) / 10; if (nv < 0) nv = 0; state[key] = nv; draw(); touched(); });
       return b;
     }
     f.appendChild(btn(-1)); f.appendChild(val); if (unit) f.appendChild(el('span', 'unit', unit)); f.appendChild(btn(1));
+    val.addEventListener('click', touched);
     draw();
     return f;
   }
@@ -357,18 +420,27 @@
     }, 1000);
   }
   function conditioningRow(slot, ex, t) {
+    // Same two lines and the same four columns as a lifting row (rule 6). Running's actual is the
+    // DISTANCE, its secondary is the time — so it lands in column b under every other lift's weight.
     var row = el('div', 'ex-row cond');
-    if (slot.exercises && slot.exercises.length > 1) row.appendChild(el('span', 'ex-name sub', exLabel(ex)));
+    var l1 = el('div', 'l1');
+    l1.appendChild(el('span', 'ex-name', exLabel(ex)));
     var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
       : ((t.target_reps || 1) + (t.work_s ? (' × ' + t.work_s + 's work / ' + (t.rest_s || 0) + 's rest') : ' reps'));
-    row.appendChild(el('div', 'gt', 'Set ' + t.set_no + ' · ' + scheme));
+    l1.appendChild(el('span', 'goaltag', scheme));
+    row.appendChild(l1);
     var dist = { v: '' };
-    var fields = el('div', 'fields');
+    var l2 = el('div', 'l2');
+    var aCell = el('div', 'c-actual');
     var di = el('input', 'dist-in'); di.type = 'number'; di.placeholder = 'distance'; di.inputMode = 'decimal';
     di.addEventListener('input', function () { dist.v = di.value; });
-    fields.appendChild(di); fields.appendChild(el('span', 'unit', 'after each set'));
-    row.appendChild(fields);
-    var check = el('button', 'check', t.work_s ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓')); check.type = 'button';
+    aCell.appendChild(di);
+    var bCell = el('div', 'c-second');
+    if (t.duration_s) bCell.appendChild(el('span', 'cv', Math.round(t.duration_s / 60) + ' min'));
+    else if (t.work_s) bCell.appendChild(el('span', 'cv', t.work_s + 's'));
+    l2.appendChild(aCell); l2.appendChild(bCell); l2.appendChild(el('div', 'c-swap'));
+    row.appendChild(l2);
+    var check = el('button', 'check cond-go', t.work_s ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓')); check.type = 'button';
     function logIt(dur) {
       var l = mkLog(slot, ex.exercise, t, { load: '', reps: t.target_reps }); l.duration_s = dur || ''; l.distance = dist.v || '';
       logRows([l]); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
@@ -379,7 +451,7 @@
       else if (t.duration_s) startHold(check, t.duration_s, function () { logIt(t.duration_s); });
       else logIt('');
     });
-    row.appendChild(check);
+    l2.appendChild(check);
     return row;
   }
 
@@ -404,14 +476,7 @@
       name = el('span', 'ex-name', exLabel(ex));
     }
     l1.appendChild(name);
-    // The level goal now lives in the grid's GOAL column (directly left of the weight it judges), so
-    // it must NOT also sit up here — that was the "eyes darting" split Phil described.
-    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
-      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
-      sw.title = 'Change exercise';
-      sw.addEventListener('click', function () { toggleSwap(row, ex); });
-      l1.appendChild(sw);   // directly beside the name — a button belongs next to what it changes
-    }
+    var gtag = goalTarget(ex, t); if (gtag) l1.appendChild(gtag);   // rule 8: quiet, pushed right
     row.appendChild(l1);
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
@@ -428,27 +493,73 @@
       if (lgd.reps !== '' && lgd.reps != null) state.reps = Number(lgd.reps);
     }
 
-    // --- line 2: [hold hint] · [subtle reps] · primary weight/reps stepper · ✓ (right-aligned lanes) ---
+    // --- line 2: FIXED COLUMNS, identical for every row type ---
+    // Phil 2026-07-18: "symmetry is crucial in UX horizontally. a. exercise name, b. actual (goal for
+    // day) which could be weight/reps/distance run/time, c. secondary variable (usually reps if
+    // weighted exercise) or distance if running, d. swap icon, e. timer etc."
+    // The old layout kept weight and reps in dedicated lanes, so a bodyweight lift left the weight
+    // lane empty and its reps sat where a weighted lift's REPS sat — the primary number moved
+    // depending on the exercise, and nothing lined up down the card. Now column b is always THE
+    // actual, whatever kind of number that is, and column c is always the secondary:
+    //   weighted lift   ->  b = weight    c = reps (or the hold's duration for a loaded carry)
+    //   bodyweight lift ->  b = reps      c = —
+    //   timed hold      ->  b = duration  c = —
+    //   running         ->  b = distance  c = time      (conditioningRow, same columns)
     var l2 = el('div', 'l2');
-    // GOAL cell — first column, immediately LEFT of the weight it judges.
-    var goalCell = el('div', 'c-goal');
-    if (isDur) { goalCell.appendChild(el('span', 'cv', t.duration_s + 's')); }
-    else if (ex.level_goal && t.kind !== 'warmup') {
-      var lg2 = ex.level_goal;
-      goalCell.appendChild(el('span', 'cl', 'goal'));          // label rides WITH its number
-      goalCell.appendChild(el('span', 'cv', lg2.load != null ? String(lg2.load) : String(lg2.reps)));
+
+    // RULE 2b — the athlete must not be able to blind-tap "done", because the prescribed number is
+    // usually NOT what happened, and the adaptive allocator eats whatever gets logged. Phil: "the
+    // actual is most often deviated (so weight if weighted exercise, reps should NOT vary much if at
+    // all, but for pullups no weight so reps could vary)". So exactly one number per lift is THE
+    // actual, and it has to be touched before the round can be logged:
+    //   weighted lift  -> the WEIGHT   (reps are prescribed and generally held)
+    //   bodyweight lift -> the REPS    (there is no weight; reps are the whole result)
+    // Warm-ups are exempt — they are a ramp, not merit data, and stay one tap.
+    var critical = weighted ? 'load' : ((!isDur && t.target_reps !== '' && t.target_reps != null) ? 'reps' : null);
+    var needsConfirm = !!critical && t.kind !== 'warmup' && !wasLogged;
+    row._confirmed = !needsConfirm;
+    row._needs = critical === 'load' ? 'weight' : 'reps';
+    // A timed row logs through its own ▶, which the round button deliberately doesn't drive — so the
+    // gate has to be applied to the ▶ as well, or a loaded carry records at 0 lb and the allocator
+    // believes it.
+    function confirmActual() {
+      row._confirmed = true;
+      if (check) { check.disabled = false; check.classList.remove('locked'); }
+      syncRound(row.parentNode);
     }
-    l2.appendChild(goalCell);
 
-    // WEIGHT column (middle) — empty placeholder when the lift carries no load, so the grid still lines up.
-    var wCell = el('div', 'c-load');
-    if (weighted) wCell.appendChild(stepper(state, 'load', 2.5, 'lb'));
-    l2.appendChild(wCell);
+    var hasReps = !isDur && (t.target_reps !== '' && t.target_reps != null);
+    function repsStepper() {
+      var s = stepper(state, 'reps', 1, 'reps', '', critical === 'reps' ? confirmActual : null);
+      if (needsConfirm && critical === 'reps') s.classList.add('unconfirmed');
+      return s;
+    }
+    // b. THE ACTUAL — always this column, whatever kind of number it is.
+    var aCell = el('div', 'c-actual');
+    // c. THE SECONDARY — empty cell when there isn't one, so the columns still line up (rule 6).
+    var bCell = el('div', 'c-second');
+    if (weighted) {
+      var wStep = stepper(state, 'load', 2.5, 'lb', '', critical === 'load' ? confirmActual : null);
+      if (needsConfirm && critical === 'load') wStep.classList.add('unconfirmed');
+      aCell.appendChild(wStep);
+      if (isDur) bCell.appendChild(el('span', 'cv', t.duration_s + 's'));   // loaded carry: time is secondary
+      else if (hasReps) bCell.appendChild(repsStepper());
+    } else if (isDur) {
+      aCell.appendChild(el('span', 'cv', t.duration_s + 's'));              // a hold: the time IS the actual
+    } else if (hasReps) {
+      aCell.appendChild(repsStepper());                                     // bodyweight: reps ARE the actual
+    }
+    l2.appendChild(aCell); l2.appendChild(bCell);
 
-    // REPS column (far) — always present: "you're always gonna have reps, but you might not have weight".
-    var rCell = el('div', 'c-reps');
-    if (!isDur && (t.target_reps !== '' && t.target_reps != null)) rCell.appendChild(stepper(state, 'reps', 1, 'reps'));
-    l2.appendChild(rCell);
+    // d. SWAP — acts on the exercise, but sits in its own fixed lane so every row is the same shape.
+    var swCell = el('div', 'c-swap');
+    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
+      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
+      sw.title = 'Change exercise';
+      sw.addEventListener('click', function () { toggleSwap(row, ex); });
+      swCell.appendChild(sw);
+    }
+    l2.appendChild(swCell);
 
     var lastLogId = null;
     function commit() {   // checking = "already did it" — the timer is its own Start button, not tied to this
@@ -456,20 +567,31 @@
       lastLogId = log.log_id;
       logRows([log]);
       row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
+      refocus();   // rule 1: finishing a set advances what's in focus
     }
     function uncheck() {   // undo an accidental check (pulls the log back if not yet sent)
       if (lastLogId) qDel([lastLogId]).then(updateBadge).catch(function () {});
       lastLogId = null; row.classList.remove('done'); check.classList.remove('done');
       check.textContent = isDur ? '▶' : '✓';
+      refocus();
     }
+    // What the collapsed one-line form of this row says (rule 1). Reads live state, so a correction
+    // shows the corrected numbers without a re-render.
+    row._commit = commit; row._isDur = isDur;   // the round-level Log button drives these (rule 2b)
+    row._sum = function () {
+      var v = isDur ? (t.duration_s + 's')
+        : (weighted ? (state.load + ' lb × ' + state.reps) : (state.reps + ' reps'));
+      return { name: name.textContent, val: v };   // reads the node, so a swap renames the summary too
+    };
     // Same-size control in the rightmost lane for every row: ✓ to log, ▶ to start a timed hold (the
     // duration is already shown as "Ns hold" in the goal cell), so it lines up with the checkmarks.
-    var check = el('button', 'check', isDur ? '▶' : '✓'); check.type = 'button';
+    var check = el('button', 'check' + (isDur ? ' dur' : ''), isDur ? '▶' : '✓'); check.type = 'button';
     check.addEventListener('click', function () {
       if (check.disabled) return;
       if (check.classList.contains('done')) { uncheck(); return; }   // tap a done set again to undo
       if (isDur) startHold(check, t.duration_s, commit); else commit();
     });
+    if (needsConfirm && isDur) { check.disabled = true; check.classList.add('locked'); }
     l2.appendChild(check);
     row.appendChild(l2);
     if (wasLogged) { row.classList.add('done'); check.classList.add('done'); check.textContent = '✓'; }   // show as logged; tap to edit
@@ -509,8 +631,88 @@
     block('Keep an eye on 🔻', d.worst, 'down');
   }
 
+  // ---- rule 1: vertical order = temporal order ----
+  // Everything stays in the DOM (so logging, swap, correction and "Finish workout" are untouched) —
+  // only its VISIBILITY changes. Completed rounds collapse to a one-line record of what was actually
+  // lifted, the round you're on is boxed and labelled NOW, the next one is a grey preview, the rest
+  // wait. Tapping any collapsed thing opens it, so nothing is unreachable (rule 7).
+  function roundSummary(rb) {
+    var sum = rb.querySelector('.round-sum');
+    if (!sum) { sum = el('div', 'round-sum'); rb.appendChild(sum); sum.addEventListener('click', function () { rb.classList.toggle('open'); }); }
+    sum.innerHTML = '';
+    var title = rb.getAttribute('data-title') || '';
+    var rows = [].slice.call(rb.querySelectorAll('.ex-row'));
+    if (rb.classList.contains('is-done')) {
+      rows.forEach(function (r) {
+        var s = r._sum && r._sum(); if (!s) return;
+        var line = el('div', 'done-line');
+        line.appendChild(el('span', 'dl-t', '✓ ' + title + ' · ' + s.name));
+        line.appendChild(el('span', 'dl-v', s.val));
+        sum.appendChild(line);
+      });
+    } else if (rb.classList.contains('is-next')) {
+      var names = rows.map(function (r) { var s = r._sum && r._sum(); return s ? s.name : ''; }).filter(Boolean).join(' + ');
+      var line = el('div', 'up-line');
+      line.appendChild(el('span', 'dl-t', 'Next · ' + title + ' — ' + names));
+      var s0 = rows[0] && rows[0]._sum && rows[0]._sum();
+      if (s0) line.appendChild(el('span', 'dl-v', s0.val));
+      sum.appendChild(line);
+    }
+  }
+  // RULE 2 — one primary action per screen state, and rule 1 is what makes it unambiguous: exactly one
+  // round is current, so "Log" has exactly one referent. The button names the numbers it is about to
+  // record rather than saying "done", and stays disabled until every actual in the round is confirmed
+  // (rule 2b) — the athlete cannot record a lift they did not do without passing through the number.
+  function syncRound(rb) {
+    if (!rb || !rb.classList || !rb.classList.contains('round')) return;
+    var btn = rb.querySelector('.roundlog'); if (!btn) return;
+    var rows = [].slice.call(rb.querySelectorAll('.ex-row')).filter(function (r) { return r._commit && !r._isDur; });
+    var pending = rows.filter(function (r) { return !r.classList.contains('done'); });
+    if (!pending.length) { btn.hidden = true; return; }   // nothing left to log; the round is collapsing
+    btn.hidden = false;
+    var unconfirmed = pending.filter(function (r) { return !r._confirmed; });
+    if (unconfirmed.length) {
+      btn.disabled = true;
+      btn.textContent = 'Enter ' + unconfirmed[0]._needs + ' to log';
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Log ' + (rb.getAttribute('data-title') || 'set') + ' · ' +
+        pending.map(function (r) { return r._sum().val; }).join(' · ');
+    }
+  }
+
+  function refocus() {
+    var cards = [].slice.call(app.querySelectorAll('.slot'));
+    var seenCurrent = false;
+    cards.forEach(function (card) {
+      var rounds = [].slice.call(card.querySelectorAll('.round'));
+      var nowIdx = -1;
+      rounds.forEach(function (rb, i) {
+        var rows = [].slice.call(rb.querySelectorAll('.ex-row'));
+        var done = rows.length > 0 && rows.every(function (r) { return r.classList.contains('done'); });
+        rb.classList.toggle('is-done', done);
+        if (!done && nowIdx < 0) nowIdx = i;
+      });
+      rounds.forEach(function (rb, i) {
+        rb.classList.remove('is-now', 'is-next', 'is-later');
+        if (i === nowIdx) rb.classList.add('is-now');
+        else if (nowIdx >= 0 && i === nowIdx + 1) rb.classList.add('is-next');
+        else if (nowIdx >= 0 && i > nowIdx + 1) rb.classList.add('is-later');
+        roundSummary(rb); syncRound(rb);
+      });
+      var slotDone = rounds.length > 0 && nowIdx < 0;
+      card.classList.remove('slot-done', 'slot-now', 'slot-later');
+      if (slotDone) card.classList.add('slot-done');
+      else if (!seenCurrent) { seenCurrent = true; card.classList.add('slot-now'); }
+      else card.classList.add('slot-later');
+      var st = card.querySelector('.slot-state');
+      if (st) st.textContent = slotDone ? 'done' : (card.classList.contains('slot-later') ? 'not started' : '');
+    });
+  }
+
   function render(s) {
     SESSION = s;
+    clearTimerBar();
     ROW_REG = {}; LEG_REG = {};   // fresh registries per session render
     renderNav('wo');
     // S19 AC2: the athlete sees what they're signing up for before they start.
@@ -525,7 +727,8 @@
     s.slots.forEach(function (slot) {
       var card = el('section', 'slot');
       var head = el('div', 'slot-head');
-      head.appendChild(el('h2', 'slot-title', slotLabel(slot.slot)));   // "Warm Up 1" / "Complex 1"
+      var sLabel = slotLabel(slot.slot);
+      head.appendChild(el('h2', 'slot-title', sLabel));   // "Warm Up 1" / "Complex 1"
       var timerNode = el('span', 'timer');
       // "Begin complex · 3:00" — a check means "I already did that set", so the timer can't
       // auto-start off one; it needs an explicit "I'm starting now". The label says what it does
@@ -535,9 +738,16 @@
       var pauseBtn = el('button', 'pause', '⏸'); pauseBtn.type = 'button'; pauseBtn.hidden = true;
       head.appendChild(startBtn); head.appendChild(timerNode); head.appendChild(pauseBtn);
       card.appendChild(head);
-      var timer = makeTimer(timerNode, pauseBtn, ivs);
+      var timer = makeTimer(timerNode, pauseBtn, ivs, sLabel);
       startBtn.addEventListener('click', function () { timer.start(); startBtn.hidden = true; });
 
+      // Collapsed form of a complex you haven't reached (or have finished) — rule 1. Tap to open it
+      // anyway, because a plan is not an order: you may want to jump ahead.
+      var slotSum = el('div', 'slot-sum');
+      slotSum.appendChild(el('span', 'ss-t', slot.exercises.map(function (e) { return exLabel(e); }).join(' + ')));
+      slotSum.appendChild(el('span', 'slot-state', ''));
+      slotSum.addEventListener('click', function () { card.classList.toggle('open'); });
+      card.appendChild(slotSum);
 
       var body = el('div', 'sets');
       var aSide = slot.exercises[0];
@@ -551,12 +761,28 @@
         var aSet = aSide && aSide.sets[r];
         var isWarmRound = aSet && aSet.kind === 'warmup';
         var title = isWarmRound ? ('Warm-up ' + (++warmNo)) : ('Set ' + (r + 1));
+        roundBox.setAttribute('data-title', title);   // the NOW tag and the collapsed lines both read this
         roundBox.appendChild(el('div', 'round-title', title));
         var count = 0;
         slot.exercises.forEach(function (ex) {
           if (r < ex.sets.length) { roundBox.appendChild(exerciseRow(slot, ex, ex.sets[r], timer, ex === aSide)); count++; }
         });
         if (count > 1) roundBox.classList.add('paired');
+        // One Log button per round (rule 2). Rounds made entirely of timed holds don't get one — the
+        // hold's own ▶ IS the action, and you can't log a 45s hold you haven't stood through.
+        var loggable = [].slice.call(roundBox.querySelectorAll('.ex-row')).some(function (r) { return r._commit && !r._isDur; });
+        if (loggable) {
+          var act = el('button', 'roundlog'); act.type = 'button'; act.disabled = true;
+          act.addEventListener('click', (function (rb) {
+            return function () {
+              if (act.disabled) return;
+              [].slice.call(rb.querySelectorAll('.ex-row')).forEach(function (r) {
+                if (r._commit && !r._isDur && !r.classList.contains('done')) r._commit();
+              });
+            };
+          })(roundBox));
+          roundBox.appendChild(act);
+        }
         body.appendChild(roundBox);
       }
       card.appendChild(body);
@@ -576,6 +802,7 @@
       }, 1800);
     });
     app.appendChild(finish);
+    refocus();   // rule 1: set the opening focus before the athlete sees anything
   }
 
   function load() {

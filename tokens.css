@@ -1,0 +1,129 @@
+/* ============================================================================
+   tokens.css — the frozen vocabulary. DESIGN.md step 4.
+
+   Every colour, radius, type size and gap in the app is named here. styles.css
+   contains no raw theme values, so a change happens in ONE place and a change
+   nobody intended shows up as a GOLDEN diff (scripts/golden.sh).
+
+   The line this draws: THEME values are tokens; STRUCTURAL layout numbers are
+   not. A grid track (`minmax(0, 1.12fr) ... 34px 50px`) and a one-off offset
+   describe a specific arrangement, not a reusable decision, and naming them
+   would be a rename rather than a system.
+
+   HONEST NOTE — the scales below have more steps than a design system should.
+   Some are near-duplicates that exist because this stylesheet grew by appending
+   for months (surface-1 #fafbfd vs surface-2 #fafbfe is imperceptible; so are
+   several radius steps). They are preserved at their exact values here because
+   collapsing them MOVES PIXELS, and that needs Phil's eye and approval — it is
+   not a refactor. Collapsing them is a good next pass, deliberately taken.
+   ============================================================================ */
+:root {
+  /* ---- brand ---- */
+  --bp: #0b3d91;
+  --bp-alt: #3f6fd1;
+  --bp-tint: #eef2fb;
+  --bp-tint-2: #eaf1ff;
+  --bp-line: #cdd8ef;
+  --bp-faint: #f7f9ff;
+
+  /* ---- ink & text ---- */
+  --ink: #17223b;
+  --ink-deep: #171a22;
+  --muted: #6b7280;
+  --muted-soft: #aab;
+  --white: #ffffff;
+  --black: #000;
+
+  /* ---- surfaces ---- */
+  --bg: #f4f6fb;
+  --surface-1: #fafbfd;
+  --surface-2: #fafbfe;
+  --surface-3: #f6f7fb;
+  --surface-4: #fbfbfe;
+  --control: #eef1f7;
+  --control-active: #dde3ef;
+  --control-flat: #e7ebf3;
+  --card: var(--white);
+
+  /* ---- lines ---- */
+  --line: #e3e7ef;
+  --line-soft: #e6e9f1;
+  --line-hard: #c9ccd4;
+
+  /* ---- status: green = logged/passed, amber = needs your input, red = error ---- */
+  --ok: #1a7f37;
+  --ok-bg: #f0faf3;
+  --ok-bg-2: #f4faf5;
+  --ok-bg-3: #f7fbf8;
+  --ok-tint: #eaf6ee;
+  --ok-line: #cfe6d4;
+  --ok-bright: #4ccf6b;
+  --ok-deep: #12261a;
+  --warn: #b45309;
+  --warn-bg: #fff8ed;
+  --warn-bg-2: #fff8ef;
+  --warn-bg-3: #fdf6ec;
+  --warn-bg-4: #fdf9f3;
+  --warn-chip: #fdecd8;
+  --warn-line: #f2d3a6;
+  --danger: #b91c1c;
+  --danger-2: #c0392b;
+
+  /* ---- translucency: scrims, veils, on-dark fills ---- */
+  --sh-card: rgba(20,30,60,.04);
+  --sh-float: rgba(23, 34, 59, .28);
+  --sh-lift: rgba(20,40,90,.35);
+  --sh-lift-2: rgba(20,30,60,.35);
+  --sh-brand: rgba(11,61,145,.28);
+  --scrim: rgba(10,15,30,.86);
+  --scrim-soft: rgba(0,0,0,.45);
+  --veil: rgba(255,255,255,.96);
+  --veil-dark: rgba(23,26,34,.96);
+  --on-dark-18: rgba(255,255,255,.18);
+  --on-dark-16: rgba(255, 255, 255, .16);
+
+  /* ---- radius ---- */
+  --r-5: 5px;
+  --r-6: 6px;
+  --r-7: 7px;
+  --r-8: 8px;
+  --r-9: 9px;
+  --r-10: 10px;
+  --r-11: 11px;
+  --r-12: 12px;
+  --r-14: 14px;
+  --r-18: 18px;
+  --r-circle: 50%;
+  --r-pill: 999px;
+
+  /* ---- type scale ---- */
+  --fs-8: 8px;
+  --fs-9: 9px;
+  --fs-10: 10px;
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-16: 16px;
+  --fs-17: 17px;
+  --fs-18: 18px;
+  --fs-19: 19px;
+  --fs-20: 20px;
+  --fs-34: 34px;
+  --fs-40: 40px;
+
+  /* ---- gaps ---- */
+  --sp-1: 1px;
+  --sp-2: 2px;
+  --sp-3: 3px;
+  --sp-4: 4px;
+  --sp-5: 5px;
+  --sp-6: 6px;
+  --sp-7: 7px;
+  --sp-8: 8px;
+  --sp-9: 9px;
+  --sp-10: 10px;
+  --sp-12: 12px;
+  --sp-14: 14px;
+}

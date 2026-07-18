@@ -1,13 +1,3 @@
-:root {
-  --bp: #0b3d91;
-  --bg: #f4f6fb;
-  --card: #ffffff;
-  --ink: #17223b;
-  --muted: #6b7280;
-  --line: #e3e7ef;
-  --ok: #1a7f37;
-  --warn: #b45309;
-}
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; }
 body {
@@ -17,160 +7,160 @@ body {
 }
 #hdr {
   position: sticky; top: 0; z-index: 5;
-  background: var(--bp); color: #fff;
+  background: var(--bp); color: var(--white);
   padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
 }
 .hdr-row { display: flex; align-items: center; justify-content: space-between; }
-#hdr h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
-.meta { font-size: 13px; opacity: .9; margin-top: 2px; }
+#hdr h1 { font-size: var(--fs-18); margin: 0; letter-spacing: .5px; }
+.meta { font-size: var(--fs-13); opacity: .9; margin-top: 2px; }
 .sync {
-  font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
-  background: rgba(255,255,255,.18);
+  font-size: var(--fs-12); font-weight: 600; padding: 3px 9px; border-radius: var(--r-pill);
+  background: var(--on-dark-18);
 }
 .sync.pending { background: var(--warn); }
 .sync.synced { background: var(--ok); }
-#app { padding: 12px; display: grid; gap: 12px; max-width: 640px; margin: 0 auto; }
+#app { padding: 12px; display: grid; gap: var(--sp-12); max-width: 640px; margin: 0 auto; }
 .loading, .empty, .err { color: var(--muted); padding: 24px 8px; text-align: center; }
-.err { color: #b91c1c; }
+.err { color: var(--danger); }
 .slot {
-  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-  padding: 12px 14px; box-shadow: 0 1px 2px rgba(20,30,60,.04);
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--r-14);
+  padding: 12px 14px; box-shadow: 0 1px 2px var(--sh-card);
 }
-.slot-title { font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin: 0 0 8px; }
+.slot-title { font-size: var(--fs-13); text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin: 0 0 8px; }
 .exercise { padding: 8px 0; border-top: 1px solid var(--line); }
 .exercise:first-of-type { border-top: 0; }
-.ex-name { font-size: 16px; margin: 0 0 8px; }
-.sets { display: grid; gap: 12px; }
-.round { border: 1.5px solid var(--line); border-radius: 12px; padding: 10px; display: grid; gap: 8px; }
-.round.paired { border: 3px solid var(--ink); background: #eef2fb; }
-.round-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
-.round-timer { text-align: right; font-size: 13px; font-weight: 700; color: var(--warn); font-variant-numeric: tabular-nums; min-height: 16px; padding-right: 4px; }
+.ex-name { font-size: var(--fs-16); margin: 0 0 8px; }
+.sets { display: grid; gap: var(--sp-12); }
+.round { border: 1.5px solid var(--line); border-radius: var(--r-12); padding: 10px; display: grid; gap: var(--sp-8); }
+.round.paired { border: 3px solid var(--ink); background: var(--bp-tint); }
+.round-title { font-size: var(--fs-12); font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.round-timer { text-align: right; font-size: var(--fs-13); font-weight: 700; color: var(--warn); font-variant-numeric: tabular-nums; min-height: 16px; padding-right: 4px; }
 .round-timer:empty { display: none; }
 
-.ex-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
-.ex-row.warmup { background: #fbfbfe; }
-.ex-row.done { border-color: var(--ok); background: #f0faf3; }
-.ex-name { flex: 0 1 auto; text-align: left; background: none; border: 0; font: inherit; font-weight: 600; color: var(--ink); padding: 0; display: flex; align-items: center; gap: 8px; }
+.ex-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 8px; border: 1px solid var(--line); border-radius: var(--r-9); background: var(--white); }
+.ex-row.warmup { background: var(--surface-4); }
+.ex-row.done { border-color: var(--ok); background: var(--ok-bg); }
+.ex-name { flex: 0 1 auto; text-align: left; background: none; border: 0; font: inherit; font-weight: 600; color: var(--ink); padding: 0; display: flex; align-items: center; gap: var(--sp-8); }
 .ex-name.has-video { color: var(--bp); text-decoration: underline; }
-.fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; }
-.stepper { display: flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 8px; padding: 2px; background: #fff; }
-.step { min-width: 36px; min-height: 40px; border: 0; background: #eef1f7; border-radius: 6px; font-weight: 700; font-size: 13px; color: var(--ink); }
-.step:active { background: #dde3ef; }
+.fields { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); flex: 1; }
+.stepper { display: flex; align-items: center; gap: var(--sp-2); border: 1px solid var(--line); border-radius: var(--r-8); padding: 2px; background: var(--white); }
+.step { min-width: 36px; min-height: 40px; border: 0; background: var(--control); border-radius: var(--r-6); font-weight: 700; font-size: var(--fs-13); color: var(--ink); }
+.step:active { background: var(--control-active); }
 .val { min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
-.unit { font-size: 12px; color: var(--muted); padding: 0 2px; }
-.hint { font-size: 12px; color: var(--muted); }
-.check { min-width: 54px; min-height: 42px; border: 0; border-radius: 9px; background: var(--bp); color: #fff; font-weight: 700; font-size: 17px; }
+.unit { font-size: var(--fs-12); color: var(--muted); padding: 0 2px; }
+.hint { font-size: var(--fs-12); color: var(--muted); }
+.check { min-width: 54px; min-height: 42px; border: 0; border-radius: var(--r-9); background: var(--bp); color: var(--white); font-weight: 700; font-size: var(--fs-17); }
 .check.done { background: var(--ok); }
 .check.holding { background: var(--warn); }
 .set {
-  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
-  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff;
+  display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-8);
+  border: 1px solid var(--line); border-radius: var(--r-10); padding: 10px 12px; background: var(--white);
 }
-.set.warmup { background: #fbfbfe; }
-.set.done { border-color: var(--ok); background: #f0faf3; }
-.set-ex { font-size: 13px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 8px; }
-.set-controls { display: flex; align-items: center; gap: 10px; }
+.set.warmup { background: var(--surface-4); }
+.set.done { border-color: var(--ok); background: var(--ok-bg); }
+.set-ex { font-size: var(--fs-13); font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: var(--sp-8); }
+.set-controls { display: flex; align-items: center; gap: var(--sp-10); }
 .set-target { flex: 1; font-variant-numeric: tabular-nums; }
-.set-warm { font-size: 10px; color: var(--warn); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+.set-warm { font-size: var(--fs-10); color: var(--warn); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
 .tap {
-  min-width: 84px; min-height: 40px; border: 0; border-radius: 9px;
-  background: var(--bp); color: #fff; font-weight: 600; font-size: 14px;
+  min-width: 84px; min-height: 40px; border: 0; border-radius: var(--r-9);
+  background: var(--bp); color: var(--white); font-weight: 600; font-size: var(--fs-14);
 }
 .tap.done { background: var(--ok); }
-.side-tag { font-size: 11px; font-weight: 700; color: var(--muted); width: 18px; }
-.timer { font-size: 13px; color: var(--warn); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
-.edit input { width: 62px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; }
+.side-tag { font-size: var(--fs-11); font-weight: 700; color: var(--muted); width: 18px; }
+.timer { font-size: var(--fs-13); color: var(--warn); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+.edit input { width: 62px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-8); font-size: var(--fs-15); }
 .tap.side { min-width: 54px; margin-left: 6px; }
 .finish {
   display: block; width: 100%; margin: 18px 0 28px; min-height: 54px;
-  border: 0; border-radius: 12px; background: var(--ink); color: #fff; font-size: 16px; font-weight: 700;
+  border: 0; border-radius: var(--r-12); background: var(--ink); color: var(--white); font-size: var(--fs-16); font-weight: 700;
 }
 
 .tap.holding { background: var(--warn); }
 
 .chip {
-  flex: 1; text-align: left; background: #fff; border: 1px dashed var(--bp); border-radius: 9px;
+  flex: 1; text-align: left; background: var(--white); border: 1px dashed var(--bp); border-radius: var(--r-9);
   padding: 10px 12px; font: inherit; color: var(--ink); font-variant-numeric: tabular-nums;
 }
-.chip input { width: 58px; padding: 4px 6px; margin: 0 2px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; }
+.chip input { width: 58px; padding: 4px 6px; margin: 0 2px; border: 1px solid var(--line); border-radius: var(--r-6); font-size: var(--fs-15); }
 
 /* UI pass: rolling timer, Goal/Target, swap */
-.slot-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.slot-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); margin-bottom: 8px; }
 .slot-head .slot-title { margin: 0; }
-.timer { font-size: 15px; font-weight: 800; color: var(--warn); font-variant-numeric: tabular-nums; }
+.timer { font-size: var(--fs-15); font-weight: 800; color: var(--warn); font-variant-numeric: tabular-nums; }
 .timer.flash { color: var(--ok); }
-.pause { min-width: 42px; min-height: 34px; border: 0; border-radius: 8px; background: #eef1f7; font-size: 14px; }
-.gt { display: flex; gap: 12px; font-size: 12px; font-variant-numeric: tabular-nums; margin: 1px 0 2px; }
-.gt.warm { opacity: .65; font-size: 11px; }
+.pause { min-width: 42px; min-height: 34px; border: 0; border-radius: var(--r-8); background: var(--control); font-size: var(--fs-14); }
+.gt { display: flex; gap: var(--sp-12); font-size: var(--fs-12); font-variant-numeric: tabular-nums; margin: 1px 0 2px; }
+.gt.warm { opacity: .65; font-size: var(--fs-11); }
 .goal { color: var(--muted); }
 .aim { color: var(--bp); font-weight: 700; }
-.swap { min-width: 42px; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 16px; }
-.swap-panel { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 6px; }
-.swap-opt { text-align: left; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: #f7f9ff; font-size: 13px; }
+.swap { min-width: 42px; min-height: 40px; border: 1px solid var(--line); border-radius: var(--r-8); background: var(--white); font-size: var(--fs-16); }
+.swap-panel { display: flex; flex-direction: column; gap: var(--sp-6); width: 100%; margin-top: 6px; }
+.swap-opt { text-align: left; padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--r-8); background: var(--bp-faint); font-size: var(--fs-13); }
 
 /* post-workout summary */
 .sum-h { text-align: center; margin: 24px 0 4px; }
 .sum-sub { text-align: center; color: var(--muted); margin: 0 0 16px; }
-.sum-t { margin: 16px 0 6px; font-size: 14px; }
+.sum-t { margin: 16px 0 6px; font-size: var(--fs-14); }
 .sum-t.up { color: var(--ok); } .sum-t.down { color: var(--warn); }
-.sum-row { padding: 10px 12px; border-radius: 8px; background: #fff; border: 1px solid var(--line); margin-bottom: 6px; font-size: 14px; }
+.sum-row { padding: 10px 12px; border-radius: var(--r-8); background: var(--white); border: 1px solid var(--line); margin-bottom: 6px; font-size: var(--fs-14); }
 .sum-row.up { border-left: 4px solid var(--ok); } .sum-row.down { border-left: 4px solid var(--warn); }
 
 /* conditioning */
-.ex-row.cond { background: #fff8ef; }
-.dist-in { width: 96px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; }
+.ex-row.cond { background: var(--warn-bg-2); }
+.dist-in { width: 96px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-8); font-size: var(--fs-15); }
 
 /* UI cleanup pass */
-.ex-head { display: flex; align-items: center; gap: 8px; width: 100%; }
+.ex-head { display: flex; align-items: center; gap: var(--sp-8); width: 100%; }
 .ex-head .ex-name { flex: 1; }
 .gt { flex-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .swap { min-width: 38px; min-height: 34px; }
 
 /* compact pass (from Phil: too tall / too much scroll) */
 .slot { padding: 10px 12px; }
-.sets { gap: 8px; }
-.round { padding: 7px; gap: 5px; }
-.round-title { font-size: 10px; }
-.ex-row { padding: 7px 8px; gap: 6px; }
-.ex-head .ex-name { font-size: 14px; font-weight: 600; }
-.fields { gap: 6px; }
-.gt { display: inline-flex; align-items: center; font-size: 12px; color: var(--muted); white-space: nowrap; margin: 0; padding-right: 2px; }
+.sets { gap: var(--sp-8); }
+.round { padding: 7px; gap: var(--sp-5); }
+.round-title { font-size: var(--fs-10); }
+.ex-row { padding: 7px 8px; gap: var(--sp-6); }
+.ex-head .ex-name { font-size: var(--fs-14); font-weight: 600; }
+.fields { gap: var(--sp-6); }
+.gt { display: inline-flex; align-items: center; font-size: var(--fs-12); color: var(--muted); white-space: nowrap; margin: 0; padding-right: 2px; }
 .gt .goal { color: var(--muted); }
 .gt .aim { color: var(--bp); font-weight: 700; }
-.stepper { gap: 1px; padding: 1px; }
-.step { min-width: 32px; min-height: 34px; font-size: 13px; }
+.stepper { gap: var(--sp-1); padding: 1px; }
+.step { min-width: 32px; min-height: 34px; font-size: var(--fs-13); }
 .val { min-width: 34px; }
-.check { min-width: 46px; min-height: 36px; font-size: 15px; }
-.swap { min-width: 34px; min-height: 30px; font-size: 14px; }
+.check { min-width: 46px; min-height: 36px; font-size: var(--fs-15); }
+.swap { min-width: 34px; min-height: 30px; font-size: var(--fs-14); }
 
 /* tighter still — fit loaded lifts on one line at 375px */
-.ex-row { padding: 6px 7px; gap: 5px; }
-.fields { gap: 5px; }
+.ex-row { padding: 6px 7px; gap: var(--sp-5); }
+.fields { gap: var(--sp-5); }
 .stepper { gap: 0; padding: 1px; }
-.step { min-width: 30px; width: 30px; min-height: 32px; padding: 0; font-size: 16px; font-weight: 700; }
-.val { min-width: 30px; font-size: 14px; }
-.unit { font-size: 11px; padding: 0 1px; }
-.check { min-width: 42px; min-height: 34px; font-size: 15px; }
-.gt { font-size: 11px; }
+.step { min-width: 30px; width: 30px; min-height: 32px; padding: 0; font-size: var(--fs-16); font-weight: 700; }
+.val { min-width: 30px; font-size: var(--fs-14); }
+.unit { font-size: var(--fs-11); padding: 0 1px; }
+.check { min-width: 42px; min-height: 34px; font-size: var(--fs-15); }
+.gt { font-size: var(--fs-11); }
 .round { padding: 6px; }
 
 /* final shave for wider values (e.g. 32.5, 132.5) */
-.ex-row { gap: 4px; }
-.fields { gap: 4px; }
+.ex-row { gap: var(--sp-4); }
+.fields { gap: var(--sp-4); }
 .step { min-width: 28px; width: 28px; }
 .val { min-width: 26px; padding: 0 1px; }
 .check { min-width: 40px; }
-.gt { font-size: 10px; }
+.gt { font-size: var(--fs-10); }
 .swap { min-width: 32px; }
 
-.tstart { min-height: 30px; border: 0; border-radius: 8px; background: var(--bp); color: #fff; font-size: 13px; font-weight: 700; padding: 0 12px; }
+.tstart { min-height: 30px; border: 0; border-radius: var(--r-8); background: var(--bp); color: var(--white); font-size: var(--fs-13); font-weight: 700; padding: 0 12px; }
 
 /* refinements: smaller check, labeled goal/aim, swap header */
-.check { min-width: 36px; min-height: 30px; font-size: 14px; }
-.gt .lbl { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .3px; }
+.check { min-width: 36px; min-height: 30px; font-size: var(--fs-14); }
+.gt .lbl { color: var(--muted); font-size: var(--fs-9); text-transform: uppercase; letter-spacing: .3px; }
 .gt .goal { color: var(--ink); font-weight: 600; }
 .gt .aim { color: var(--bp); font-weight: 800; }
-.swap-h { font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 700; margin-bottom: 2px; }
+.swap-h { font-size: var(--fs-10); text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 700; margin-bottom: 2px; }
 
 /* ============================================================================
    2026-07-15 v2 — precision lanes (Phil: everything must line up; no sideways scroll).
@@ -184,81 +174,81 @@ body {
    ========================================================================== */
 html, body { overflow-x: hidden; }                 /* never scroll sideways */
 #app { max-width: 100%; }
-.ex-row { display: grid; gap: 5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; max-width: 100%; overflow: hidden; }
-.ex-row.done { border-color: var(--ok); background: #f0faf3; }
+.ex-row { display: grid; gap: var(--sp-5); padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--r-9); background: var(--white); max-width: 100%; overflow: hidden; }
+.ex-row.done { border-color: var(--ok); background: var(--ok-bg); }
 
-.l1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.l1 { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
 .l1 .ex-name { flex: 0 1 auto; min-width: 0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-size: 14px; font-weight: 600; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); }
+  font-size: var(--fs-14); font-weight: 600; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); }
 .l1 .ex-name.has-video { color: var(--bp); text-decoration: underline; }
-.swapbtn { flex: none; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line);
-  border-radius: 8px; background: #f7f9ff; color: var(--bp); font-size: 11px; font-weight: 700; padding: 4px 9px; }
+.swapbtn { flex: none; display: inline-flex; align-items: center; gap: var(--sp-4); border: 1px solid var(--line);
+  border-radius: var(--r-8); background: var(--bp-faint); color: var(--bp); font-size: var(--fs-11); font-weight: 700; padding: 4px 9px; }
 
 /* level goal pinned LEFT; reps-tag + stepper + check packed RIGHT in fixed lanes so they line up */
-.l2 { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
-.l2 > .gt { margin-right: auto; text-align: left; min-width: 0; font-size: 11px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.l2 > .gt .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .3px; }
-.l2 > .gt .goal { color: var(--ink); font-weight: 700; font-size: 13px; }
-.l2 > .reps-tag { flex: none; font-size: 13px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.l2 { display: flex; align-items: center; gap: var(--sp-6); justify-content: flex-end; }
+.l2 > .gt { margin-right: auto; text-align: left; min-width: 0; font-size: var(--fs-11); color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.l2 > .gt .lbl { font-size: var(--fs-9); text-transform: uppercase; letter-spacing: .3px; }
+.l2 > .gt .goal { color: var(--ink); font-weight: 700; font-size: var(--fs-13); }
+.l2 > .reps-tag { flex: none; font-size: var(--fs-13); font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-.l2 .stepper { flex: none; display: flex; align-items: center; width: 124px; border: 1px solid var(--line); border-radius: 9px; background: #fff; padding: 1px; gap: 0; }
-.l2 .stepper .step { flex: none; width: 32px; min-height: 34px; padding: 0; background: #eef1f7; border-radius: 7px; font-size: 18px; font-weight: 700; color: var(--ink); }
-.l2 .stepper .val { flex: 1 1 auto; min-width: 0; text-align: center; font-variant-numeric: tabular-nums; font-weight: 800; font-size: 15px; padding: 0 1px; }
-.l2 .stepper .unit { flex: none; font-size: 10px; color: var(--muted); padding: 0 2px 0 0; }
+.l2 .stepper { flex: none; display: flex; align-items: center; width: 124px; border: 1px solid var(--line); border-radius: var(--r-9); background: var(--white); padding: 1px; gap: 0; }
+.l2 .stepper .step { flex: none; width: 32px; min-height: 34px; padding: 0; background: var(--control); border-radius: var(--r-7); font-size: var(--fs-18); font-weight: 700; color: var(--ink); }
+.l2 .stepper .val { flex: 1 1 auto; min-width: 0; text-align: center; font-variant-numeric: tabular-nums; font-weight: 800; font-size: var(--fs-15); padding: 0 1px; }
+.l2 .stepper .unit { flex: none; font-size: var(--fs-10); color: var(--muted); padding: 0 2px 0 0; }
 .l2 > .check { flex: none; }
 /* lighter, calmer check (repeating) — the dark accent is reserved for the unique slot timer */
-.l2 .check { width: 40px; min-height: 34px; border: 1px solid #cdd8ef; border-radius: 9px; background: #eef2fb; color: var(--bp); font-weight: 700; font-size: 15px; }
-.l2 .check.done { background: var(--ok); border-color: var(--ok); color: #fff; }
-.l2 .check.holding { background: #fdecd8; border-color: #f2d3a6; color: var(--warn); }
+.l2 .check { width: 40px; min-height: 34px; border: 1px solid var(--bp-line); border-radius: var(--r-9); background: var(--bp-tint); color: var(--bp); font-weight: 700; font-size: var(--fs-15); }
+.l2 .check.done { background: var(--ok); border-color: var(--ok); color: var(--white); }
+.l2 .check.holding { background: var(--warn-chip); border-color: var(--warn-line); color: var(--warn); }
 
 /* in-app video overlay (tap an exercise name → plays here, dismiss with ✕; no leaving the app) */
-.vov { position: fixed; inset: 0; z-index: 50; background: rgba(10,15,30,.86);
+.vov { position: fixed; inset: 0; z-index: 50; background: var(--scrim);
   display: flex; align-items: center; justify-content: center; padding: 18px; }
 .vbox { position: relative; width: 100%; max-width: 680px; }
-.vframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 12px; background: #000; display: block; }
-.vclose { position: absolute; top: -16px; right: -6px; width: 38px; height: 38px; border-radius: 50%;
-  border: 0; background: #fff; color: var(--ink); font-size: 16px; font-weight: 800; box-shadow: 0 2px 10px rgba(0,0,0,.45); }
-.vfallback { display: inline-block; padding: 14px 18px; background: #fff; border-radius: 10px; color: var(--bp); font-weight: 700; text-decoration: none; }
+.vframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: var(--r-12); background: var(--black); display: block; }
+.vclose { position: absolute; top: -16px; right: -6px; width: 38px; height: 38px; border-radius: var(--r-circle);
+  border: 0; background: var(--white); color: var(--ink); font-size: var(--fs-16); font-weight: 800; box-shadow: 0 2px 10px var(--scrim-soft); }
+.vfallback { display: inline-block; padding: 14px 18px; background: var(--white); border-radius: var(--r-10); color: var(--bp); font-weight: 700; text-decoration: none; }
 
 /* level-up celebration in the finish summary */
-.sum-row.levelup { border-left: 4px solid var(--ok); font-weight: 700; background: #f0faf3; }
-@media (prefers-color-scheme: dark){ .sum-row.levelup { background: #12261a; } }
+.sum-row.levelup { border-left: 4px solid var(--ok); font-weight: 700; background: var(--ok-bg); }
+@media (prefers-color-scheme: dark){ .sum-row.levelup { background: var(--ok-deep); } }
 
 /* rest-timer "up" alert — a half-screen banner that flashes then fades as the timer rolls on */
 .talert { position: fixed; left: 0; right: 0; top: 22%; z-index: 60; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 4px; pointer-events: none;
+  align-items: center; justify-content: center; gap: var(--sp-4); pointer-events: none;
   opacity: 0; transform: scale(.9); transition: opacity .18s ease, transform .18s ease; }
 .talert.show { opacity: 1; transform: scale(1); }
-.talert-big { background: var(--ok); color: #fff; font-size: 34px; font-weight: 800; letter-spacing: .5px;
-  padding: 18px 40px; border-radius: 18px; box-shadow: 0 10px 40px rgba(20,30,60,.35); }
-.talert-sub { color: var(--ok); font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-@media (prefers-color-scheme: dark){ .talert-sub { color: #4ccf6b; } }
+.talert-big { background: var(--ok); color: var(--white); font-size: var(--fs-34); font-weight: 800; letter-spacing: .5px;
+  padding: 18px 40px; border-radius: var(--r-18); box-shadow: 0 10px 40px var(--sh-lift-2); }
+.talert-sub { color: var(--ok); font-size: var(--fs-15); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+@media (prefers-color-scheme: dark){ .talert-sub { color: var(--ok-bright); } }
 
 /* ---- calendar home screen ---- */
-.back { background: none; border: 0; color: var(--bp); font-size: 14px; font-weight: 700; padding: 4px 2px; margin-bottom: 6px; }
-  padding: 3px 2px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+.back { background: none; border: 0; color: var(--bp); font-size: var(--fs-14); font-weight: 700; padding: 4px 2px; margin-bottom: 6px; }
+  padding: 3px 2px; display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-3); }
 /* 44px tall: it opens a workout, so it's a real tap target — and the extra height is also what
    fills the screen Phil said the calendar was wasting. Width is whatever 7 columns leave in 390px
    (~45px after trimming the gaps), which is the honest ceiling for a 7-day grid on a phone. */
-  border-left: 3px solid var(--bp); border-radius: 5px; background: #eef2fb; color: var(--muted);
-  font-size: 12px; font-weight: 800; line-height: 1; padding: 0; min-height: 44px; }
+  border-left: 3px solid var(--bp); border-radius: var(--r-5); background: var(--bp-tint); color: var(--muted);
+  font-size: var(--fs-12); font-weight: 800; line-height: 1; padding: 0; min-height: 44px; }
 .chip-tick { font-weight: 800; flex: none; }
 
 /* level goal moved to line 1 (muted, next to the name); line 2 gets room for both adjusters */
-.l1 .goaltag { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.l1 .goaltag .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .3px; }
-.l1 .goaltag .gv { color: var(--ink); font-weight: 700; font-size: 12px; }
+.l1 .goaltag { flex: none; font-size: var(--fs-11); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.l1 .goaltag .lbl { font-size: var(--fs-9); text-transform: uppercase; letter-spacing: .3px; }
+.l1 .goaltag .gv { color: var(--ink); font-weight: 700; font-size: var(--fs-12); }
 /* secondary/subtle reps stepper for weighted lifts (weight stays the primary control) */
-.l2 .stepper.mini { width: 86px; border-color: #e6e9f1; background: #fafbfe; }
-.l2 .stepper.mini .step { width: 24px; min-height: 30px; font-size: 15px; background: #eef1f7; color: var(--muted); }
-.l2 .stepper.mini .val { font-size: 12px; font-weight: 700; color: var(--muted); }
-.l2 .stepper.mini .unit { font-size: 9px; }
+.l2 .stepper.mini { width: 86px; border-color: var(--line-soft); background: var(--surface-2); }
+.l2 .stepper.mini .step { width: 24px; min-height: 30px; font-size: var(--fs-15); background: var(--control); color: var(--muted); }
+.l2 .stepper.mini .val { font-size: var(--fs-12); font-weight: 700; color: var(--muted); }
+.l2 .stepper.mini .unit { font-size: var(--fs-9); }
 
 /* move-workout controls (session view, unlogged only) */
-.move-wrap { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; flex-wrap: wrap; }
-.movebtn, .move-go { border: 1px solid var(--line); background: #f7f9ff; color: var(--bp); font-weight: 700; font-size: 13px; border-radius: 9px; padding: 8px 12px; }
-.move-go { background: var(--bp); color: #fff; border-color: var(--bp); }
-.move-date { border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; font-size: 14px; background: #fff; color: var(--ink); }
+.move-wrap { display: flex; align-items: center; gap: var(--sp-8); margin: 0 0 10px; flex-wrap: wrap; }
+.movebtn, .move-go { border: 1px solid var(--line); background: var(--bp-faint); color: var(--bp); font-weight: 700; font-size: var(--fs-13); border-radius: var(--r-9); padding: 8px 12px; }
+.move-go { background: var(--bp); color: var(--white); border-color: var(--bp); }
+.move-date { border: 1px solid var(--line); border-radius: var(--r-9); padding: 7px 10px; font-size: var(--fs-14); background: var(--white); color: var(--ink); }
 
 /* ============================================================================
    Defect batch (qa/ISSUES.md D-02, D-03, D-08) — see QA-CHECKLIST.md QA-02, QA-07.
@@ -281,13 +271,13 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 .l1 .goaltag, .l1 .swapbtn { margin-top: 1px; }
 
 /* QA-04: escape hatch under a blocked embed */
-.vopen { display: block; margin-top: 10px; text-align: center; color: #fff; opacity: .85; font-size: 13px; font-weight: 600; text-decoration: underline; }
+.vopen { display: block; margin-top: 10px; text-align: center; color: var(--white); opacity: .85; font-size: var(--fs-13); font-weight: 600; text-decoration: underline; }
 
 /* Timer batch: "Begin complex · 3:00" is the one control that must get pressed (it sets the whole
    rest stimulus), so it stays the dark accent and gets real presence. PRINCIPLES 7: the dark accent
    is reserved for the one unique control on screen. */
-.tstart { min-height: 38px; font-size: 13px; font-weight: 800; padding: 0 14px; border-radius: 9px;
-  letter-spacing: .2px; box-shadow: 0 2px 8px rgba(11,61,145,.28); }
+.tstart { min-height: 38px; font-size: var(--fs-13); font-weight: 800; padding: 0 14px; border-radius: var(--r-9);
+  letter-spacing: .2px; box-shadow: 0 2px 8px var(--sh-brand); }
 
 /* REST phase of a conditioning interval reads amber; WORK/GO stays green. */
 .talert.rest .talert-big { background: var(--warn); }
@@ -299,34 +289,34 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
    bests would sit frozen for months. The bar is the unit of hope; bests are the record.
    ========================================================================== */
 .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(3, 1fr);
-  background: rgba(255,255,255,.96); border-top: 1px solid var(--line); backdrop-filter: blur(8px);
+  background: var(--veil); border-top: 1px solid var(--line); backdrop-filter: blur(8px);
   padding-bottom: env(safe-area-inset-bottom); }
-.nav-b { border: 0; background: none; padding: 8px 4px 7px; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); }
-.nav-i { font-size: 17px; line-height: 1; filter: grayscale(1); opacity: .55; }
-.nav-t { font-size: 10px; font-weight: 700; letter-spacing: .2px; }
+.nav-b { border: 0; background: none; padding: 8px 4px 7px; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); color: var(--muted); }
+.nav-i { font-size: var(--fs-17); line-height: 1; filter: grayscale(1); opacity: .55; }
+.nav-t { font-size: var(--fs-10); font-weight: 700; letter-spacing: .2px; }
 .nav-b.on { color: var(--bp); }
 .nav-b.on .nav-i { filter: none; opacity: 1; }
 #app { padding-bottom: 76px; }   /* clear the fixed nav */
 
-.pcard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px;
-  box-shadow: 0 1px 2px rgba(20,30,60,.04); display: grid; gap: 7px; }
-.p-top { display: flex; align-items: center; gap: 8px; }
-.p-name { flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 700; overflow-wrap: break-word; }
-.p-lvl { flex: none; font-size: 11px; font-weight: 800; color: var(--bp); background: #eef2fb; border-radius: 999px; padding: 3px 9px; letter-spacing: .3px; }
-.p-lvl.maxed { color: var(--ok); background: #eaf6ee; }
-.p-togo { font-size: 17px; font-weight: 800; color: var(--ink); letter-spacing: -.2px; }
-.p-togo.maxed { color: var(--ok); font-size: 15px; }
-.p-bar { height: 8px; border-radius: 999px; background: #eef1f7; overflow: hidden; }
-.p-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--bp), #3f6fd1); transition: width .4s ease; }
-.p-goal { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
-.p-empty { font-size: 12px; color: var(--muted); font-style: italic; }
-.p-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 1px; }
-.p-stat { background: #fafbfe; border: 1px solid var(--line); border-radius: 9px; padding: 7px 9px; }
-.p-sv { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.p-sl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; margin-top: 1px; }
+.pcard { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-14); padding: 12px 13px;
+  box-shadow: 0 1px 2px var(--sh-card); display: grid; gap: var(--sp-7); }
+.p-top { display: flex; align-items: center; gap: var(--sp-8); }
+.p-name { flex: 1 1 auto; min-width: 0; font-size: var(--fs-15); font-weight: 700; overflow-wrap: break-word; }
+.p-lvl { flex: none; font-size: var(--fs-11); font-weight: 800; color: var(--bp); background: var(--bp-tint); border-radius: var(--r-pill); padding: 3px 9px; letter-spacing: .3px; }
+.p-lvl.maxed { color: var(--ok); background: var(--ok-tint); }
+.p-togo { font-size: var(--fs-17); font-weight: 800; color: var(--ink); letter-spacing: -.2px; }
+.p-togo.maxed { color: var(--ok); font-size: var(--fs-15); }
+.p-bar { height: 8px; border-radius: var(--r-pill); background: var(--control); overflow: hidden; }
+.p-fill { height: 100%; border-radius: var(--r-pill); background: linear-gradient(90deg, var(--bp), var(--bp-alt)); transition: width .4s ease; }
+.p-goal { font-size: var(--fs-11); color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.p-empty { font-size: var(--fs-12); color: var(--muted); font-style: italic; }
+.p-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); margin-top: 1px; }
+.p-stat { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-9); padding: 7px 9px; }
+.p-sv { font-size: var(--fs-15); font-weight: 800; font-variant-numeric: tabular-nums; }
+.p-sl { font-size: var(--fs-9); color: var(--muted); text-transform: uppercase; letter-spacing: .3px; margin-top: 1px; }
 @media (prefers-color-scheme: dark) {
-  .nav { background: rgba(23,26,34,.96); }
-  .p-stat { background: #171a22; }
+  .nav { background: var(--veil-dark); }
+  .p-stat { background: var(--ink-deep); }
 }
 
 /* ---- S17 "say it once": the slot legend ----
@@ -334,15 +324,15 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
    round-major (round 1: A,B / round 2: A,B / …) because that's how a complex is performed — so
    rendering those three per row restated them once per round. A coach writes the prescription
    once at the top ("A1. Chest Supported Row 3×8 @80"); this is that. The rounds below just log. */
-.ex-legend { display: grid; gap: 6px; margin: 0 0 10px; padding: 0 0 10px; border-bottom: 1.5px solid var(--line); }
-.lg-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.lg-name { flex: 1 1 auto; font-size: 16px; font-weight: 700; margin: 0; min-height: 44px; }
+.ex-legend { display: grid; gap: var(--sp-6); margin: 0 0 10px; padding: 0 0 10px; border-bottom: 1.5px solid var(--line); }
+.lg-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
+.lg-name { flex: 1 1 auto; font-size: var(--fs-16); font-weight: 700; margin: 0; min-height: 44px; }
 .lg-row .goaltag { flex: 0 0 auto; }
 .lg-row .swapbtn { flex: 0 0 auto; margin-left: auto; }
 .lg-row .swap-panel { flex: 1 1 100%; }
 /* In a complex the round still needs to say WHICH lift — but demoted, since the legend named it.
    In a single-exercise slot the name is dropped entirely and the row is one line. */
-.ex-name.sub { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0; }
+.ex-name.sub { font-size: var(--fs-13); font-weight: 600; color: var(--muted); margin: 0; }
 .ex-name.sub.has-video { color: var(--bp); }
 
 /* ---- Calendar: use the screen ----
@@ -357,33 +347,33 @@ span.ex-name.sub { text-decoration: none; display: block; }
    The grid says WHICH DAYS; this says WHICH WORKOUT. Names live here because here they fit — 7
    columns on a 390px phone leave ~40px per cell, which shattered "Lower Body" into "Low er Body".
    It also fills the screen the grid can't: a 3-week plan is ~200px of a 844px phone. */
-.agenda { display: grid; gap: 6px; }
-.agenda-h { font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 700; }
-.ag-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
-  border: 1.5px solid var(--line); border-radius: 12px; background: #fff; border-left: 4px solid var(--bp); }
-.ag-open { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; text-align: left;
+.agenda { display: grid; gap: var(--sp-6); }
+.agenda-h { font-size: var(--fs-13); text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 700; }
+.ag-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4);
+  border: 1.5px solid var(--line); border-radius: var(--r-12); background: var(--white); border-left: 4px solid var(--bp); }
+.ag-open { flex: 1 1 auto; display: flex; align-items: center; gap: var(--sp-10); text-align: left;
   min-height: 52px; padding: 8px 4px 8px 12px; border: 0; background: none; color: inherit; font: inherit; min-width: 0; }
 /* S16: move a workout off the calendar. 44px — a gym tap, not a mouse click (QA-TAP-44). */
 .ag-move { flex: 0 0 auto; width: 38px; height: 38px; align-self: center; margin-right: 4px; border: 1.5px solid var(--line);
-  border-radius: 10px; background: #f6f7fb; color: var(--muted); font-size: 17px; font-weight: 700; }
-.move-panel { flex: 1 1 100%; border-top: 1.5px solid var(--line); padding: 10px 12px; display: grid; gap: 8px; }
-.move-h { font-size: 12px; font-weight: 700; color: var(--muted); }
-.move-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+  border-radius: var(--r-10); background: var(--surface-3); color: var(--muted); font-size: var(--fs-17); font-weight: 700; }
+.move-panel { flex: 1 1 100%; border-top: 1.5px solid var(--line); padding: 10px 12px; display: grid; gap: var(--sp-8); }
+.move-h { font-size: var(--fs-12); font-weight: 700; color: var(--muted); }
+.move-quick { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 .move-opt { flex: 1 1 auto; min-height: 44px; padding: 0 10px; border: 1.5px solid var(--line);
-  border-radius: 10px; background: #fff; font: inherit; font-weight: 600; color: var(--ink); }
-.move-any { display: flex; gap: 6px; align-items: center; }
+  border-radius: var(--r-10); background: var(--white); font: inherit; font-weight: 600; color: var(--ink); }
+.move-any { display: flex; gap: var(--sp-6); align-items: center; }
 .move-any .move-date { flex: 1 1 auto; min-height: 44px; min-width: 0; border: 1.5px solid var(--line);
-  border-radius: 10px; padding: 0 8px; font: inherit; background: #fff; }
-.move-any .move-go { flex: 0 0 auto; min-height: 44px; padding: 0 14px; border: 0; border-radius: 10px;
-  background: var(--bp); color: #fff; font: inherit; font-weight: 700; }
-.ag-when { flex: 0 0 62px; font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+  border-radius: var(--r-10); padding: 0 8px; font: inherit; background: var(--white); }
+.move-any .move-go { flex: 0 0 auto; min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-10);
+  background: var(--bp); color: var(--white); font: inherit; font-weight: 700; }
+.ag-when { flex: 0 0 62px; font-size: var(--fs-12); font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
 .ag-when.is-today { color: var(--bp); }
-.ag-name { flex: 1 1 auto; font-size: 15px; font-weight: 600; min-width: 0; }
-.ag-st { flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--muted); }
-.ag-row.st-done { border-left-color: var(--ok); background: #f7fbf8; }
+.ag-name { flex: 1 1 auto; font-size: var(--fs-15); font-weight: 600; min-width: 0; }
+.ag-st { flex: 0 0 auto; font-size: var(--fs-11); font-weight: 700; color: var(--muted); }
+.ag-row.st-done { border-left-color: var(--ok); background: var(--ok-bg-3); }
 .ag-row.st-done .ag-st { color: var(--ok); }
-.ag-row.st-started { border-left-color: var(--warn); background: #fdf9f3; }
-.ag-row.st-missed { border-left-color: #c9ccd4; color: var(--muted); }
+.ag-row.st-started { border-left-color: var(--warn); background: var(--warn-bg-4); }
+.ag-row.st-missed { border-left-color: var(--line-hard); color: var(--muted); }
 .ag-row.st-done, .ag-row.st-started { }
 
 .vopen { display: block; min-height: 44px; line-height: 44px; }
@@ -400,7 +390,7 @@ span.ex-name.sub { text-decoration: none; display: block; }
    check is the one that fell off. Budget, measured: goal 62 + mini 84 + weight 116 + check 40 +
    3 gaps at 4 = 314. Fits 375px too (~335 available), which is Phil's stated floor.
    Heights stay 44 (free horizontally); widths yield. "It's off screen" beats the HIG. */
-.l2 { gap: 4px; }
+.l2 { gap: var(--sp-4); }
 .l2 .stepper { width: 116px; }
 .l2 .stepper .step { width: 30px; min-width: 0; min-height: 44px; }
 .l2 .stepper.mini { width: 84px; }
@@ -409,9 +399,9 @@ span.ex-name.sub { text-decoration: none; display: block; }
 /* The goal, inline with the inputs it judges — Phil: "goals not by actuals". Abbreviated hard
    because it competes with two steppers for the same 350px: "goal 262.5 lb" doesn't fit, "262.5" does.
    The unit is already on the stepper beside it, so it isn't repeated here. */
-.l2 .goaltag { flex: 0 0 auto; font-size: 11px; line-height: 1.1; color: var(--muted); white-space: nowrap;
+.l2 .goaltag { flex: 0 0 auto; font-size: var(--fs-11); line-height: 1.1; color: var(--muted); white-space: nowrap;
   max-width: 62px; overflow: hidden; text-align: right; }
-.l2 .goaltag .lbl { display: block; font-size: 9px; letter-spacing: .2px; }
+.l2 .goaltag .lbl { display: block; font-size: var(--fs-9); letter-spacing: .2px; }
 .l2 .goaltag .gv { font-weight: 800; }
 .check { min-width: 44px; min-height: 44px; }
 .tstart, .swapbtn, .back, .vclose, .dist-in, .swap-opt, .movebtn { min-height: 44px; }
@@ -425,83 +415,83 @@ span.ex-name.sub { text-decoration: none; display: block; }
    why we have the calendar above." Seven columns on a 390px phone leaves ~40px per day — which is
    why the workout names had to be evicted from it in the first place. The strip answers "where am I
    in the week" at a glance; the list does the actual work. */
-.wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px;
-  background: #fff; border: 1.5px solid var(--line); border-radius: 14px; padding: 8px 4px; }
-.wk-d { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
-.wk-dow { font-size: 11px; font-weight: 700; color: var(--muted); }
-.wk-n { font-size: 15px; font-weight: 700; color: var(--ink); width: 30px; height: 30px;
-  display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-.wk-n.has-wo { background: #eef2fb; color: var(--bp); }
+.wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-2);
+  background: var(--white); border: 1.5px solid var(--line); border-radius: var(--r-14); padding: 8px 4px; }
+.wk-d { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); min-width: 0; }
+.wk-dow { font-size: var(--fs-11); font-weight: 700; color: var(--muted); }
+.wk-n { font-size: var(--fs-15); font-weight: 700; color: var(--ink); width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center; border-radius: var(--r-circle); }
+.wk-n.has-wo { background: var(--bp-tint); color: var(--bp); }
 .wk-n.is-today { box-shadow: 0 0 0 2px var(--bp) inset; color: var(--bp); }
 
 /* The DATE is its own column, never part of the tile: "some days might be zero workouts and some
    days might have 2" — a tile-per-day can express neither. */
 .days { display: flex; flex-direction: column; }
-.day-row { display: grid; grid-template-columns: 60px 1fr; gap: 10px; align-items: start;
+.day-row { display: grid; grid-template-columns: 60px 1fr; gap: var(--sp-10); align-items: start;
   padding: 10px 0; border-bottom: 1px solid var(--line); min-height: 56px; }
 .day-row.today .day-dow, .day-row.today .day-date { color: var(--bp); }
 .day-g { display: flex; flex-direction: column; }
-.day-dow { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .3px; }
-.day-date { font-size: 17px; font-weight: 700; color: var(--ink); }   /* "7/14", not "14" */
-.day-wos { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.day-dow { font-size: var(--fs-11); font-weight: 800; color: var(--muted); letter-spacing: .3px; }
+.day-date { font-size: var(--fs-17); font-weight: 700; color: var(--ink); }   /* "7/14", not "14" */
+.day-wos { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
 /* column, not row: the move panel is appended here and a flex ROW squeezed it to zero width —
    the button "did nothing" and the athlete tapped the tile instead. */
-.wo-wrap { display: flex; flex-direction: column; gap: 6px; }
+.wo-wrap { display: flex; flex-direction: column; gap: var(--sp-6); }
 /* 14px gap, not 6: Phil — "The swap button is very sensitive on the calendar. I just figured I'd
    click on one of those bars". The tile is the primary target; the move control must not sit against
    its edge. Drag-to-move (long-press the tile) is the other path. */
-.wo-line { display: flex; align-items: stretch; gap: 14px; }
+.wo-line { display: flex; align-items: stretch; gap: var(--sp-14); }
 .wo { flex: 1 1 auto; min-width: 0; text-align: left; border: 0; border-left: 4px solid var(--bp);
-  border-radius: 10px; background: #f4f6fb; padding: 10px 12px; font: inherit; min-height: 56px; }
-.wo-name { font-size: 15px; font-weight: 700; color: var(--ink); overflow-wrap: break-word; }
-.wo-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-.wo.st-done { border-left-color: var(--ok); background: #f0faf3; }
-.wo.st-missed { border-left-color: #c9ccd4; opacity: .7; }
-.wo.st-started { border-left-color: var(--warn); background: #fdf6ec; }
+  border-radius: var(--r-10); background: var(--bg); padding: 10px 12px; font: inherit; min-height: 56px; }
+.wo-name { font-size: var(--fs-15); font-weight: 700; color: var(--ink); overflow-wrap: break-word; }
+.wo-sub { font-size: var(--fs-12); color: var(--muted); margin-top: 2px; }
+.wo.st-done { border-left-color: var(--ok); background: var(--ok-bg); }
+.wo.st-missed { border-left-color: var(--line-hard); opacity: .7; }
+.wo.st-started { border-left-color: var(--warn); background: var(--warn-bg-3); }
 
 /* Swap: far left of the input line (Phil), so line 1 is just name + level goal and a long variant
    name has room to stay on ONE line. */
-.l2 .swapbtn { flex: 0 0 auto; width: 40px; min-height: 44px; padding: 0; font-size: 15px;
-  border: 1.5px solid var(--line); border-radius: 9px; background: #f6f7fb; color: var(--muted); }
+.l2 .swapbtn { flex: 0 0 auto; width: 40px; min-height: 44px; padding: 0; font-size: var(--fs-15);
+  border: 1.5px solid var(--line); border-radius: var(--r-9); background: var(--surface-3); color: var(--muted); }
 .l1 .goaltag { margin-left: auto; }
 
 /* ---- S21 profile: trends are the headline, level is demoted ---- */
-.p-ai { background: #f4f6fb; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
-.p-ai-h { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
-.p-ai-b { font-size: 13px; color: var(--ink); margin-top: 3px; }
-.pcard { display: flex; flex-direction: column; gap: 9px; }
-.p-name { font-size: 15px; font-weight: 700; overflow-wrap: break-word; }
+.p-ai { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-12); padding: 10px 12px; }
+.p-ai-h { font-size: var(--fs-10); font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
+.p-ai-b { font-size: var(--fs-13); color: var(--ink); margin-top: 3px; }
+.pcard { display: flex; flex-direction: column; gap: var(--sp-9); }
+.p-name { font-size: var(--fs-15); font-weight: 700; overflow-wrap: break-word; }
 /* headline stat: label, big value, then the two trends — the thing Phil wants to read first */
-.p-stat { background: #fafbfe; border: 1px solid var(--line); border-radius: 11px; padding: 9px 11px; }
-.p-sl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
-.p-sv { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 1px 0 6px; }
-.p-trends { display: flex; gap: 8px; }
-.p-trow { flex: 1 1 0; display: flex; align-items: center; justify-content: space-between; gap: 6px;
-  background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; min-height: 30px; }
-.p-tw { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
-.p-tr { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.p-stat { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-11); padding: 9px 11px; }
+.p-sl { font-size: var(--fs-10); color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.p-sv { font-size: var(--fs-20); font-weight: 800; font-variant-numeric: tabular-nums; margin: 1px 0 6px; }
+.p-trends { display: flex; gap: var(--sp-8); }
+.p-trow { flex: 1 1 0; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-6);
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--r-8); padding: 5px 8px; min-height: 30px; }
+.p-tw { font-size: var(--fs-10); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.p-tr { font-size: var(--fs-13); font-weight: 800; font-variant-numeric: tabular-nums; }
 .p-tr.up { color: var(--ok); }
-.p-tr.down { color: #c0392b; }
+.p-tr.down { color: var(--danger-2); }
 .p-tr.flat { color: var(--muted); }
-.p-tr.none { font-size: 10px; font-weight: 600; color: #aab; }
+.p-tr.none { font-size: var(--fs-10); font-weight: 600; color: var(--muted-soft); }
 /* level: quiet, non-bold, third */
-.p-level { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--muted); }
+.p-level { display: flex; align-items: baseline; gap: var(--sp-8); font-size: var(--fs-12); color: var(--muted); }
 .p-level-l { font-weight: 700; color: var(--ink); }
-.p-level-g { font-size: 11px; }
+.p-level-g { font-size: var(--fs-11); }
 
 /* Sticky phase banner — stays until tapped. The reliable cue when the ringer switch kills sound. */
 .talert.sticky { cursor: pointer; }
-.talert.sticky .talert-big { font-size: 40px; }
-.talert-tap { margin-top: 10px; font-size: 12px; letter-spacing: .4px; text-transform: uppercase; opacity: .8; }
+.talert.sticky .talert-big { font-size: var(--fs-40); }
+.talert-tap { margin-top: 10px; font-size: var(--fs-12); letter-spacing: .4px; text-transform: uppercase; opacity: .8; }
 
 /* S22 drag-to-move: the floating ghost + drop-target highlight */
 body.dragging { touch-action: none; user-select: none; }
 .wo.lifted { opacity: .35; }
 .wo-ghost { position: fixed; z-index: 60; transform: translate(-50%, -50%); pointer-events: none;
-  background: var(--bp); color: #fff; font-size: 14px; font-weight: 700; padding: 10px 14px;
-  border-radius: 12px; box-shadow: 0 8px 24px rgba(20,40,90,.35); max-width: 70vw;
+  background: var(--bp); color: var(--white); font-size: var(--fs-14); font-weight: 700; padding: 10px 14px;
+  border-radius: var(--r-12); box-shadow: 0 8px 24px var(--sh-lift); max-width: 70vw;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.day-row.drop-hi { background: #eaf1ff; box-shadow: inset 0 0 0 2px var(--bp); border-radius: 10px; }
+.day-row.drop-hi { background: var(--bp-tint-2); box-shadow: inset 0 0 0 2px var(--bp); border-radius: var(--r-10); }
 
 /* ---- Stop the screen zooming when you tap a button ----
    Phil: "when I press the plus up or minus... it makes the screen go zoom in and zoom out."
@@ -530,10 +520,16 @@ button, input, select, .step, .check, .swapbtn, .ag-move, .wo, .nav-b, .tstart, 
 /* Labels ride WITH their values (Phil: "Any labels should be right next to what it is"). The goal
    cell carries its own "goal" caption; lb and reps live inside their steppers. No header row — a
    label at the top of the slot is nowhere near the number it names. */
-.l2 { display: grid; grid-template-columns: 40px 1fr 96px 40px; gap: 4px; align-items: center; }
+/* RULE 4 — the input line mirrors the physical order: exercise (line 1) -> WEIGHT -> REPS -> done.
+   RULE 6 — one skeleton for every row: the hold lane is always present (empty for non-timed rows),
+   so a carry, a hold and a barbell set all put their numbers in the same place.
+   RULE 3 — accept is the 90% action, so ✓ gets the widest lane; the ± edit controls are deliberately
+   smaller because editing is the exception. */
+.l2 { display: grid; grid-template-columns: 28px 1fr 96px 58px; gap: var(--sp-4); align-items: center; }
+.c-hold { font-size: var(--fs-12); font-weight: 700; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 .c-goal { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; overflow: hidden; }
-.c-goal .cl { font-size: 8px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); }
-.c-goal .cv { font-size: 13px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.c-goal .cl { font-size: var(--fs-8); font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); }
+.c-goal .cv { font-size: var(--fs-13); font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 .c-load, .c-reps { min-width: 0; display: flex; }
 .c-load .stepper, .c-reps .stepper { width: 100%; }
 /* headers: same grid, so the labels sit exactly over their columns */
@@ -543,16 +539,171 @@ button, input, select, .step, .check, .swapbtn, .ag-move, .wo, .nav-b, .tstart, 
 
 /* swap lives with the name now */
 .l1 .swapbtn { flex: 0 0 auto; width: 38px; min-height: 32px; padding: 0;
-  font-size: 15px; color: var(--bp); background: #eef2fb; border: 1.5px solid #cdd8ef; border-radius: 9px; }
+  font-size: var(--fs-15); color: var(--bp); background: var(--bp-tint); border: 1.5px solid var(--bp-line); border-radius: var(--r-9); }
 
 /* profile: the lift is the headline, the variant you're currently on is a quiet sub-label */
-.p-var { font-size: 11px; color: var(--muted); margin-top: -4px; }
+.p-var { font-size: var(--fs-11); color: var(--muted); margin-top: -4px; }
 span.ex-name { display: block; }
 
 /* unit inside the stepper, right against its number */
-.l2 .stepper .unit { flex: 0 0 auto; font-size: 8px; font-weight: 700; color: var(--muted); padding: 0 1px 0 0; white-space: nowrap; }
-.l2 .stepper .val { font-size: 14px; }
+.l2 .stepper .unit { flex: 0 0 auto; font-size: var(--fs-8); font-weight: 700; color: var(--muted); padding: 0 1px 0 0; white-space: nowrap; }
+.l2 .stepper .val { font-size: var(--fs-14); }
 
 /* the number must win the space fight with its own unit */
 .l2 .stepper .step { width: 26px; min-width: 26px; flex: 0 0 26px; }
 .l2 .stepper .val { flex: 1 1 auto; min-width: 0; }
+
+/* RULE 3 — accepting the prefilled target is ONE BIG TAP; editing carries the small affordance. */
+.l2 .check { width: 58px; min-width: 58px; height: 46px; font-size: var(--fs-20); border-width: 2px; }
+.l2 .stepper .step { width: 24px; min-width: 24px; flex: 0 0 24px; font-size: var(--fs-15); opacity: .75; }
+.l2 .stepper .val { font-size: var(--fs-15); font-weight: 800; }
+/* RULE 8 — the level goal is coach-facing context: legible, never competing with the athlete's numbers. */
+.l1 .goaltag { flex: 0 0 auto; margin-left: auto; font-size: var(--fs-11); color: var(--muted); white-space: nowrap; }
+.l1 .goaltag .lbl { font-size: var(--fs-9); text-transform: uppercase; letter-spacing: .4px; }
+.l1 .goaltag .gv { font-weight: 700; color: var(--ink); font-size: var(--fs-12); }
+
+/* ============================================================================
+   RULE 1 — vertical order = temporal order.
+   Completed rounds collapse to a record of what was lifted, the current round is
+   boxed and labelled NOW, the next is a preview, later rounds wait. Everything
+   stays in the DOM and every collapsed thing opens on tap (rule 7).
+   ============================================================================ */
+
+/* --- collapsed: hide the live controls, show the one-line form --- */
+.round.is-done:not(.open) > .round-title,
+.round.is-done:not(.open) > .ex-row,
+.round.is-next:not(.open) > .round-title,
+.round.is-next:not(.open) > .ex-row { display: none; }
+.round.is-later:not(.open) { display: none; }
+.round.open > .round-sum { display: none; }
+.round-sum:empty { display: none; }
+
+/* a finished round: green, quiet, still tells you the numbers */
+.round.is-done:not(.open) { border-color: var(--ok-line); background: var(--ok-bg-2); padding: 6px 8px; }
+.done-line { display: flex; align-items: baseline; gap: var(--sp-8); font-size: var(--fs-13); }
+.done-line .dl-t { color: var(--ok); font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.done-line .dl-v { margin-left: auto; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* what's coming: grey, one line, no controls to mistap */
+.round.is-next:not(.open) { border-color: var(--line); background: var(--surface-1); padding: 6px 8px; }
+.up-line { display: flex; align-items: baseline; gap: var(--sp-8); font-size: var(--fs-13); color: var(--muted); }
+.up-line .dl-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.up-line .dl-v { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* --- the round you're on: the one thing the eye should land on --- */
+.round.is-now { border: 2.5px solid var(--bp); background: var(--white); padding: 8px; }
+.round.is-now::before {
+  content: 'NOW · ' attr(data-title);
+  font-size: var(--fs-10); font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--bp);
+}
+.round.is-now > .round-title { display: none; }   /* the NOW tag already says it — rule 8 */
+
+/* --- a complex you have finished or not reached yet --- */
+/* min-width:0 has to hold at EVERY level: #app is a grid, .slot is its item, .slot-sum is a flex
+   container inside it. One `auto` minimum anywhere in that chain and a long exercise name ("front
+   press + Bilateral Chest Supported Deadlift Variation") widens the whole page — which is exactly
+   how the ✓ column went off-screen the last time. Caught here by measuring, not by eye. */
+#app > *, .slot > *, .sets > *, .round > *, .done-line, .up-line, .slot-sum { min-width: 0; }
+.slot-sum { display: none; align-items: baseline; gap: var(--sp-8); font-size: var(--fs-13); color: var(--muted);
+  min-width: 0; border: 1.5px solid var(--line); border-radius: var(--r-12); padding: 9px 10px; background: var(--surface-1); }
+.slot-sum .ss-t { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot-sum .slot-state { margin-left: auto; white-space: nowrap; }
+.slot.slot-later:not(.open) > .sets,
+.slot.slot-done:not(.open) > .sets { display: none; }
+.slot.slot-later:not(.open) > .slot-sum,
+.slot.slot-done:not(.open) > .slot-sum { display: flex; }
+/* a complex you can't start yet shouldn't offer a timer to start */
+.slot.slot-later:not(.open) .tstart, .slot.slot-later:not(.open) .timer, .slot.slot-later:not(.open) .pause,
+.slot.slot-done:not(.open) .tstart, .slot.slot-done:not(.open) .timer, .slot.slot-done:not(.open) .pause { display: none; }
+.slot.slot-done:not(.open) > .slot-sum { border-color: var(--ok-line); background: var(--ok-bg-2); color: var(--ok); }
+
+/* ============================================================================
+   RULE 5 — the running timer holds ONE fixed position.
+   One timer runs at a time, so a single pinned bar is unambiguous. It sits above
+   the bottom nav so it never covers a control (rule 7).
+   ============================================================================ */
+.tbar {
+  position: fixed; left: 8px; right: 8px; bottom: calc(58px + env(safe-area-inset-bottom));
+  z-index: 40; display: flex; align-items: center; gap: var(--sp-10);
+  background: var(--ink); color: var(--white); border-radius: var(--r-12); padding: 8px 10px 8px 14px;
+  box-shadow: 0 6px 20px var(--sh-float);
+}
+.tbar[hidden] { display: none; }
+.tbar .tb-l { font-size: var(--fs-12); font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  opacity: .75; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbar .tb-v { margin-left: auto; font-size: var(--fs-18); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbar .tb-p { border: 0; border-radius: var(--r-8); background: var(--on-dark-16); color: var(--white);
+  font-size: var(--fs-14); padding: 6px 12px; }
+/* ONE fixed position means one: while the bar is up, the slot header stops showing the same
+   countdown. Two live copies of the same number is the "say it twice" problem, not redundancy. */
+body.has-tbar .slot-head .timer, body.has-tbar .slot-head .pause { display: none; }
+/* nothing hides behind the bar — rule 7 (nothing needed mid-set is below the fold or covered) */
+body.has-tbar #app { padding-bottom: 128px; }
+
+/* ============================================================================
+   RULE 2 + 2b — one primary action per round, and it cannot be tapped blind.
+   Phil: "user should be prevented from just clicking done since what they did
+   usually differs from default actual target for day." Exactly one number per
+   lift is THE actual (weight if loaded, reps if bodyweight); until it's been
+   touched, the round can't be logged. This overrides the old rule 3 premise
+   that "most sets go as prescribed" — for these athletes, they don't.
+   ============================================================================ */
+
+/* the number that still needs asserting — dashed and warm, so it reads as "unfinished", not "error" */
+.stepper.unconfirmed { background: var(--warn-bg); box-shadow: inset 0 0 0 2px var(--warn); }
+.stepper.unconfirmed .val { color: var(--warn); }
+
+/* the round's one action */
+.roundlog {
+  width: 100%; min-height: 46px; border: 0; border-radius: var(--r-10);
+  background: var(--bp); color: var(--white); font-size: var(--fs-15); font-weight: 800;
+  font-variant-numeric: tabular-nums; padding: 0 12px;
+}
+.roundlog[disabled] { background: var(--control-flat); color: var(--muted); font-weight: 700; }
+.roundlog[hidden] { display: none; }
+
+/* NOW = one primary action: the per-row ✓ steps aside for the round button. A timed hold keeps its
+   ▶, because starting the hold is a different act from recording the round. */
+.round.is-now:not(.open) .ex-row .check:not(.dur) { display: none; }
+/* Editing a past round is the other mode: per-row ✓ so a single set can be unchecked and corrected. */
+.round:not(.is-now) .roundlog, .round.open .roundlog { display: none; }
+
+.check.locked { background: var(--control-flat); color: var(--muted); }
+
+/* ============================================================================
+   HORIZONTAL SYMMETRY — Phil 2026-07-18: "symmetry is crucial in UX horizontally.
+   a. exercise name, b. actual (goal for day) which could be weight/reps/distance
+   run/time, c. secondary variable (usually reps if weighted exercise) or distance
+   if running, d. swap icon, e. timer etc."
+
+   Four fixed lanes, identical for EVERY row type — lifting, hold, carry, running.
+   The old grid gave weight and reps their own lanes, so a bodyweight lift left the
+   weight lane empty and put its reps where a weighted lift's reps sat: the primary
+   number moved depending on the exercise and nothing lined up down the card.
+   Column b is now always THE actual, whatever kind of number that is.
+   ============================================================================ */
+.l2 { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr) 34px 50px;
+      gap: var(--sp-4); align-items: center; }
+.c-actual, .c-second, .c-swap { min-width: 0; display: flex; align-items: center; }
+.c-actual .stepper, .c-second .stepper { width: 100%; }
+/* an empty lane still holds its column open — that IS the symmetry (rule 6) */
+.c-actual:empty, .c-second:empty, .c-swap:empty { display: block; }
+
+/* c is subordinate to b: the actual is the number being decided, the secondary is context (rule 8) */
+.c-second .stepper { background: var(--surface-2); border-color: var(--line-soft); }
+.c-second .stepper .val { font-size: var(--fs-13); font-weight: 700; color: var(--muted); }
+.c-second .stepper .step { opacity: .6; }
+.c-second .cv, .c-actual .cv { font-size: var(--fs-13); font-weight: 800; color: var(--muted);
+  font-variant-numeric: tabular-nums; width: 100%; text-align: center; }
+.c-actual .cv { font-size: var(--fs-15); color: var(--ink); }
+
+.l2 .swapbtn { width: 34px; min-width: 0; height: 40px; min-height: 40px; padding: 0; font-size: var(--fs-15);
+  border: 1px solid var(--line); border-radius: var(--r-9); background: var(--white); color: var(--bp); }
+.l2 .check { width: 50px; min-width: 0; height: 44px; font-size: var(--fs-19); }
+.l2 .dist-in { width: 100%; min-width: 0; height: 40px; padding: 0 8px; font-size: var(--fs-15);
+  border: 1px solid var(--line); border-radius: var(--r-9); }
+.l2 .check.cond-go { width: 50px; font-size: var(--fs-11); font-weight: 800; line-height: 1.05; }
+
+/* the level goal keeps to line 1 with the name it judges (rule 8, unchanged) */
+.l1 { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
+.l1 .goaltag { margin-left: auto; }

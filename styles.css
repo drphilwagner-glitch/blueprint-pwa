@@ -456,9 +456,8 @@ span.ex-name.sub { text-decoration: none; display: block; }
 .l1 .goaltag { margin-left: auto; }
 
 /* ---- S21 profile: trends are the headline, level is demoted ---- */
-.p-ai { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-12); padding: 10px 12px; }
-.p-ai-h { font-size: var(--fs-10); font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
-.p-ai-b { font-size: var(--fs-13); color: var(--ink); margin-top: 3px; }
+/* old .p-ai block removed — superseded by PROFILE v2 below. It set color:var(--ink) and
+   color:var(--muted), which my replacement did not override, so the summary rendered dark-on-blue. */
 .pcard { display: flex; flex-direction: column; gap: var(--sp-9); }
 .p-name { font-size: var(--fs-15); font-weight: 700; overflow-wrap: break-word; }
 /* headline stat: label, big value, then the two trends — the thing Phil wants to read first */
@@ -759,3 +758,55 @@ body.has-tbar #app { padding-bottom: 128px; }
   border: 1px solid var(--line); border-radius: var(--r-9); text-align: center; }
 
 .vnote { color: var(--white); font-size: var(--fs-13); text-align: center; padding: 0 12px 10px; opacity: .85; }
+
+/* Swap options: CATEGORY in caps, movement name after it, clearly two different things. */
+.swap-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.swap-cat { font-size: var(--fs-10); font-weight: 800; text-transform: uppercase; letter-spacing: .7px;
+  color: var(--muted); }
+.swap-name { font-size: var(--fs-15); font-weight: 600; color: var(--ink); }
+.swap-same { font-size: var(--fs-10); font-weight: 700; color: var(--ok); text-transform: uppercase; letter-spacing: .4px; }
+
+/* ============================================================================
+   PROFILE v2 — Phil 2026-07-18: the summary is the MAIN EVENT (longer, bigger),
+   it reads by CATEGORY as well as by lift, exercises are ordered top-3-by-need
+   and top-3-strongest with the rest collapsed, the best-one/best-volume numbers
+   stop shouting, and trends are replaced by actual history.
+   ============================================================================ */
+.p-ai { background: var(--bp); color: var(--white); border-radius: var(--r-14);
+  padding: 16px 16px 18px; margin-bottom: var(--sp-12); }
+.p-ai-h { font-size: var(--fs-11); font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--white); opacity: .75; margin-bottom: 6px; }
+.p-ai-b { font-size: var(--fs-17); line-height: 1.45; font-weight: 500; color: var(--white); }
+
+.p-cats { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-14);
+  padding: 12px 14px; margin-bottom: var(--sp-12); }
+.p-cats-h { font-size: var(--fs-11); font-weight: 800; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--muted); margin-bottom: 8px; }
+.p-cat { display: flex; align-items: baseline; gap: var(--sp-8); padding: 5px 0;
+  border-top: 1px solid var(--line); }
+.p-cat:first-of-type { border-top: 0; }
+.p-cat-n { flex: 1 1 auto; min-width: 0; font-size: var(--fs-14); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-cat-m { flex: 0 0 auto; font-size: var(--fs-11); color: var(--muted); }
+.p-cat-v { flex: 0 0 auto; font-size: var(--fs-14); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.p-sec { display: flex; align-items: baseline; gap: var(--sp-8); margin: 18px 2px 8px; }
+.p-sec-t { font-size: var(--fs-14); font-weight: 800; }
+.p-sec-s { font-size: var(--fs-11); color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+/* same size as the exercise name — they were the loudest thing on the card */
+.p-stats { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-16); margin: 6px 0 2px; }
+.p-stat { display: flex; align-items: baseline; gap: var(--sp-6); }
+.p-stat-l { font-size: var(--fs-11); color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.p-stat-v { font-size: var(--fs-15); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.p-hist { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.p-hist-h { font-size: var(--fs-10); font-weight: 800; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--muted); margin-bottom: 4px; }
+.p-hist-r { display: flex; align-items: baseline; gap: var(--sp-8); font-size: var(--fs-13); padding: 2px 0; }
+.p-hist-d { color: var(--muted); font-variant-numeric: tabular-nums; }
+.p-hist-v { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.p-more { width: 100%; min-height: 46px; margin-top: 16px; border: 1px solid var(--line);
+  border-radius: var(--r-10); background: var(--white); font-size: var(--fs-14); font-weight: 700; color: var(--bp); }
+.p-rest[hidden] { display: none; }

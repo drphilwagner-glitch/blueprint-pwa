@@ -368,14 +368,35 @@
   }
   // Build the row descriptor for one choice — either the original exercise, or an alternate carrying
   // its OWN dosing (Alternates-tab reps, no external load).
+  // The Alternates tab's `reps` column is either a number (12), the word `max`, or the word `same`.
+  // Phil 2026-07-18: "alternatives sometimes say same in workbook so should inherit same set #s and
+  // reps and %s (back squat to front squat should be same)".
+  //
+  // `same` means this is the SAME LIFT done differently — Back Squat -> Front Squat — so it keeps the
+  // whole prescription: load, reps, level goal and mode. The old code blanked target_load and set
+  // level_goal to null for EVERY alternate, so swapping to Front Squat dropped the weight and the
+  // goal on the floor and demoted it to an accessory. Anything else really is a different movement
+  // with its own rep scheme, and keeps the old behaviour.
+  function altIsSame(a) { return String(a && a.reps || '').trim().toLowerCase() === 'same'; }
   function swapTarget(a, oEx, oT) {
     if (a.main) return { ex: oEx, t: oT };
+    var same = altIsSame(a);
     var numReps = (a.reps !== '' && a.reps != null && !isNaN(a.reps)) ? Number(a.reps) : null;
     return {
-      ex: { exercise: a.name, display_name: a.name, athlete_name: a.name, variant_name: '', video_url: a.video_url || '',
-        alternates: oEx.alternates, level_goal: null, mode: 'accessory', rest_s: oEx.rest_s, each_side: oEx.each_side,
+      ex: { exercise: a.name, display_name: a.name, athlete_name: a.name, variant_name: '',
+        video_url: a.video_url || '',
+        alternates: oEx.alternates,
+        level_goal: same ? oEx.level_goal : null,
+        mode: same ? oEx.mode : 'accessory',
+        wants_load: same ? oEx.wants_load : false,
+        load_prefill: same ? oEx.load_prefill : undefined,
+        rest_s: oEx.rest_s, each_side: oEx.each_side,
         _alt_of: oEx, _alt_t: oT },
-      t: { set_no: oT.set_no, kind: oT.kind, target_load: '', target_reps: (numReps == null ? oT.target_reps : numReps), duration_s: null }
+      t: { set_no: oT.set_no, kind: oT.kind,
+        target_load: same ? oT.target_load : '',
+        target_reps: (numReps == null ? oT.target_reps : numReps),
+        duration_s: same ? oT.duration_s : null,
+        rest_s: oT.rest_s }
     };
   }
   // QA-05: apply the choice to EVERY set of that exercise in the session.
@@ -412,8 +433,19 @@
     panel.appendChild(el('div', 'swap-h', 'Change exercise'));
     var opts = [{ main: true }].concat(origEx.alternates || []);
     opts.forEach(function (a) {
-      var text = a.main ? ('↩ ' + exLabel(origEx)) : (a.reason + ': ' + a.name);
-      var b = el('button', 'swap-opt', text); b.type = 'button';
+      var b = el('button', 'swap-opt'); b.type = 'button';
+      if (a.main) {
+        b.appendChild(el('span', 'swap-name', '↩ ' + exLabel(origEx)));
+      } else {
+        // Phil: "alternatives have catgories (i.e. equip) which should all be cpas w diff font to
+        // differentiate exercise name after it." The reason and the movement were one run-on string
+        // ("Upper-body pain: blackburns"), so the category read as part of the name.
+        if (a.reason) b.appendChild(el('span', 'swap-cat', a.reason));
+        b.appendChild(el('span', 'swap-name', a.name));
+        // A `same` alternate keeps the whole prescription — worth saying, because it's the difference
+        // between "swap and keep your working weight" and "swap into an accessory".
+        if (altIsSame(a)) b.appendChild(el('span', 'swap-same', 'same sets, reps & load'));
+      }
       b.addEventListener('click', function () { applySwapAll(origEx.exercise, a); });
       panel.appendChild(b);
     });
@@ -923,7 +955,13 @@
         var line = el('div', 'wo-line');
         var b = el('button', 'wo st-' + s.status); b.type = 'button';
         b.appendChild(el('div', 'wo-name', s.name || s.theme || 'session'));
-        var sub = (s.n_ex ? s.n_ex + ' exercise' + (s.n_ex === 1 ? '' : 's') : '');
+        // Phil 2026-07-18: "add workout duration and top 2 exercises in workout name in calendar like
+        // workout header has, no need for # of exercises". The exercise COUNT told the athlete
+        // nothing they could act on; the two main lifts and the time commitment do.
+        var bits = [];
+        if (s.top_ex && s.top_ex.length) bits.push(s.top_ex.join(' + '));
+        if (s.est_min) bits.push('~' + s.est_min + ' min');
+        var sub = bits.join(' · ');
         if (s.status === 'done') sub = '✓ done' + (sub ? ' · ' + sub : '');
         else if (s.status === 'missed') sub = 'missed' + (sub ? ' · ' + sub : '');
         else if (s.status === 'started') sub = 'started' + (sub ? ' · ' + sub : '');
@@ -1104,71 +1142,128 @@
     fetch(cfg.WEBAPP_URL + '?action=profile&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (r) { return r.json(); }).then(function (data) {
         if (!data.ok) return show('Access denied — check your link.', 'err');
-        renderProfile(data.exercises || [], data.summary || '');
+        renderProfile(data.exercises || [], data.summary || '', data.categories || []);
       }).catch(function () { show('Offline — reconnect to see your progress.', 'err'); });
   }
   // S21 profile (Phil): the two things that matter per exercise are "is my best one-set up or down"
   // and "is my volume up or down" — 7-day and 30-day. Those are the HEADLINE. Where you sit on the
   // level ladder is a demoted, non-bold third line. No 1RM on a bodyweight lift; no reps stat on a
-  // weighted one.
-  function trendChip(tr) {
-    // tr: { dir:'up'|'down'|'flat', pct, from, to } or null (not enough history)
-    if (!tr) { return el('span', 'p-tr none', '— not yet'); }
-    var arrow = tr.dir === 'up' ? '▲' : tr.dir === 'down' ? '▼' : '▬';
-    var txt = arrow + (tr.pct != null ? ' ' + (tr.pct > 0 ? '+' : '') + tr.pct + '%' : '');
-    return el('span', 'p-tr ' + tr.dir, txt);
+  // trendChip/statBlock removed: they rendered the 7- and 30-day arrows. Phil 2026-07-18:
+  // "no trends need history" — the profile now shows the actual sets, session by session.
+
+  function profileCard(x) {
+    var card = el('section', 'pcard');
+    card.appendChild(el('div', 'p-name', x.name));
+    if (x.variant && x.variant !== x.name) card.appendChild(el('div', 'p-var', 'currently: ' + x.variant));
+
+    if (!x.has_data) {
+      card.appendChild(el('div', 'p-empty', 'No sets logged yet — log one and your bests show up here.'));
+    } else {
+      // Phil: "best volume and one set font not so big same as exercise" — these were the loudest
+      // thing on the card. They're facts about the past; the level and the gap are what's actionable.
+      var stats = el('div', 'p-stats');
+      if (x.best_one != null) {
+        var s1 = el('div', 'p-stat');
+        s1.appendChild(el('span', 'p-stat-l', 'Best one set'));
+        s1.appendChild(el('span', 'p-stat-v', x.best_one + ' ' + (x.best_one_unit || '')));
+        stats.appendChild(s1);
+      }
+      if (x.best_volume != null) {
+        var s2 = el('div', 'p-stat');
+        s2.appendChild(el('span', 'p-stat-l', 'Best volume'));
+        s2.appendChild(el('span', 'p-stat-v', x.best_volume + (x.volume_unit === 'reps' ? ' reps' : ' lb·reps')));
+        stats.appendChild(s2);
+      }
+      card.appendChild(stats);
+    }
+
+    // Level: where you are on the climb and how far to go.
+    if (x.level && !x.maxed && x.to_go != null) {
+      var toGoTxt = x.goal.load != null ? (x.to_go + ' lb to next level') : (x.to_go + (x.to_go === 1 ? ' rep to next level' : ' reps to next level'));
+      var lv = el('div', 'p-level');
+      lv.appendChild(el('span', 'p-level-l', 'Level ' + x.level));
+      lv.appendChild(el('span', 'p-level-g', x.to_go === 0 ? 'ready to level up' : toGoTxt));
+      card.appendChild(lv);
+      var bar = el('div', 'p-bar'); var fill = el('div', 'p-fill');
+      fill.style.width = Math.round((x.progress || 0) * 100) + '%'; bar.appendChild(fill); card.appendChild(bar);
+    } else if (x.maxed) {
+      card.appendChild(el('div', 'p-level', 'Top of the ladder 🏆'));
+    }
+
+    // HISTORY, not trends. Phil: "no trends need history". A percentage hides the numbers; the
+    // athlete wants to see what they actually lifted, session by session.
+    if (x.history && x.history.length) {
+      var h = el('div', 'p-hist');
+      h.appendChild(el('div', 'p-hist-h', 'History'));
+      x.history.forEach(function (r) {
+        var line = el('div', 'p-hist-r');
+        line.appendChild(el('span', 'p-hist-d', r.date));
+        line.appendChild(el('span', 'p-hist-v',
+          r.load != null ? (r.load + ' lb' + (r.reps != null ? ' × ' + r.reps : '')) : (r.reps + ' reps')));
+        h.appendChild(line);
+      });
+      card.appendChild(h);
+    }
+    return card;
   }
-  function statBlock(label, value, t7, t30) {
-    var b = el('div', 'p-stat');
-    b.appendChild(el('div', 'p-sl', label));
-    b.appendChild(el('div', 'p-sv', value));
-    var tr = el('div', 'p-trends');
-    var w7 = el('div', 'p-trow'); w7.appendChild(el('span', 'p-tw', '7-day')); w7.appendChild(trendChip(t7)); tr.appendChild(w7);
-    var w30 = el('div', 'p-trow'); w30.appendChild(el('span', 'p-tw', '30-day')); w30.appendChild(trendChip(t30)); tr.appendChild(w30);
-    b.appendChild(tr);
-    return b;
-  }
-  function renderProfile(list, summary) {
+
+  function renderProfile(list, summary, categories) {
     SESSION = null; app.innerHTML = '';
     meta.textContent = athlete + ' · your progress';
     if (!list.length) { app.appendChild(el('p', 'empty', 'No exercises yet.')); return; }
 
-    // Summary: a short coaching read on where the athlete is trending, from the server (deterministic
-    // from the same trend data the cards show, so it can't contradict them).
+    // Phil: "longer and main event so font bigger". The summary is the reason to open this screen —
+    // it's the coaching read the athlete can't get by eyeballing numbers. It leads, and it's large.
     if (summary) {
       var ai = el('div', 'p-ai');
-      ai.appendChild(el('div', 'p-ai-h', 'Summary'));
+      ai.appendChild(el('div', 'p-ai-h', 'Where you stand'));
       ai.appendChild(el('div', 'p-ai-b', summary));
       app.appendChild(ai);
     }
 
-    list.forEach(function (x) {
-      var card = el('section', 'pcard');
-      card.appendChild(el('div', 'p-name', x.name));
-      if (x.variant && x.variant !== x.name) card.appendChild(el('div', 'p-var', 'currently: ' + x.variant));
+    // Category standing — the axis the summary reasons over, shown so the claim is checkable.
+    if (categories && categories.length) {
+      var cw = el('div', 'p-cats');
+      cw.appendChild(el('div', 'p-cats-h', 'By quality'));
+      categories.forEach(function (c) {
+        var r = el('div', 'p-cat');
+        r.appendChild(el('span', 'p-cat-n', c.label));
+        r.appendChild(el('span', 'p-cat-m', c.n + ' lift' + (c.n === 1 ? '' : 's')));
+        r.appendChild(el('span', 'p-cat-v', 'lvl ' + c.avg.toFixed(1)));
+        cw.appendChild(r);
+      });
+      app.appendChild(cw);
+    }
 
-      if (!x.has_data) {
-        card.appendChild(el('div', 'p-empty', 'No sets logged yet — log one and your bests show up here.'));
-      } else {
-        var tr = x.trend || {};
-        if (x.best_one != null) card.appendChild(statBlock('Best one set', x.best_one + ' ' + (x.best_one_unit || ''), tr.one_7, tr.one_30));
-        if (x.best_volume != null) card.appendChild(statBlock('Best volume', x.best_volume + (x.volume_unit === 'reps' ? ' reps' : ' lb·reps'), tr.vol_7, tr.vol_30));
-      }
+    // Phil: "exercise order top 3 by need/lowest level, rest collapsed. top 3 by need/highest level."
+    var levelled = list.filter(function (x) { return x.level && !isNaN(parseFloat(x.level)); });
+    var byLevel = levelled.slice().sort(function (a, b) { return parseFloat(a.level) - parseFloat(b.level); });
+    var lowest = byLevel.slice(0, 3);
+    var highest = byLevel.slice().reverse().filter(function (x) { return lowest.indexOf(x) < 0; }).slice(0, 3);
+    var shown = lowest.concat(highest);
+    var rest = list.filter(function (x) { return shown.indexOf(x) < 0; });
 
-      // Level: demoted, non-bold, third. Where you are on the climb and how far to go.
-      if (x.level && !x.maxed && x.to_go != null) {
-        var toGoTxt = x.goal.load != null ? (x.to_go + ' lb to next level') : (x.to_go + (x.to_go === 1 ? ' rep to next level' : ' reps to next level'));
-        var lv = el('div', 'p-level');
-        lv.appendChild(el('span', 'p-level-l', 'Level ' + x.level));
-        lv.appendChild(el('span', 'p-level-g', x.to_go === 0 ? 'ready to level up' : toGoTxt));
-        card.appendChild(lv);
-        var bar = el('div', 'p-bar'); var fill = el('div', 'p-fill');
-        fill.style.width = Math.round((x.progress || 0) * 100) + '%'; bar.appendChild(fill); card.appendChild(bar);
-      } else if (x.maxed) {
-        card.appendChild(el('div', 'p-level', 'Top of the ladder 🏆'));
-      }
-      app.appendChild(card);
-    });
+    function section(title, sub, items) {
+      if (!items.length) return;
+      var h = el('div', 'p-sec');
+      h.appendChild(el('span', 'p-sec-t', title));
+      if (sub) h.appendChild(el('span', 'p-sec-s', sub));
+      app.appendChild(h);
+      items.forEach(function (x) { app.appendChild(profileCard(x)); });
+    }
+    section('Needs the most work', 'lowest levels', lowest);
+    section('Your strongest', 'highest levels', highest);
+
+    if (rest.length) {
+      var togg = el('button', 'p-more', 'Everything else (' + rest.length + ')'); togg.type = 'button';
+      var wrap = el('div', 'p-rest'); wrap.hidden = true;
+      rest.forEach(function (x) { wrap.appendChild(profileCard(x)); });
+      togg.addEventListener('click', function () {
+        wrap.hidden = !wrap.hidden;
+        togg.textContent = (wrap.hidden ? 'Everything else (' + rest.length + ')' : 'Hide the rest');
+      });
+      app.appendChild(togg); app.appendChild(wrap);
+    }
   }
 
   function openSession(sessionId) {

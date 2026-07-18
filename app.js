@@ -745,7 +745,9 @@
     var unconfirmed = pending.filter(function (r) { return !r._confirmed; });
     if (unconfirmed.length) {
       btn.disabled = true;
-      btn.textContent = 'Enter ' + unconfirmed[0]._needs + ' to log';
+      // Name the GESTURE, not an abstract requirement. "Enter weight to log" was my phrasing and it
+      // reads like an error message; this says what to touch and why the button is dark.
+      btn.textContent = 'Tap your ' + unconfirmed[0]._needs + ' to confirm it';
     } else {
       btn.disabled = false;
       btn.textContent = 'Log ' + (rb.getAttribute('data-title') || 'set') + ' · ' +

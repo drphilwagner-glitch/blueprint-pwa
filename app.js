@@ -53,6 +53,62 @@
     offline: 'No connection — reconnect and try again.',
     bad_args: 'Something was missing. Try again.'
   };
+  // ---- S18 NERVES: the device reports its own failures ----
+  // Phil: "Phil should never be the sensor for something a tool could sense." Three cycles were spent
+  // on "Back squat still crashed" that I could not reproduce on any engine — because the only
+  // instrument was him describing it. window.onerror, unhandled rejections and failed syncs now post
+  // themselves to an ErrorLog tab with enough context to place the fault: which build, which device,
+  // which screen. Best-effort and silent — a reporter that can break the app is worse than no
+  // reporter, so every path is wrapped and failures are swallowed.
+  var APP_VERSION = 'sw-unknown';
+  try { fetch('./sw.js', { cache: 'no-store' }).then(function (r) { return r.text(); })
+    .then(function (t) { var m = t.match(/bp-shell-v\d+/); if (m) APP_VERSION = m[0]; }).catch(function () {}); } catch (e) {}
+  var _errSent = {};
+  function reportError(kind, message, source, extra) {
+    try {
+      var key = kind + '|' + String(message).slice(0, 120);
+      if (_errSent[key]) return; _errSent[key] = 1;       // one report per distinct fault per session
+      if (!cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return;
+      var body = {
+        action: 'clienterror', athlete: athlete || '(none)', kind: kind,
+        message: String(message || '').slice(0, 900), source: String(source || '').slice(0, 300),
+        device: navigator.userAgent, app_version: APP_VERSION,
+        screen: (window.innerWidth + 'x' + window.innerHeight +
+                 (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches ? ' standalone' : ' browser')),
+        url: location.href.replace(/token=[^&]*/, 'token=***'),   // never log a token
+        extra: String(extra || '').slice(0, 900)
+      };
+      fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) }).catch(function () {});
+    } catch (e) {}
+  }
+  window.addEventListener('error', function (e) {
+    reportError('onerror', e && e.message, (e && e.filename ? e.filename + ':' + e.lineno + ':' + e.colno : ''),
+      e && e.error && e.error.stack);
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    reportError('unhandledrejection', (r && (r.message || r)) || 'unknown', '', r && r.stack);
+  });
+  // A PWA that reloads itself mid-session is the signature of an iOS memory kill — the thing Phil
+  // reports as "it crashes and reloads". Record the reload so the pattern is visible in ErrorLog.
+  try {
+    var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    if (nav && nav.type === 'reload') reportError('reload', 'app reloaded (possible iOS memory kill)', '', 'type=' + nav.type);
+  } catch (e) {}
+
+  // iOS evicts IndexedDB for sites it considers idle (roughly 7 days without a visit), and this
+  // database holds SETS THE ATHLETE HAS LOGGED BUT NOT YET SYNCED. A kid who trains Friday with no
+  // signal and reopens the app the following week could lose that session. Asking for persistent
+  // storage is the documented mitigation; iOS grants it for home-screen installs. Best-effort — if
+  // it is refused we are no worse off, and the queue still drains on every launch.
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persisted().then(function (already) {
+        if (!already) return navigator.storage.persist();
+      }).catch(function () {});
+    }
+  } catch (e) {}
   var DB;
   function idb() {
     if (DB) return Promise.resolve(DB);
@@ -73,17 +129,51 @@
       else { syncEl.className = 'sync synced'; syncEl.textContent = 'synced'; setTimeout(function () { if (syncEl.textContent === 'synced') syncEl.hidden = true; }, 1500); }
     }).catch(function () {});
   }
+  // Confirm which log_ids the Workbook actually has. The POST goes out `mode:'no-cors'`, so its
+  // promise resolves whether or not a row was written — the old drain then deleted the queue entry
+  // regardless, which silently lost sets (the durability journey logged 2 and the Workbook gained 1).
+  // A set is only forgotten once the server says it has it.
+  function ackLogs(ids) {
+    var url = cfg.WEBAPP_URL + '?action=logack&athlete=' + encodeURIComponent(athlete) +
+      '&token=' + encodeURIComponent(token) + '&ids=' + encodeURIComponent(ids.join(','));
+    return fetch(url).then(function (r) { return r.json(); })
+      .then(function (d) { return (d && d.ok && d.present) ? d.present : []; })
+      .catch(function () { return []; });
+  }
   var draining = false;
   function drain() {
     if (draining || !navigator.onLine) return Promise.resolve();
     draining = true;
+    var done = function () { draining = false; };
     return qAll().then(function (rows) {
-      if (!rows.length) { draining = false; return; }
-      return sendLog(rows)
-        .then(function () { return qDel(rows.map(function (x) { return x.log_id; })); })
-        .then(function () { draining = false; return updateBadge(); })
-        .catch(function () { draining = false; });
-    }).catch(function () { draining = false; });
+      if (!rows.length) { done(); return; }
+      var ids = rows.map(function (x) { return x.log_id; });
+      return sendLog(rows).then(function () {
+        // Apps Script may still be writing when the opaque POST resolves, so poll the read-back a
+        // few times before giving up. Anything unconfirmed STAYS QUEUED and is retried — at worst a
+        // set is sent twice, which hard rule 4 makes safe (idempotent via client log_id); losing one
+        // is not recoverable.
+        var tries = 0;
+        function confirm() {
+          tries += 1;
+          return ackLogs(ids).then(function (present) {
+            if (present.length) {
+              return qDel(present).then(function () {
+                if (present.length === ids.length || tries >= 4) { done(); return updateBadge(); }
+                return new Promise(function (r) { setTimeout(r, 2000); }).then(confirm);
+              });
+            }
+            if (tries >= 4) {
+              reportError('sync_unconfirmed', 'logs sent but not confirmed by the server', '',
+                'ids=' + ids.length + ' queued=' + ids.join(','));
+              done(); return updateBadge();                                   // keep them queued; retry next drain
+            }
+            return new Promise(function (r) { setTimeout(r, 2000); }).then(confirm);
+          });
+        }
+        return confirm();
+      }).catch(function () { done(); });
+    }).catch(function () { done(); });
   }
   function logRows(rows) { Promise.all(rows.map(qAdd)).then(updateBadge).then(drain); }
   window.addEventListener('online', drain);

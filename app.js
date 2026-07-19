@@ -479,11 +479,31 @@
   // and YouTube's embed honours that strictly — so autoplay=1 alone is silently ignored. mute=1 is
   // what actually makes it start. These are silent demo loops, so muting costs nothing.
   // playsinline stops iOS hijacking the whole screen into its native fullscreen player.
+  // COLD-LOAD GUARD (Phil chose option A). The device report is unambiguous: the app dies ONE SECOND
+  // AFTER THE IFRAME IS CREATED — "while: BUILDING the player" — and only on a clip's FIRST view.
+  // Phil: "It's usually some sort of first pass that crashes it." Once the player's assets are cached
+  // the same clip plays fine. Autoplay makes that cold load fetch, decode and start in one burst, so
+  // the first view of a clip now loads PAUSED and every later view autoplays as before. This does not
+  // claim to know why the burst is fatal — it removes the burst.
+  function seenBefore(url) {
+    try {
+      var k = 'bp_seen_vid';
+      var seen = JSON.parse(localStorage.getItem(k) || '[]');
+      var id = String(url).slice(0, 120);
+      if (seen.indexOf(id) >= 0) return true;
+      seen.push(id);
+      if (seen.length > 200) seen = seen.slice(-200);
+      localStorage.setItem(k, JSON.stringify(seen));
+      return false;
+    } catch (e) { return true; }        // storage blocked: behave as before rather than never autoplay
+  }
   function videoEmbed(url) {
+    var warm = seenBefore(url);
+    var auto = warm ? '1' : '0';
     var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
-    if (yt) return { type: 'iframe', src: 'https://www.youtube.com/embed/' + yt[1] + '?autoplay=1&mute=1&playsinline=1&rel=0' };
+    if (yt) return { type: 'iframe', warm: warm, src: 'https://www.youtube.com/embed/' + yt[1] + '?autoplay=' + auto + '&mute=1&playsinline=1&rel=0' };
     var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-    if (vm) return { type: 'iframe', src: 'https://player.vimeo.com/video/' + vm[1] + '?autoplay=1&muted=1&playsinline=1' };
+    if (vm) return { type: 'iframe', warm: warm, src: 'https://player.vimeo.com/video/' + vm[1] + '?autoplay=' + auto + '&muted=1&playsinline=1' };
     if (/\.mp4(\?|$)/i.test(url)) return { type: 'video', src: url };
     // A vimeo.com/share/<uuid> link carries NO video id, so there is nothing to embed. That is
     // Phil's "walking lunge" — the name is tappable, the overlay opens, and the player is empty.
@@ -578,6 +598,7 @@
       var play = el('button', 'vplay'); play.type = 'button';
       play.appendChild(el('span', 'vplay-icon', '▶'));
       play.appendChild(el('span', 'vplay-t', 'Play video'));
+      if (e && e.warm === false) play.appendChild(el('span', 'vplay-n', 'first time — tap play in the player too'));
       play.addEventListener('click', buildPlayer);
       stage.appendChild(play);
     } else {

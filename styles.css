@@ -870,3 +870,5 @@ body.has-tbar #app { padding-bottom: 128px; }
 .tbar .tb-s { border: 0; border-radius: var(--r-8); background: var(--on-dark-18); color: var(--white);
   font-size: var(--fs-14); padding: 6px 10px; margin-left: 6px; }
 .tbar .tb-l { flex: 0 1 auto; }
+
+.vplay-n { font-size: var(--fs-11); opacity: .7; font-weight: 500; }

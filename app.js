@@ -113,22 +113,39 @@
     // banner that vanishes in 1.7s is missed if you glanced away; a persistent one can't be. Auto
     // (non-sticky) is kept for fast conditioning WORK<->REST flips where a tap-to-clear would nag.
     var _talert = null;
+    // Phil 2026-07-18, on a real phone: "I can't get rid of it. When I click on Go, tap to dismiss, or
+    // go to the next step, or anywhere, it just stays frozen. Unless that goes, the app won't go away."
+    //
+    // The cause: `.talert` carried `pointer-events: none` so the whole overlay ignored taps — the
+    // sticky variant's own click handler could never fire, and sticky means no timeout, so it sat
+    // there permanently over the workout. Now the cue is a real BUTTON that takes the tap, plus a
+    // hard auto-dismiss so this can never wedge the app again whatever else breaks.
+    // Phil: "Next set and go: all you need is a button. I don't know why we have tap to dismiss."
     function timerAlert(big, sub, cls, sticky) {
       if (_talert) { _talert.remove(); _talert = null; }
       var ov = el('div', 'talert' + (cls ? ' ' + cls : '') + (sticky ? ' sticky' : ''));
-      ov.appendChild(el('div', 'talert-big', big || 'Rest done'));
-      ov.appendChild(el('div', 'talert-sub', sub || 'next set — go'));
-      if (sticky) ov.appendChild(el('div', 'talert-tap', 'tap to dismiss'));
+      var btn = sticky ? el('button', 'talert-big') : el('div', 'talert-big');
+      if (sticky) btn.type = 'button';
+      btn.textContent = big || 'Rest done';
+      ov.appendChild(btn);
+      if (!sticky) ov.appendChild(el('div', 'talert-sub', sub || 'next set — go'));
       document.body.appendChild(ov);
       requestAnimationFrame(function () { ov.classList.add('show'); });
+      var gone = false;
+      function clear() {
+        if (gone) return; gone = true;
+        ov.classList.remove('show');
+        setTimeout(function () { if (ov.parentNode) ov.remove(); }, 300);
+        if (_talert === ov) _talert = null;
+      }
       if (sticky) {
         _talert = ov;
-        var clear = function () { ov.classList.remove('show'); setTimeout(function () { ov.remove(); }, 300); if (_talert === ov) _talert = null; };
-        ov.addEventListener('click', clear);
-        // pulse the beep a few times while it's up — best-effort, in case the ringer IS on
+        btn.addEventListener('click', clear);
+        ov.addEventListener('click', clear);          // tapping anywhere on the cue also clears it
+        setTimeout(clear, 12000);                     // BACKSTOP: a cue must never outlive the set
         var pulses = 0, pv = setInterval(function () { if (++pulses >= 3 || !ov.parentNode) { clearInterval(pv); return; } beep(); }, 700);
       } else {
-        setTimeout(function () { ov.classList.remove('show'); setTimeout(function () { ov.remove(); }, 300); }, 1700);
+        setTimeout(clear, 1700);
       }
     }
   // `intervals` is one rest per ROUND — a paired round costs more than a round with a single lift
@@ -310,13 +327,33 @@
     // It's a data shape, not a code bug: those rows need a plain vimeo.com/<number> URL.
     return { type: 'link', share: /vimeo\.com\/share\//i.test(url) };
   }
+  // Phil: "I click on the front squat video, and it crashes and reloads. That's happened a few times
+  // with other videos too."
+  //
+  // Cause, reproduced in qa/harness/audit.mjs: openVideo appended a NEW overlay every time and never
+  // removed the previous one. Five taps left five live Vimeo players in the DOM, and closing removed
+  // only the top one — the other four kept decoding. Each embed is a whole video player; on an iPhone
+  // that is an out-of-memory kill, which iOS shows as the tab "crashing and reloading".
+  // Two rules now: at most ONE player can exist, and closing TEARS IT DOWN rather than just
+  // detaching it (a detached iframe can keep its media session alive).
+  function closeVideo() {
+    document.querySelectorAll('.vov').forEach(function (o) {
+      o.querySelectorAll('iframe').forEach(function (f) { f.src = 'about:blank'; f.remove(); });
+      o.querySelectorAll('video').forEach(function (v) { try { v.pause(); } catch (e) {} v.removeAttribute('src'); try { v.load(); } catch (e) {} v.remove(); });
+      o.remove();
+    });
+    document.removeEventListener('keydown', _vEsc);
+  }
+  function _vEsc(ev) { if (ev.key === 'Escape') closeVideo(); }
   function openVideo(url) {
     if (!url) return;
+    closeVideo();                    // never stack players — this is the crash
     var e = videoEmbed(url);
     var ov = el('div', 'vov'), box = el('div', 'vbox');
     var close = el('button', 'vclose', '✕'); close.type = 'button';
-    close.addEventListener('click', function () { ov.remove(); });
-    ov.addEventListener('click', function (ev) { if (ev.target === ov) ov.remove(); });
+    close.addEventListener('click', closeVideo);
+    ov.addEventListener('click', function (ev) { if (ev.target === ov) closeVideo(); });
+    document.addEventListener('keydown', _vEsc);
     box.appendChild(close);
     if (e && e.type === 'iframe') {
       var f = el('iframe'); f.className = 'vframe';
@@ -722,10 +759,16 @@
         line.appendChild(el('span', 'dl-v', s.val));
         sum.appendChild(line);
       });
-    } else if (rb.classList.contains('is-next')) {
+    } else if (rb.classList.contains('is-next') || rb.classList.contains('is-later')) {
+      // Phil, on a real phone: "There are only sets one and two. There are no work sets for squat and
+      // for split squat... so that's a pretty massive problem." The work sets existed — rule 1 was
+      // HIDING every round past the next one, so a session he couldn't advance through looked like a
+      // session with no work in it. Collapsing what's ahead is right; erasing it is not. Every
+      // upcoming set now shows one line, so the shape of the session is always visible.
+      var isNext = rb.classList.contains('is-next');
       var names = rows.map(function (r) { var s = r._sum && r._sum(); return s ? s.name : ''; }).filter(Boolean).join(' + ');
       var line = el('div', 'up-line');
-      line.appendChild(el('span', 'dl-t', 'Next · ' + title + ' — ' + names));
+      line.appendChild(el('span', 'dl-t', (isNext ? 'Next · ' : '') + title + (isNext ? ' — ' + names : '')));
       var s0 = rows[0] && rows[0]._sum && rows[0]._sum();
       if (s0) line.appendChild(el('span', 'dl-v', s0.val));
       sum.appendChild(line);
@@ -739,19 +782,33 @@
     if (!rb || !rb.classList || !rb.classList.contains('round')) return;
     var btn = rb.querySelector('.roundlog'); if (!btn) return;
     var rows = [].slice.call(rb.querySelectorAll('.ex-row')).filter(function (r) { return r._commit && !r._isDur; });
-    var pending = rows.filter(function (r) { return !r.classList.contains('done'); });
-    if (!pending.length) { btn.hidden = true; return; }   // nothing left to log; the round is collapsing
+    if (!rows.length) { btn.hidden = true; return; }
     btn.hidden = false;
+    var title = rb.getAttribute('data-title') || 'set';
+    var pending = rows.filter(function (r) { return !r.classList.contains('done'); });
+    if (!pending.length) {
+      // Phil: "some of them have checkboxes, and some of them have logs... it's totally unpredictable
+      // how you log workouts." So there is now exactly ONE control for a round in every state. A round
+      // you already logged offers Update, which appends a correction (the server keeps the latest).
+      btn.disabled = false;
+      btn.classList.add('logged');
+      btn.textContent = 'Update ' + title;
+      return;
+    }
+    btn.classList.remove('logged');
     var unconfirmed = pending.filter(function (r) { return !r._confirmed; });
     if (unconfirmed.length) {
       btn.disabled = true;
-      // Name the GESTURE, not an abstract requirement. "Enter weight to log" was my phrasing and it
-      // reads like an error message; this says what to touch and why the button is dark.
-      btn.textContent = 'Tap your ' + unconfirmed[0]._needs + ' to confirm it';
+      // NAME THE EXERCISE. Phil's round had a warm-up A-side (exempt) and a work B-side that needed
+      // confirming, and the button just said "tap your reps" while that row sat below the fold — so
+      // the workout looked broken rather than gated.
+      var who = unconfirmed[0]._sum ? unconfirmed[0]._sum().name : '';
+      btn.textContent = rows.length > 1 && who
+        ? 'Tap ' + who + '’s ' + unconfirmed[0]._needs
+        : 'Tap your ' + unconfirmed[0]._needs + ' to confirm it';
     } else {
       btn.disabled = false;
-      btn.textContent = 'Log ' + (rb.getAttribute('data-title') || 'set') + ' · ' +
-        pending.map(function (r) { return r._sum().val; }).join(' · ');
+      btn.textContent = 'Log ' + title + ' · ' + pending.map(function (r) { return r._sum().val; }).join(' · ');
     }
   }
 
@@ -1216,11 +1273,27 @@
 
     // Phil: "longer and main event so font bigger". The summary is the reason to open this screen —
     // it's the coaching read the athlete can't get by eyeballing numbers. It leads, and it's large.
-    if (summary) {
+    // Phil: "it's really dense, with long sentences... it's hard to read because it's white on blue...
+    // I don't know if we make bullet points." So: scannable rows on a light card, one claim each.
+    var pts = (summary && summary.points) || [];
+    if (pts.length) {
       var ai = el('div', 'p-ai');
       ai.appendChild(el('div', 'p-ai-h', 'Where you stand'));
-      ai.appendChild(el('div', 'p-ai-b', summary));
+      pts.forEach(function (pt) {
+        var r = el('div', 'p-pt');
+        r.appendChild(el('span', 'p-pt-k', pt.k));
+        var b = el('span', 'p-pt-b');
+        b.appendChild(el('span', 'p-pt-v', pt.v));
+        if (pt.note) b.appendChild(el('span', 'p-pt-n', pt.note));
+        r.appendChild(b);
+        ai.appendChild(r);
+      });
       app.appendChild(ai);
+    } else if (summary && summary.text) {
+      var ai2 = el('div', 'p-ai');
+      ai2.appendChild(el('div', 'p-ai-h', 'Where you stand'));
+      ai2.appendChild(el('div', 'p-ai-b', summary.text));
+      app.appendChild(ai2);
     }
 
     // Category standing — the axis the summary reasons over, shown so the claim is checkable.
@@ -1230,8 +1303,8 @@
       categories.forEach(function (c) {
         var r = el('div', 'p-cat');
         r.appendChild(el('span', 'p-cat-n', c.label));
-        r.appendChild(el('span', 'p-cat-m', c.n + ' lift' + (c.n === 1 ? '' : 's')));
-        r.appendChild(el('span', 'p-cat-v', 'lvl ' + c.avg.toFixed(1)));
+        r.appendChild(el('span', 'p-cat-m', c.n + ' lift' + (c.n === 1 ? '' : 's') + (c.maxed ? ' · ' + c.maxed + ' maxed' : '')));
+        r.appendChild(el('span', 'p-cat-v', c.span));   // a real range of real levels, never an average
         cw.appendChild(r);
       });
       app.appendChild(cw);

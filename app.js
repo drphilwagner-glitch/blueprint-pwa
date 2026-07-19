@@ -60,9 +60,17 @@
   // themselves to an ErrorLog tab with enough context to place the fault: which build, which device,
   // which screen. Best-effort and silent — a reporter that can break the app is worse than no
   // reporter, so every path is wrapped and failures are swallowed.
+  // Every real crash report so far arrived as build "sw-unknown", because the version was fetched
+  // asynchronously and the app died before it resolved — so I could not tell WHICH BUILD crashed,
+  // which is the first thing you need after an upload. Cache it on disk: the value is read
+  // synchronously on the next launch, and refreshed in the background for the launch after that.
   var APP_VERSION = 'sw-unknown';
+  try { APP_VERSION = localStorage.getItem('bp_ver') || 'sw-unknown'; } catch (e) {}
   try { fetch('./sw.js', { cache: 'no-store' }).then(function (r) { return r.text(); })
-    .then(function (t) { var m = t.match(/bp-shell-v\d+/); if (m) APP_VERSION = m[0]; }).catch(function () {}); } catch (e) {}
+    .then(function (t) {
+      var m = t.match(/bp-shell-v\d+/);
+      if (m) { APP_VERSION = m[0]; try { localStorage.setItem('bp_ver', m[0]); } catch (e) {} }
+    }).catch(function () {}); } catch (e) {}
   var _errSent = {};
   function reportError(kind, message, source, extra) {
     try {
@@ -495,6 +503,12 @@
     // empty overlay with a Play button; the embed is created only on that second, deliberate tap.
     var stage = el('div', 'vstage');
     function buildPlayer() {
+      // A SEPARATE crumb state. The previous one said "opening a video" for both the name tap and the
+      // player build, so a crash at secondsAgo=1 could have been either — and with play-on-demand
+      // those are completely different suspects. Phil's Snatch Grip RDL crashed once and played fine
+      // the next time, so the cause is environmental, not the clip; knowing WHICH moment dies is the
+      // difference between "the overlay is fatal" and "the embed is fatal".
+      crumb('BUILDING the player', 'host=' + host + ' url=' + String(url).slice(0, 120));
       stage.innerHTML = '';
       if (e && e.type === 'iframe') {
         var f = el('iframe'); f.className = 'vframe';

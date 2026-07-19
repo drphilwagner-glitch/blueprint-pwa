@@ -858,3 +858,10 @@ body.has-tbar #app { padding-bottom: 128px; }
 .vplay-icon { font-size: 40px; line-height: 1; }
 .vplay-t { font-size: var(--fs-15); font-weight: 700; letter-spacing: .3px; }
 .vplay:active { opacity: .85; }
+
+/* A player that never appears must not look like a broken app. */
+.vwait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--white); font-size: var(--fs-14); }
+.vstage { position: relative; }
+.vretry { border: 0; border-radius: var(--r-10); background: var(--bp); color: var(--white);
+  font: inherit; font-weight: 700; padding: 12px 18px; }

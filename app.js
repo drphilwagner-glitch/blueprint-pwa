@@ -295,9 +295,11 @@
     if (!TBAR) {
       TBAR = el('div', 'tbar'); TBAR.hidden = true;
       TBAR._l = el('span', 'tb-l'); TBAR._v = el('span', 'tb-v');
-      TBAR._p = el('button', 'tb-p', '⏸'); TBAR._p.type = 'button';
-      TBAR.appendChild(TBAR._l); TBAR.appendChild(TBAR._v); TBAR.appendChild(TBAR._p);
+      TBAR._p = el('button', 'tb-p', '⏸'); TBAR._p.type = 'button'; TBAR._p.title = 'Pause';
+      TBAR._s = el('button', 'tb-s', '⏭'); TBAR._s.type = 'button'; TBAR._s.title = 'Skip to the next set';
+      TBAR.appendChild(TBAR._l); TBAR.appendChild(TBAR._v); TBAR.appendChild(TBAR._p); TBAR.appendChild(TBAR._s);
       TBAR._p.addEventListener('click', function () { if (ACTIVE_TIMER) ACTIVE_TIMER.toggle(); });
+      TBAR._s.addEventListener('click', function () { if (ACTIVE_TIMER) ACTIVE_TIMER.skip(); });
       document.body.appendChild(TBAR);
     }
     return TBAR;
@@ -309,16 +311,22 @@
     document.body.classList.remove('has-tbar');
   }
 
-  function makeTimer(node, pauseBtn, intervals, label) {
+  function makeTimer(node, pauseBtn, intervals, label, roundsOf) {
     var seq = (intervals && intervals.length) ? intervals.slice() : [120];
     var idx = 0;
+    // Which round's rest is currently running — idx walks the interval sequence, and the round titles
+    // are in the same order, so the label follows the countdown without extra bookkeeping.
+    var roundLabel = (roundsOf && roundsOf[0]) || '';
     var interval = seq[0];
     var st = { running: false, paused: false, end: 0, rem: interval, t: null };
     var api;
     function pub(txt) {            // mirror this timer into the pinned bar (rule 5)
       if (ACTIVE_TIMER !== api) return;
       var b = tbar(); b.hidden = false;
-      b._l.textContent = label || 'Complex';
+      // Phil: "The timer shows complex one. It should show complex one in the set it's on, also in
+      // that bottom footer." The countdown is between-set rest, so the set is the half that tells you
+      // where you are; the complex alone does not.
+      b._l.textContent = (label || 'Complex') + (roundLabel ? ' · ' + roundLabel : '');
       b._v.textContent = txt;
       b._p.hidden = !st.running;
       b._p.textContent = st.paused ? '▶' : '⏸';
@@ -344,10 +352,31 @@
         }
         idx += 1;
         interval = seq[idx];
+        roundLabel = (roundsOf && roundsOf[idx]) || roundLabel;
         st.end = Date.now() + interval * 1000; left = interval; node.classList.add('flash'); setTimeout(function () { node.classList.remove('flash'); }, 900); beep(); timerAlert('Next set', 'go', '', true); }
       node.textContent = 'next ' + fmt(left);
       pub('next ' + fmt(left));
       st.t = setTimeout(tick, 250);
+    }
+    // Phil: "If I start the complex, set one, and I finish it early and I want to start the time for
+    // set two, is there a fast-forward button to go to the next complex?" There wasn't. A rolling
+    // timer that can only be waited out is wrong for an athlete who finished early — and it is also
+    // how he was trying to check that the interval drops when a paired lift runs out of sets.
+    function skip() {
+      if (!st.running) return;
+      if (idx >= seq.length - 1) {                 // last round: end the complex rather than roll on
+        clearTimeout(st.t); st.running = false; st.t = null;
+        node.textContent = 'complex done'; pauseBtn.hidden = true;
+        pub('complex done'); setTimeout(unpub, 4000);
+        return;
+      }
+      idx += 1;
+      interval = seq[idx];
+      roundLabel = (roundsOf && roundsOf[idx]) || roundLabel;
+      st.paused = false;
+      st.end = Date.now() + interval * 1000;
+      clearTimeout(st.t);
+      tick();
     }
     function toggle() {
       if (!st.running) return;
@@ -361,6 +390,7 @@
     pauseBtn.addEventListener('click', toggle);
     api = {
       toggle: toggle,
+      skip: skip,
       stop: function () { clearTimeout(st.t); st.t = null; st.running = false; st.paused = false; node.textContent = ''; pauseBtn.hidden = true; },
       start: function () {
         if (st.running) return;
@@ -1054,7 +1084,17 @@
       var pauseBtn = el('button', 'pause', '⏸'); pauseBtn.type = 'button'; pauseBtn.hidden = true;
       head.appendChild(startBtn); head.appendChild(timerNode); head.appendChild(pauseBtn);
       card.appendChild(head);
-      var timer = makeTimer(timerNode, pauseBtn, ivs, sLabel);
+      // Round titles in interval order, so the pinned bar can say "Complex 1 · Set 3".
+      var roundTitles = [];
+      (function () {
+        var aSideX = slot.exercises[0], maxX = 0;
+        slot.exercises.forEach(function (ex) { if (ex.sets.length > maxX) maxX = ex.sets.length; });
+        for (var q = 0; q < maxX; q++) {
+          var aS = aSideX && aSideX.sets[q];
+          roundTitles.push('Set ' + (q + 1) + (aS && aS.kind === 'warmup' ? ' (warm-up)' : ''));
+        }
+      })();
+      var timer = makeTimer(timerNode, pauseBtn, ivs, sLabel, roundTitles);
       startBtn.addEventListener('click', function () { timer.start(); startBtn.hidden = true; });
 
       // Collapsed form of a complex you haven't reached (or have finished) — rule 1. Tap to open it
@@ -1130,6 +1170,10 @@
       var total = document.querySelectorAll('.ex-row').length, n = document.querySelectorAll('.ex-row.done').length;
       if (n < total && !window.confirm((total - n) + ' of ' + total + ' sets aren’t checked off yet. Finish anyway?')) return;
       drain();   // flush the queue so the summary sees this session's sets
+      // Phil, after a full session: "i logged the workout, but complex 1 timer still going so that
+      // should end if workout is ended". A rest timer counting down for a workout that is over is
+      // just noise that follows you out of the gym.
+      clearTimerBar();
       sendComplete(SESSION.session_id);   // mark done → reopening advances to the next session
       show('Workout complete — ' + n + ' logged. Loading summary…');
       var url = cfg.WEBAPP_URL + '?action=summary&athlete=' + encodeURIComponent(athlete) +

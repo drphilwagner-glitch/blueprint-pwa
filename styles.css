@@ -865,3 +865,8 @@ body.has-tbar #app { padding-bottom: 128px; }
 .vstage { position: relative; }
 .vretry { border: 0; border-radius: var(--r-10); background: var(--bp); color: var(--white);
   font: inherit; font-weight: 700; padding: 12px 18px; }
+
+/* Skip control in the pinned timer bar — finish a set early, start the next rest now. */
+.tbar .tb-s { border: 0; border-radius: var(--r-8); background: var(--on-dark-18); color: var(--white);
+  font-size: var(--fs-14); padding: 6px 10px; margin-left: 6px; }
+.tbar .tb-l { flex: 0 1 auto; }

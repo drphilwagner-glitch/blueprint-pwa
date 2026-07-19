@@ -90,11 +90,35 @@
     var r = e && e.reason;
     reportError('unhandledrejection', (r && (r.message || r)) || 'unknown', '', r && r.stack);
   });
-  // A PWA that reloads itself mid-session is the signature of an iOS memory kill — the thing Phil
-  // reports as "it crashes and reloads". Record the reload so the pattern is visible in ErrorLog.
+  // ---- CRASH BREADCRUMB ----
+  // An iOS memory kill takes the tab INSTANTLY: no error fires, no report can be sent, and the
+  // reload-detector only helps if Safari auto-reloads rather than Phil reopening by hand. So the app
+  // leaves a note on disk BEFORE doing anything risky and clears it on a clean exit. A note still
+  // there at next launch means the previous run died — and it names what was on screen when it did.
+  // Phil: videos "work 90% of the time... Figure out why some work and some don't." This is how we
+  // learn WHICH clip was open at the moment it died, which no test on this Mac can tell us.
+  var CRUMB = 'bp_crumb';
+  function crumb(state, extra) {
+    try { localStorage.setItem(CRUMB, JSON.stringify({ t: Date.now(), state: state, extra: extra || '' })); } catch (e) {}
+  }
+  function crumbClear() { try { localStorage.removeItem(CRUMB); } catch (e) {} }
   try {
-    var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
-    if (nav && nav.type === 'reload') reportError('reload', 'app reloaded (possible iOS memory kill)', '', 'type=' + nav.type);
+    var prev = localStorage.getItem(CRUMB);
+    if (prev) {
+      var p0 = {}; try { p0 = JSON.parse(prev); } catch (e) {}
+      var agoS = p0.t ? Math.round((Date.now() - p0.t) / 1000) : null;
+      reportError('unclean_exit', 'previous run ended without a clean exit while: ' + (p0.state || 'unknown'),
+        '', 'context=' + (p0.extra || '') + ' secondsAgo=' + agoS);
+      crumbClear();
+    }
+  } catch (e) {}
+  // A clean close, a backgrounded tab, or a normal navigation are all fine — clear the note.
+  window.addEventListener('pagehide', crumbClear);
+  window.addEventListener('beforeunload', crumbClear);
+  var nav0 = null;
+  try {
+    nav0 = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    if (nav0 && nav0.type === 'reload') reportError('reload', 'app reloaded (possible iOS memory kill)', '', 'type=' + nav0.type);
   } catch (e) {}
 
   // iOS evicts IndexedDB for sites it considers idle (roughly 7 days without a visit), and this
@@ -427,6 +451,7 @@
   // Two rules now: at most ONE player can exist, and closing TEARS IT DOWN rather than just
   // detaching it (a detached iframe can keep its media session alive).
   function closeVideo() {
+    crumbClear();
     document.querySelectorAll('.vov').forEach(function (o) {
       o.querySelectorAll('iframe').forEach(function (f) { f.src = 'about:blank'; f.remove(); });
       o.querySelectorAll('video').forEach(function (v) { try { v.pause(); } catch (e) {} v.removeAttribute('src'); try { v.load(); } catch (e) {} v.remove(); });
@@ -437,7 +462,13 @@
   function _vEsc(ev) { if (ev.key === 'Escape') closeVideo(); }
   function openVideo(url) {
     if (!url) return;
+    // Breadcrumb BEFORE the player exists. If the tab dies here, the next launch reports which clip
+    // and which host was being opened — the only way to tell a crashing video from a working one.
+    var host = (String(url).match(/https?:\/\/([^\/]+)/) || [])[1] || 'unknown';
     closeVideo();                    // never stack players — this is the crash
+    // AFTER closeVideo, not before: closeVideo clears the crumb, so writing it first wiped the note
+    // on every single open. Caught by j5 on its first run — the breadcrumb was silently never set.
+    crumb('opening a video', 'host=' + host + ' url=' + String(url).slice(0, 120));
     var e = videoEmbed(url);
     var ov = el('div', 'vov'), box = el('div', 'vbox');
     var close = el('button', 'vclose', '✕'); close.type = 'button';
@@ -460,6 +491,8 @@
       if (e && e.share) box.appendChild(el('div', 'vnote', 'This clip is a Vimeo “share” link, which can’t play inside the app.'));
       var a = el('a', 'vfallback', 'Open video ↗'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; box.appendChild(a);
     }
+    // Survived building the player: the risky moment has passed.
+    setTimeout(function () { crumb('video playing', 'host=' + host); }, 3000);
     // QA-04: some sources block embedding ("Video unavailable"), and we can't detect that across
     // origins — so ALWAYS offer a way out rather than leaving a dead player.
     if (e) { var esc = el('a', 'vopen', "Video won't play? Open it ↗"); esc.href = url; esc.target = '_blank'; esc.rel = 'noopener'; box.appendChild(esc); }

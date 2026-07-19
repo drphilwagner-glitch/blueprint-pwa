@@ -217,6 +217,8 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 /* rest-timer "up" alert — a half-screen banner that flashes then fades as the timer rolls on */
 .talert { position: fixed; left: 0; right: 0; top: 22%; z-index: 60; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: var(--sp-4); pointer-events: none;
+  /* .sticky re-enables pointer events below — without that its click handler never fires and the
+     cue can never be dismissed, which is exactly what stranded Phil mid-workout. */
   opacity: 0; transform: scale(.9); transition: opacity .18s ease, transform .18s ease; }
 .talert.show { opacity: 1; transform: scale(1); }
 .talert-big { background: var(--ok); color: var(--white); font-size: var(--fs-34); font-weight: 800; letter-spacing: .5px;
@@ -479,9 +481,13 @@ span.ex-name.sub { text-decoration: none; display: block; }
 .p-level-g { font-size: var(--fs-11); }
 
 /* Sticky phase banner — stays until tapped. The reliable cue when the ringer switch kills sound. */
-.talert.sticky { cursor: pointer; }
+/* the sticky cue is a real, tappable button — it MUST accept pointer events */
+.talert.sticky { cursor: pointer; pointer-events: auto; }
+.talert.sticky .talert-big { border: 0; font-family: inherit; -webkit-appearance: none; appearance: none;
+  box-shadow: 0 10px 40px var(--sh-lift-2), 0 0 0 4px var(--white); }
+.talert.sticky .talert-big:active { transform: scale(.97); }
 .talert.sticky .talert-big { font-size: var(--fs-40); }
-.talert-tap { margin-top: 10px; font-size: var(--fs-12); letter-spacing: .4px; text-transform: uppercase; opacity: .8; }
+/* .talert-tap removed — the cue is a button now, so it doesn't need instructions. */
 
 /* S22 drag-to-move: the floating ghost + drop-target highlight */
 body.dragging { touch-action: none; user-select: none; }
@@ -572,8 +578,14 @@ span.ex-name { display: block; }
 .round.is-done:not(.open) > .round-title,
 .round.is-done:not(.open) > .ex-row,
 .round.is-next:not(.open) > .round-title,
-.round.is-next:not(.open) > .ex-row { display: none; }
-.round.is-later:not(.open) { display: none; }
+.round.is-next:not(.open) > .ex-row,
+.round.is-later:not(.open) > .round-title,
+.round.is-later:not(.open) > .ex-row { display: none; }
+/* is-later used to be display:none outright, which made a session look like it had no work sets.
+   It now collapses to a single line like everything else — quieter than "next", but VISIBLE. */
+.round.is-later:not(.open) { border-color: transparent; background: none; padding: 2px 8px; }
+.round.is-later:not(.open) .up-line { opacity: .55; font-size: var(--fs-12); }
+.round.is-later:not(.open) .roundlog { display: none; }
 .round.open > .round-sum { display: none; }
 .round-sum:empty { display: none; }
 
@@ -663,9 +675,13 @@ body.has-tbar #app { padding-bottom: 128px; }
 
 /* NOW = one primary action: the per-row ✓ steps aside for the round button. A timed hold keeps its
    ▶, because starting the hold is a different act from recording the round. */
-.round.is-now:not(.open) .ex-row .check:not(.dur) { display: none; }
+.ex-row .check:not(.dur) { display: none; }
 /* Editing a past round is the other mode: per-row ✓ so a single set can be unchecked and corrected. */
-.round:not(.is-now) .roundlog, .round.open .roundlog { display: none; }
+/* ONE control per round, in every state — Phil: "some of them have checkboxes, and some of them have
+   logs... it's totally unpredictable how you log workouts." The per-row check is gone for good;
+   only a timed hold keeps its own control, because you have to actually stand through the hold. */
+.round.is-done:not(.open) .roundlog, .round.is-next:not(.open) .roundlog { display: none; }
+.roundlog.logged { background: var(--white); color: var(--bp); border: 1.5px solid var(--bp-line); }
 
 .check.locked { background: var(--control-flat); color: var(--muted); }
 
@@ -772,11 +788,20 @@ body.has-tbar #app { padding-bottom: 128px; }
    and top-3-strongest with the rest collapsed, the best-one/best-volume numbers
    stop shouting, and trends are replaced by actual history.
    ============================================================================ */
-.p-ai { background: var(--bp); color: var(--white); border-radius: var(--r-14);
-  padding: 16px 16px 18px; margin-bottom: var(--sp-12); }
+.p-ai { background: var(--white); color: var(--ink); border: 1px solid var(--line);
+  border-left: 5px solid var(--bp); border-radius: var(--r-14);
+  padding: 14px 16px 16px; margin-bottom: var(--sp-12); }
 .p-ai-h { font-size: var(--fs-11); font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-  color: var(--white); opacity: .75; margin-bottom: 6px; }
-.p-ai-b { font-size: var(--fs-17); line-height: 1.45; font-weight: 500; color: var(--white); }
+  color: var(--bp); margin-bottom: 10px; }
+.p-ai-b { font-size: var(--fs-15); line-height: 1.45; font-weight: 500; color: var(--ink); }
+/* one claim per row: label left, value right — scannable between sets, not a paragraph */
+.p-pt { display: flex; align-items: baseline; gap: var(--sp-10); padding: 7px 0; border-top: 1px solid var(--line); }
+.p-pt:first-of-type { border-top: 0; padding-top: 0; }
+.p-pt-k { flex: 0 0 40%; font-size: var(--fs-11); font-weight: 800; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--muted); }
+.p-pt-b { flex: 1 1 auto; min-width: 0; }
+.p-pt-v { display: block; font-size: var(--fs-16); font-weight: 700; line-height: 1.25; }
+.p-pt-n { display: block; font-size: var(--fs-12); color: var(--muted); }
 
 .p-cats { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-14);
   padding: 12px 14px; margin-bottom: var(--sp-12); }

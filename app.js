@@ -511,7 +511,26 @@
       crumb('BUILDING the player', 'host=' + host + ' url=' + String(url).slice(0, 120));
       stage.innerHTML = '';
       if (e && e.type === 'iframe') {
-        var f = el('iframe'); f.className = 'vframe';
+        // A player that never appears looks identical to a broken app. Phil: Bulgarian Split Squat
+        // "crashed to show the video", then showed on the second tap — and no crash was reported, so
+        // the app did NOT die: the embed simply failed to render first time and worked once cached.
+        // Say so, and offer the retry he was performing manually.
+        var wait = el('div', 'vwait', 'Loading…');
+        stage.appendChild(wait);
+        var f = el('iframe'); f.className = 'vframe'; f.style.opacity = '0';
+        var settled = false;
+        f.addEventListener('load', function () {
+          settled = true;
+          f.style.opacity = ''; if (wait.parentNode) wait.remove();
+        });
+        setTimeout(function () {
+          if (settled || !stage.contains(f)) return;
+          wait.innerHTML = '';
+          var again = el('button', 'vretry', 'Still loading — tap to try again'); again.type = 'button';
+          again.addEventListener('click', buildPlayer);
+          wait.appendChild(again);
+          reportError('video_slow', 'embed did not load within 6s', '', 'host=' + host + ' url=' + String(url).slice(0, 120));
+        }, 6000);
         f.src = e.src;                                 // autoplay/mute params are set in videoEmbed
         f.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
         f.setAttribute('allowfullscreen', ''); stage.appendChild(f);

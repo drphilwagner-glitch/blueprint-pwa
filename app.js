@@ -886,7 +886,6 @@
       slot.exercises.forEach(function (ex) { if (ex.sets.length > maxSets) maxSets = ex.sets.length; });
       // QA-06: ordinals match the athlete's real count — warm-ups are sets too, so the work sets
       // continue from them (3 warm-ups -> the work sets read Set 4, 5, 6), never restarting at 1.
-      var warmNo = 0;
       for (var r = 0; r < maxSets; r++) {
         var roundBox = el('div', 'round');
         var aSet = aSide && aSide.sets[r];
@@ -896,7 +895,6 @@
         // called "Warm-up 2" read as a second warm-up slot. Now every round counts on one sequence
         // and the ramp sets are annotated, which also keeps QA-06 (ordinals match the real count).
         var title = 'Set ' + (r + 1) + (isWarmRound ? ' (warm-up)' : '');
-        if (isWarmRound) warmNo++;
         roundBox.setAttribute('data-title', title);   // the NOW tag and the collapsed lines both read this
         roundBox.appendChild(el('div', 'round-title', title));
         var count = 0;
@@ -909,20 +907,32 @@
         // lane counts would put their weights at different x, which is exactly the raggedness the
         // symmetry pass fixed. Collapse only when nothing in the round has a goal.
         var rr = [].slice.call(roundBox.querySelectorAll('.ex-row'));
-        if (rr.length && rr.every(function (r) { return r.classList.contains('no-goal'); })) roundBox.classList.add('no-goal');
+        if (rr.length && rr.every(function (row) { return row.classList.contains('no-goal'); })) roundBox.classList.add('no-goal');
         // One Log button per round (rule 2). Rounds made entirely of timed holds don't get one — the
         // hold's own ▶ IS the action, and you can't log a 45s hold you haven't stood through.
         var loggable = [].slice.call(roundBox.querySelectorAll('.ex-row')).some(function (r) { return r._commit && !r._isDur; });
         if (loggable) {
           var act = el('button', 'roundlog'); act.type = 'button'; act.disabled = true;
-          act.addEventListener('click', (function (rb) {
+          // `var act` is FUNCTION-scoped, and this runs inside the round loop — so every round's
+          // handler closed over the SAME variable, which by click time held the LAST round's button.
+          // Later rounds are normally disabled (their actuals aren't confirmed yet), so every button
+          // read `disabled === true` and returned early: Phil's "It won't let me tap it, so I can't
+          // log it" on a button that was visibly blue and enabled.
+          // Capture THIS button explicitly, and read state off the event target as well.
+          act.addEventListener('click', (function (rb, btn) {
             return function () {
-              if (act.disabled) return;
-              [].slice.call(rb.querySelectorAll('.ex-row')).forEach(function (r) {
-                if (r._commit && !r._isDur && !r.classList.contains('done')) r._commit();
-              });
+              if (btn.disabled) return;
+              var all = [].slice.call(rb.querySelectorAll('.ex-row')).filter(function (r) { return r._commit && !r._isDur; });
+              var pending = all.filter(function (r) { return !r.classList.contains('done'); });
+              // UPDATE vs LOG. Skipping rows that are already `.done` made the "Update" button a
+              // no-op: an already-logged round has no pending rows, so nothing was committed and the
+              // correction never reached the server. Since the per-row checkmark is gone, that button
+              // is now the ONLY way to fix a set you mis-entered — it has to re-commit everything.
+              // Re-committing appends a fresh log_id; the server keeps the latest per set (hard rule 1:
+              // Sessions is append-only, corrections append).
+              (pending.length ? pending : all).forEach(function (r) { r._commit(); });
             };
-          })(roundBox));
+          })(roundBox, act));
           roundBox.appendChild(act);
         }
         body.appendChild(roundBox);

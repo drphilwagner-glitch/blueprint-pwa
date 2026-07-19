@@ -76,7 +76,18 @@
         screen: (window.innerWidth + 'x' + window.innerHeight +
                  (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches ? ' standalone' : ' browser')),
         url: location.href.replace(/token=[^&]*/, 'token=***'),   // never log a token
-        extra: String(extra || '').slice(0, 900)
+        // ALWAYS attach what was on screen. Phil's real crash reported `"Script error."` with no
+        // message, no file and no line — the browser withholds detail for cross-origin scripts. That
+        // is useless on its own, but "Script error. WHILE: opening a video, host=player.vimeo.com" is
+        // actionable. The breadcrumb we already keep for crash detection is exactly that context.
+        extra: (function () {
+          var ctx = '';
+          try {
+            var c = localStorage.getItem('bp_crumb');
+            if (c) { var o = JSON.parse(c); ctx = ' WHILE: ' + (o.state || '') + ' ' + (o.extra || ''); }
+          } catch (e) {}
+          return (String(extra || '') + ctx).slice(0, 900);
+        })()
       };
       fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) }).catch(function () {});
@@ -476,23 +487,41 @@
     ov.addEventListener('click', function (ev) { if (ev.target === ov) closeVideo(); });
     document.addEventListener('keydown', _vEsc);
     box.appendChild(close);
-    if (e && e.type === 'iframe') {
-      var f = el('iframe'); f.className = 'vframe';
-      f.src = e.src;                                   // autoplay/mute params are set in videoEmbed
-      f.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
-      f.setAttribute('allowfullscreen', ''); box.appendChild(f);
-    } else if (e && e.type === 'video') {
-      // muted is REQUIRED for autoplay here too — an unmuted <video> is blocked exactly like the
-      // YouTube embed was, which is why some clips sat on a black frame.
-      var v = el('video'); v.className = 'vframe'; v.src = e.src;
-      v.controls = true; v.autoplay = true; v.muted = true; v.playsInline = true; v.loop = true;
-      box.appendChild(v);
-    } else {
-      if (e && e.share) box.appendChild(el('div', 'vnote', 'This clip is a Vimeo “share” link, which can’t play inside the app.'));
-      var a = el('a', 'vfallback', 'Open video ↗'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; box.appendChild(a);
+    // NO PLAYER UNTIL ASKED (Phil chose option A). His app died two seconds after a player was built
+    // for Back Squat — and that clip is unremarkable: 426x240, 31s, same upload batch as clips that
+    // play fine, per Vimeo's own oEmbed. So the cause is still UNKNOWN, and my "iOS memory budget"
+    // explanation was a guess Phil rightly rejected, since other Vimeo clips play in standalone.
+    // This does not pretend to know the cause: it stops walking into it. Tapping a name opens an
+    // empty overlay with a Play button; the embed is created only on that second, deliberate tap.
+    var stage = el('div', 'vstage');
+    function buildPlayer() {
+      stage.innerHTML = '';
+      if (e && e.type === 'iframe') {
+        var f = el('iframe'); f.className = 'vframe';
+        f.src = e.src;                                 // autoplay/mute params are set in videoEmbed
+        f.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
+        f.setAttribute('allowfullscreen', ''); stage.appendChild(f);
+      } else if (e && e.type === 'video') {
+        // muted is REQUIRED for autoplay — an unmuted <video> is blocked exactly like the YouTube
+        // embed was, which is why some clips sat on a black frame.
+        var v = el('video'); v.className = 'vframe'; v.src = e.src;
+        v.controls = true; v.autoplay = true; v.muted = true; v.playsInline = true; v.loop = true;
+        stage.appendChild(v);
+      }
+      // Survived building the player: the risky moment has passed.
+      setTimeout(function () { crumb('video playing', 'host=' + host); }, 3000);
     }
-    // Survived building the player: the risky moment has passed.
-    setTimeout(function () { crumb('video playing', 'host=' + host); }, 3000);
+    if (e && (e.type === 'iframe' || e.type === 'video')) {
+      var play = el('button', 'vplay'); play.type = 'button';
+      play.appendChild(el('span', 'vplay-icon', '▶'));
+      play.appendChild(el('span', 'vplay-t', 'Play video'));
+      play.addEventListener('click', buildPlayer);
+      stage.appendChild(play);
+    } else {
+      if (e && e.share) stage.appendChild(el('div', 'vnote', 'This clip is a Vimeo “share” link, which can’t play inside the app.'));
+      var a = el('a', 'vfallback', 'Open video ↗'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; stage.appendChild(a);
+    }
+    box.appendChild(stage);
     // QA-04: some sources block embedding ("Video unavailable"), and we can't detect that across
     // origins — so ALWAYS offer a way out rather than leaving a dead player.
     if (e) { var esc = el('a', 'vopen', "Video won't play? Open it ↗"); esc.href = url; esc.target = '_blank'; esc.rel = 'noopener'; box.appendChild(esc); }
@@ -1399,6 +1428,77 @@
     return card;
   }
 
+
+  // ---- radar chart for the six training qualities ----
+  // Axis labels are SPELLED OUT. Phil: "no one knows what lower body LE max is. That's internal.
+  // Should be lower body max strength." LE/UE are coach shorthand from the Workbook — an athlete has
+  // never seen them. Two short lines fit a 390px phone; abbreviating to save pixels was me optimising
+  // the wrong thing.
+  function qualityLines(label) {
+    var t = String(label || '').replace(/-/g, ' ');
+    var m = t.match(/^(lower body|upper body)\s+(.*)$/i);
+    return m ? [m[1], m[2]] : [t];
+  }
+  function radarCard(cats) {
+    var card = el('div', 'p-radar');
+    card.appendChild(el('div', 'p-cats-h', 'By quality'));
+    // Wider than tall: the left/right labels ("UE max", "LE end") sit outside the ring and were
+    // clipped by a square viewBox. The polygon stays centred; only the canvas got room.
+    var N = cats.length, W = 390, H = 260, CX = W / 2, CY = H / 2, R = 66;
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('class', 'radar-svg');
+    function mk(tag, attrs) {
+      var n = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+      return n;
+    }
+    // angle for axis i, starting at 12 o'clock
+    function pt(i, rad) {
+      var a = (Math.PI * 2 * i / N) - Math.PI / 2;
+      return [CX + Math.cos(a) * rad, CY + Math.sin(a) * rad];
+    }
+    // rings at each BLOCK boundary (level 1, 2, 3) so the shape reads against the ladder
+    [1 / 3, 2 / 3, 1].forEach(function (f, idx) {
+      var pts = [];
+      for (var i = 0; i < N; i++) { var p = pt(i, R * f); pts.push(p[0].toFixed(1) + ',' + p[1].toFixed(1)); }
+      svg.appendChild(mk('polygon', { points: pts.join(' '), class: 'radar-ring' + (idx === 2 ? ' outer' : '') }));
+    });
+    for (var i = 0; i < N; i++) {
+      var e = pt(i, R);
+      svg.appendChild(mk('line', { x1: CX, y1: CY, x2: e[0].toFixed(1), y2: e[1].toFixed(1), class: 'radar-spoke' }));
+    }
+    // the athlete's shape
+    var poly = [], dots = [];
+    cats.forEach(function (c, i) {
+      var frac = Math.max(0.06, Math.min(1, (Number(c.order) || 0) / (Number(c.orderMax) || 9)));
+      var p = pt(i, R * frac);
+      poly.push(p[0].toFixed(1) + ',' + p[1].toFixed(1));
+      dots.push(p);
+    });
+    svg.appendChild(mk('polygon', { points: poly.join(' '), class: 'radar-shape' }));
+    dots.forEach(function (p) { svg.appendChild(mk('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: 3, class: 'radar-dot' })); });
+    // labels outside the ring
+    cats.forEach(function (c, i) {
+      var p = pt(i, R + 18);
+      var lines = qualityLines(c.label);
+      var anchor = p[0] < CX - 6 ? 'end' : (p[0] > CX + 6 ? 'start' : 'middle');
+      var t = mk('text', { x: p[0].toFixed(1), y: p[1].toFixed(1), class: 'radar-label' });
+      t.setAttribute('text-anchor', anchor);
+      t.setAttribute('dominant-baseline', 'middle');
+      lines.forEach(function (ln, li) {
+        var ts = mk('tspan', { x: p[0].toFixed(1), dy: (li === 0 ? (lines.length > 1 ? '-0.5em' : '0') : '1.1em') });
+        ts.textContent = ln;
+        t.appendChild(ts);
+      });
+      svg.appendChild(t);
+    });
+    card.appendChild(svg);
+    var legend = el('div', 'radar-legend', 'outer edge = level 3.3 · rings are levels 1, 2, 3');
+    card.appendChild(legend);
+    return card;
+  }
+
   function renderProfile(list, summary, categories) {
     SESSION = null; app.innerHTML = '';
     meta.textContent = athlete + ' · your progress';
@@ -1423,21 +1523,30 @@
       });
       app.appendChild(ai);
     } else if (summary && summary.text) {
+      // NOTHING LOGGED YET. Phil saw "Log a few sessions and a read on your progress shows up here"
+      // sitting above a populated "by quality" card — two contradictory statements on one screen.
+      // If there is no read to give, that is the whole screen; the breakdown means nothing without it.
       var ai2 = el('div', 'p-ai');
       ai2.appendChild(el('div', 'p-ai-h', 'Where you stand'));
       ai2.appendChild(el('div', 'p-ai-b', summary.text));
       app.appendChild(ai2);
+      categories = [];
     }
 
-    // Category standing — the axis the summary reasons over, shown so the claim is checkable.
-    if (categories && categories.length) {
+    // BY QUALITY, as a radar. Phil: "Six things is useless... potentially having a radar graph to
+    // visually show this rather than list it." Six rows of near-identical numbers is a table nobody
+    // reads; the same six points as a SHAPE shows the imbalance at a glance, which is the only reason
+    // the athlete cares. Plotted on LEVEL ORDER 1..9 (1.1=1 ... 3.3=9) — the real ladder position.
+    // Hand-built SVG: no library, works offline, and it is ~40 lines.
+    if (categories && categories.length >= 3) {
+      app.appendChild(radarCard(categories));
+    } else if (categories && categories.length) {
       var cw = el('div', 'p-cats');
       cw.appendChild(el('div', 'p-cats-h', 'By quality'));
       categories.forEach(function (c) {
         var r = el('div', 'p-cat');
         r.appendChild(el('span', 'p-cat-n', c.label));
-        r.appendChild(el('span', 'p-cat-m', c.n + ' lift' + (c.n === 1 ? '' : 's') + (c.maxed ? ' · ' + c.maxed + ' maxed' : '')));
-        r.appendChild(el('span', 'p-cat-v', c.span));   // a real range of real levels, never an average
+        r.appendChild(el('span', 'p-cat-v', c.span));
         cw.appendChild(r);
       });
       app.appendChild(cw);

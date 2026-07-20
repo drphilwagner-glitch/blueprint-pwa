@@ -1153,8 +1153,14 @@
 
       var body = el('div', 'sets');
       var aSide = slot.exercises[0];
+      // round_offset deals the B-sides into CONSECUTIVE rounds so a complex is never a trio — see the
+      // note in LoggerApi buildSession. Older payloads have no offset; `|| 0` keeps them rendering as
+      // they always did, so a stale cached session degrades to the old layout rather than vanishing.
       var maxSets = 0;
-      slot.exercises.forEach(function (ex) { if (ex.sets.length > maxSets) maxSets = ex.sets.length; });
+      slot.exercises.forEach(function (ex) {
+        var end = (ex.round_offset || 0) + ex.sets.length;
+        if (end > maxSets) maxSets = end;
+      });
       // QA-06: ordinals match the athlete's real count — warm-ups are sets too, so the work sets
       // continue from them (3 warm-ups -> the work sets read Set 4, 5, 6), never restarting at 1.
       for (var r = 0; r < maxSets; r++) {
@@ -1170,7 +1176,10 @@
         roundBox.appendChild(el('div', 'round-title', title));
         var count = 0;
         slot.exercises.forEach(function (ex) {
-          if (r < ex.sets.length) { roundBox.appendChild(exerciseRow(slot, ex, ex.sets[r], timer, ex === aSide)); count++; }
+          var o = ex.round_offset || 0;
+          if (r >= o && r - o < ex.sets.length) {
+            roundBox.appendChild(exerciseRow(slot, ex, ex.sets[r - o], timer, ex === aSide)); count++;
+          }
         });
         if (count > 1) roundBox.classList.add('paired');
         // "collapse set to be shorter if no goal" — but the goal lane is dropped for the ROUND, never
@@ -1501,7 +1510,12 @@
     if (x.variant && x.variant !== x.name) card.appendChild(el('div', 'p-var', 'currently: ' + x.variant));
 
     if (!x.has_data) {
-      card.appendChild(el('div', 'p-empty', 'No sets logged yet — log one and your bests show up here.'));
+      // Two different empty states. A lift with imported history is NOT a blank slate — saying "no
+      // sets logged yet" above a "587 sets" legacy line read as a contradiction. When legacy exists,
+      // point the athlete at their history instead of implying they have none.
+      card.appendChild(el('div', 'p-empty', (x.legacy && x.legacy.sets)
+        ? 'No sets logged in Blueprint yet — your history is below.'
+        : 'No sets logged yet — log one and your bests show up here.'));
     } else {
       // Phil: "best volume and one set font not so big same as exercise" — these were the loudest
       // thing on the card. They're facts about the past; the level and the gap are what's actionable.
@@ -1547,6 +1561,23 @@
         h.appendChild(line);
       });
       card.appendChild(h);
+    }
+
+    // LEGACY — the years before this app. Phil wanted the switch off Everfit to "make it a wash", so
+    // an athlete opening their profile sees the work they already did, not an empty card. It is a
+    // SUMMARY (best set + span + count), never the raw sets: 587 imported Squat sets as lines would
+    // bury the in-app history above. Sits below current history, visually quieter, because it is
+    // context, not today's progress. The data is flagged `history` and the engine never reads it.
+    if (x.legacy && x.legacy.sets) {
+      var yr = String(x.legacy.first || '').slice(0, 4);
+      var lg = el('div', 'p-legacy');
+      var b = x.legacy.best;
+      var head = 'Before Blueprint' + (yr ? ' · since ' + yr : '');
+      lg.appendChild(el('span', 'p-legacy-h', head));
+      var detail = x.legacy.sets + ' sets';
+      if (b) detail += ' · best ' + (b.load != null ? (b.load + ' lb × ' + b.reps) : (b.reps + ' reps'));
+      lg.appendChild(el('span', 'p-legacy-v', detail));
+      card.appendChild(lg);
     }
     return card;
   }

@@ -831,6 +831,9 @@ body.has-tbar #app { padding-bottom: 128px; }
 .p-hist-r { display: flex; align-items: baseline; gap: var(--sp-8); font-size: var(--fs-13); padding: 2px 0; }
 .p-hist-d { color: var(--muted); font-variant-numeric: tabular-nums; }
 .p-hist-v { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.p-legacy { margin-top: 6px; display: flex; align-items: baseline; gap: var(--sp-8); flex-wrap: wrap; }
+.p-legacy-h { font-size: var(--fs-10); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.p-legacy-v { margin-left: auto; font-size: var(--fs-13); color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .p-more { width: 100%; min-height: 46px; margin-top: 16px; border: 1px solid var(--line);
   border-radius: var(--r-10); background: var(--white); font-size: var(--fs-14); font-weight: 700; color: var(--bp); }

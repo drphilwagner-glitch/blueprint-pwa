@@ -872,3 +872,8 @@ body.has-tbar #app { padding-bottom: 128px; }
 .tbar .tb-l { flex: 0 1 auto; }
 
 .vplay-n { font-size: var(--fs-11); opacity: .7; font-weight: 500; }
+
+/* The finish screen is about the session, not about navigating away. */
+.sum-back { display: block; margin: 26px auto 30px; padding: 8px 16px; min-height: 0;
+  border: 1px solid var(--line); border-radius: var(--r-8); background: none;
+  color: var(--muted); font-size: var(--fs-13); font-weight: 600; }

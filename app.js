@@ -403,16 +403,27 @@
     return api;
   }
   function startHold(btn, secs, done) {                    // duration items: countdown then log
+    // Phil, after a full session: "There's no way to stop the exercise timer... I should be able to
+    // tap and stop it because I should be able to log it without the timer. It forced me to do the
+    // whole 60 seconds." A carry that is over at 40s should log at 40s — the athlete decides when the
+    // set ended, not a countdown. Tapping again STOPS it and logs what was actually held.
     primeAudio();                                          // unlock audio on the tap that starts it (iOS)
-    var rem = secs; btn.disabled = true; btn.classList.add('holding'); btn.textContent = rem + 's';
+    var rem = secs, held = 0;
+    btn.classList.add('holding'); btn.textContent = rem + 's';
     var iv = setInterval(function () {
-      rem--; btn.textContent = rem + 's';
-      if (rem <= 0) {
-        clearInterval(iv); btn.disabled = false; btn.classList.remove('holding');
-        beep(); timerAlert('Done', 'hold complete');       // was silent — you'd have to watch the button
-        done();
-      }
+      rem--; held++; btn.textContent = rem + 's';
+      if (rem <= 0) { finish(); }
     }, 1000);
+    function finish() {
+      if (!iv) return;
+      clearInterval(iv); iv = null;
+      btn.classList.remove('holding');
+      btn.removeEventListener('click', stopEarly);
+      beep(); timerAlert('Done', 'hold complete');         // was silent — you'd have to watch the button
+      done(held);
+    }
+    function stopEarly(ev) { ev.stopPropagation(); finish(); }
+    btn.addEventListener('click', stopEarly);
   }
 
   function mkLog(slot, exName, t, state) {   // exName may be a swapped-in alternate
@@ -904,8 +915,10 @@
     l2.appendChild(lane('c-second', bLabel, bNode));
 
     var lastLogId = null;
-    function commit() {   // checking = "already did it" — the timer is its own Start button, not tied to this
-      var log = mkLog(slot, cur.exercise, t, state); if (isDur) log.duration_s = t.duration_s;
+    function commit(heldS) {   // checking = "already did it" — the timer is its own Start button, not tied to this
+      var log = mkLog(slot, cur.exercise, t, state);
+      // Log what was actually HELD, not what was prescribed — a carry stopped at 40s is a 40s carry.
+      if (isDur) log.duration_s = (heldS != null && heldS > 0) ? heldS : t.duration_s;
       lastLogId = log.log_id;
       logRows([log]);
       row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
@@ -931,7 +944,7 @@
     check.addEventListener('click', function () {
       if (check.disabled) return;
       if (check.classList.contains('done')) { uncheck(); return; }   // tap a done set again to undo
-      if (isDur) startHold(check, t.duration_s, commit); else commit();
+      if (isDur) startHold(check, t.duration_s, function (heldS) { commit(heldS); }); else commit();
     });
     if (needsConfirm && isDur) { check.disabled = true; check.classList.add('locked'); }
     // Phil: "4 tiles is too much per row (goal, actual, reps, and checkmark) so maybe move checkmark
@@ -946,10 +959,12 @@
 
   function renderSummary(n, d) {
     app.innerHTML = '';
+    // Phil: "You've got a massive 'Back to Calendar' button. You can take out that button. Make it
+    // really small. Put that at the bottom. At the top should be the AI summary, and then any sort of
+    // specific lifts that improved." The finish screen's job is to tell you what the session DID; a
+    // full-width navigation control at the top was the loudest thing on a page about achievement.
     app.appendChild(el('h2', 'sum-h', 'Workout complete 💪'));
     app.appendChild(el('p', 'sum-sub', n + ' set' + (n === 1 ? '' : 's') + ' logged'));
-    var home = el('button', 'finish', '← Back to calendar'); home.type = 'button';
-    home.addEventListener('click', function () { loadHome(); }); app.appendChild(home);
     function block(title, items, cls) {
       if (!items || !items.length) return;
       app.appendChild(el('h3', 'sum-t ' + cls, title));
@@ -965,7 +980,12 @@
         app.appendChild(el('div', 'sum-row ' + cls, txt));
       });
     }
-    if (!d || !d.ok || !d.logged) { app.appendChild(el('p', 'empty', 'Nice work.')); return; }
+    function backLink() {
+      var back = el('button', 'sum-back', '← Back to calendar'); back.type = 'button';
+      back.addEventListener('click', function () { loadHome(); });
+      app.appendChild(back);
+    }
+    if (!d || !d.ok || !d.logged) { app.appendChild(el('p', 'empty', 'Nice work.')); backLink(); return; }
     if (d.level_ups && d.level_ups.length) {   // celebrate any rung the athlete passed this session
       app.appendChild(el('h3', 'sum-t up', 'Leveled up! 🎉'));
       d.level_ups.forEach(function (u) {
@@ -974,6 +994,7 @@
     }
     block('Top gains 🔺', d.best, 'up');
     block('Keep an eye on 🔻', d.worst, 'down');
+    backLink();                                  // small, and last — it is navigation, not the point
   }
 
   // ---- rule 1: vertical order = temporal order ----
@@ -1044,7 +1065,11 @@
         : 'Tap your ' + unconfirmed[0]._needs + ' to confirm it';
     } else {
       btn.disabled = false;
-      btn.textContent = 'Log ' + title + ' · ' + pending.map(function (r) { return r._sum().val; }).join(' · ');
+      // Phil, THIRD time: "it says 'Log set 1 (warm-up, 45 lbs. x 8)'. Just put 'Log set 1'. This is
+      // the third time I brought this up. It doesn't need to have this massively long piece."
+      // The numbers are already on screen directly above the button — repeating them was me solving
+      // a problem (blind tapping) that the amber confirm-the-actual gate already solves.
+      btn.textContent = 'Log ' + title;
     }
   }
 

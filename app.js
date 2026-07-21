@@ -778,19 +778,28 @@
     row.appendChild(l1);
     var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
       : ((t.target_reps || 1) + (t.work_s ? ('×' + t.work_s + 's') : ' reps'));
-    var dist = { v: '' };
+    var dist = { v: '' }, repsOut = { v: '' };
     var l2 = el('div', 'l2');
-    var di = el('input', 'dist-in'); di.type = 'number'; di.placeholder = '—'; di.inputMode = 'decimal';
-    di.addEventListener('input', function () { dist.v = di.value; });
+    // Only a DISTANCE prescription gets a distance box. Depth Jump ("4x") and Overhead Slam ("6x")
+    // are rep counts — drawing a distance field for them asked the athlete for a number that does
+    // not exist. Phil: "no distance, just reps you put in for overhead slam or depth jump."
+    var wantsDist = !!t.wants_distance;
+    var di = el('input', wantsDist ? 'dist-in' : 'reps-in'); di.type = 'number';
+    di.placeholder = wantsDist ? '—' : String(t.target_reps || '');
+    di.inputMode = wantsDist ? 'decimal' : 'numeric';
+    di.addEventListener('input', function () { if (wantsDist) dist.v = di.value; else repsOut.v = di.value; });
     l2.appendChild(lane('c-goal', 'prescribed', el('span', 'cv goal-v', scheme)));
-    l2.appendChild(lane('c-actual', 'distance', di));
+    l2.appendChild(lane('c-actual', wantsDist ? 'distance' : 'reps', di));
     l2.appendChild(lane('c-second', t.duration_s ? 'time' : (t.work_s ? 'work' : ''),
       t.duration_s ? el('span', 'cv', Math.round(t.duration_s / 60) + ' min')
         : (t.work_s ? el('span', 'cv', t.work_s + 's') : null)));
     row.appendChild(l2);
     var check = el('button', 'check cond-go', t.work_s ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓')); check.type = 'button';
     function logIt(dur) {
-      var l = mkLog(slot, ex.exercise, t, { load: '', reps: t.target_reps }); l.duration_s = dur || ''; l.distance = dist.v || '';
+      // log the reps the athlete actually did (falling back to the prescription), and a distance ONLY
+      // when the prescription was a distance
+      var doneReps = (!wantsDist && repsOut.v !== '') ? Number(repsOut.v) : t.target_reps;
+      var l = mkLog(slot, ex.exercise, t, { load: '', reps: doneReps }); l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';
       logRows([l]); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
     }
     check.addEventListener('click', function () {
@@ -1253,13 +1262,18 @@
   function mondayOf(s) { var x = new Date(s + 'T00:00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
   function ymd(d) { return d.toLocaleDateString('en-CA'); }
   function loadHome() {
-    show('Loading your plan…');
+    // Same instant-paint as openSession: the calendar is the FIRST thing an athlete sees, so it must
+    // never sit on a spinner waiting for a cold backend build.
+    var cachedWk = null;
+    try { var raw = localStorage.getItem('bp_week_' + athlete); cachedWk = raw ? JSON.parse(raw).sessions : null; } catch (e) {}
+    if (cachedWk && cachedWk.length) renderCalendar(cachedWk); else show('Loading your plan…');
     fetch(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (r) { return r.json(); }).then(function (data) {
-        if (!data.ok) return show('Access denied — check your link.', 'err');
-        if (!data.sessions || !data.sessions.length) return show('No workouts scheduled yet.');
+        if (!data.ok) { if (!cachedWk) show('Access denied — check your link.', 'err'); return; }
+        if (!data.sessions || !data.sessions.length) { if (!cachedWk) show('No workouts scheduled yet.'); return; }
+        try { localStorage.setItem('bp_week_' + athlete, JSON.stringify({ at: Date.now(), sessions: data.sessions })); } catch (e) {}
         renderCalendar(data.sessions);
-      }).catch(function () { show('Offline — reconnect to see your plan.', 'err'); });
+      }).catch(function () { if (!cachedWk) show('Offline — reconnect to see your plan.', 'err'); });
   }
   // Calendar = a CURRENT-WEEK strip + a day list. Phil, after using the month grid: "the list is
   // probably better than the calendar above. I don't know why we have the calendar above." He was
@@ -1737,14 +1751,38 @@
     }
   }
 
+  // INSTANT OPEN. A cold session build measures 11.2s on the backend — 73% of it just reading ten
+  // Sheets tabs, each costing ~600-1900ms of round-trip REGARDLESS of size. No amount of tuning the
+  // build removes that. Phil raised the load time ten times: "it takes 15 to 20 seconds to load each
+  // page, maybe more."
+  //
+  // So stop waiting for it. Paint the copy already on the phone, then replace it when the fresh one
+  // lands. The athlete sees their workout immediately; the refresh is invisible.
+  //
+  // The one hazard is re-rendering UNDER someone mid-set, which would wipe what they had typed. So a
+  // late refresh only repaints while the screen is still untouched — once a set is logged or a
+  // stepper is touched, the rendered view wins and the fresh payload is only cached for next time.
+  function sessCacheKey(sid) { return 'bp_sess_' + athlete + '_' + sid; }
+  function cacheSession(sid, session) {
+    try { localStorage.setItem(sessCacheKey(sid), JSON.stringify({ at: Date.now(), session: session })); } catch (e) {}
+  }
+  function cachedSession(sid) {
+    try { var raw = localStorage.getItem(sessCacheKey(sid)); return raw ? JSON.parse(raw).session : null; } catch (e) { return null; }
+  }
+  function screenTouched() {
+    return !!document.querySelector('.ex-row.done') || !!document.querySelector('.stepper:not(.unconfirmed)');
+  }
+
   function openSession(sessionId) {
     try { sessionStorage.setItem('bp_open_session', sessionId); } catch (e) {}
-    show('Loading…');
+    var cached = cachedSession(sessionId);
+    if (cached) { render(cached); } else { show('Loading…'); }
     fetch(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))
       .then(function (r) { return r.json(); }).then(function (data) {
-        if (!data.ok || !data.session) return show('No workout that day.');
-        render(data.session);
-      }).catch(function () { show('Offline — reconnect to open this workout.', 'err'); });
+        if (!data.ok || !data.session) { if (!cached) show('No workout that day.'); return; }
+        cacheSession(sessionId, data.session);
+        if (!cached || !screenTouched()) render(data.session);   // never repaint over work in progress
+      }).catch(function () { if (!cached) show('Offline — reconnect to open this workout.', 'err'); });
   }
 
   load();

@@ -229,7 +229,8 @@
       }).catch(function () { done(); });
     }).catch(function () { done(); });
   }
-  function logRows(rows) { Promise.all(rows.map(qAdd)).then(updateBadge).then(drain); }
+  // mkLog returns null once the athlete has left the workout; a null must never reach the queue.
+  function logRows(rows) { rows = (rows || []).filter(Boolean); if (!rows.length) return; Promise.all(rows.map(qAdd)).then(updateBadge).then(drain); }
   window.addEventListener('online', drain);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) drain(); });
   setInterval(function () { if (navigator.onLine) drain(); }, 15000);
@@ -459,6 +460,10 @@
   }
 
   function mkLog(slot, exName, t, state) {   // exName may be a swapped-in alternate
+    // A hold that finishes AFTER the athlete has left the workout used to crash here with
+    // "null is not an object (evaluating 'SESSION.session_id')", and the throw took the whole log
+    // batch with it - the sets never reached the Workbook. Caught by j1 + the device error reporter.
+    if (!SESSION) return null;
     return { log_id: uuid(), session_id: SESSION.session_id, complex_name: slot.complex_name, exercise: exName,
       set_no: t.set_no, side: '', target_load: t.target_load, target_reps: t.target_reps,
       actual_load: state.load, actual_reps: state.reps, flag: '' };

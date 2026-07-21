@@ -1547,8 +1547,10 @@
   }
   // "Workout" = today's session, else the next planned one (the legacy advance endpoint does this).
   function openToday() {
+    var mine = newScreen();
     show('Loading…'); renderNav('wo');
     fetch(planUrl()).then(function (r) { return r.json(); }).then(function (data) {
+      if (!isCurrent(mine)) return;                 // do not yank the athlete back from a newer screen
       if (!data.ok) return show('Access denied — check your link.', 'err');
       if (!data.session) return show('All caught up — no upcoming session.');
       render(data.session);
@@ -1556,13 +1558,41 @@
   }
 
   // ---- Profile: distance-to-next-rung first; bests are the record, not the headline ----
+  // SCREEN GENERATION. Every screen load takes a ticket; a response may only draw if its ticket is
+  // still current. Guarding on the nav's "on" class does NOT work — whichever loader finishes last
+  // rewrites it, so a slow workout fetch resolving after the athlete opened the profile stole the tab
+  // back and the profile then refused to draw at all. Same class of bug as the late calendar render
+  // that killed a running rest timer: an old response overwriting a newer screen.
+  var SCREEN_SEQ = 0;
+  function newScreen() { return ++SCREEN_SEQ; }
+  function isCurrent(t) { return t === SCREEN_SEQ; }
+  function profCacheKey() { return 'bp_prof_' + athlete; }
+  function cachedProfile() {
+    try { var raw = localStorage.getItem(profCacheKey()); return raw ? JSON.parse(raw).data : null; } catch (e) { return null; }
+  }
+  // INSTANT PAINT, same as the workout screen already does. Phil reported the profile as slow three
+  // separate times ("the profile takes about five seconds"); j8 measured it at 1.8-2.5s warm and 8.7s
+  // cold, because it was the one screen that always waited for the network before drawing anything.
+  // Now the last profile is painted immediately and the fresh one replaces it when it lands — so a
+  // cold fetch costs the athlete nothing but a slightly stale number for a second.
   function loadProfile() {
-    show('Loading your progress…'); renderNav('prof');
+    var mine = newScreen();
+    renderNav('prof');
+    var cached = cachedProfile();
+    var painted = false;
+    if (cached && cached.exercises) {
+      renderProfile(cached.exercises || [], cached.summary || '', cached.categories || []);
+      painted = true;
+    } else {
+      show('Loading your progress…');
+    }
     fetch(cfg.WEBAPP_URL + '?action=profile&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (r) { return r.json(); }).then(function (data) {
-        if (!data.ok) return show('Access denied — check your link.', 'err');
+        if (!isCurrent(mine)) return;                 // the athlete has moved on; do not yank them back
+        if (!data.ok) { if (!painted) show('Access denied — check your link.', 'err'); return; }
+        try { localStorage.setItem(profCacheKey(), JSON.stringify({ at: Date.now(), data: data })); } catch (e) {}
         renderProfile(data.exercises || [], data.summary || '', data.categories || []);
-      }).catch(function () { show('Offline — reconnect to see your progress.', 'err'); });
+      }).catch(function () { if (!painted && isCurrent(mine)) show('Offline — reconnect to see your progress.', 'err'); });
   }
   // S21 profile (Phil): the two things that matter per exercise are "is my best one-set up or down"
   // and "is my volume up or down" — 7-day and 30-day. Those are the HEADLINE. Where you sit on the

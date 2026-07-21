@@ -121,16 +121,27 @@
     try { localStorage.setItem(CRUMB, JSON.stringify({ t: Date.now(), state: state, extra: extra || '' })); } catch (e) {}
   }
   function crumbClear() { try { localStorage.removeItem(CRUMB); } catch (e) {} }
+  // A crumb is only evidence of a CRASH if the athlete came back to a dead tab quickly. iOS reclaims a
+  // backgrounded tab hours later without firing pagehide, which leaves exactly the same crumb — and the
+  // morning report then announced "previous run ended without a clean exit while: opening a video,
+  // secondsAgo=7906". That is a phone doing normal phone things, reported as a crash two hours after a
+  // video that played fine. Rule 14: Phil should never be the sensor, but a sensor that cries wolf is
+  // worse than none, because the one real crash arrives in a column he has learned to skip.
+  var CRUMB_FRESH_S = 180;
+  function crumbActionable(agoS) { return agoS != null && agoS >= 0 && agoS <= CRUMB_FRESH_S; }
   try {
     var prev = localStorage.getItem(CRUMB);
     if (prev) {
       var p0 = {}; try { p0 = JSON.parse(prev); } catch (e) {}
       var agoS = p0.t ? Math.round((Date.now() - p0.t) / 1000) : null;
-      reportError('unclean_exit', 'previous run ended without a clean exit while: ' + (p0.state || 'unknown'),
-        '', 'context=' + (p0.extra || '') + ' secondsAgo=' + agoS);
+      if (crumbActionable(agoS)) {
+        reportError('unclean_exit', 'previous run ended without a clean exit while: ' + (p0.state || 'unknown'),
+          '', 'context=' + (p0.extra || '') + ' secondsAgo=' + agoS);
+      }
       crumbClear();
     }
   } catch (e) {}
+  try { window.BP_crumbActionable = crumbActionable; } catch (e) {}   // j5 asserts the age rule directly
   // A clean close, a backgrounded tab, or a normal navigation are all fine — clear the note.
   window.addEventListener('pagehide', crumbClear);
   window.addEventListener('beforeunload', crumbClear);
@@ -304,9 +315,16 @@
     }
     return TBAR;
   }
-  function clearTimerBar() {   // new session render — nothing is running
+  var TIMER_SID = null;        // which session the running timer belongs to
+  // A re-render must not kill a RUNNING rest timer. render() runs again on every post-log refresh, so
+  // the old unconditional stop meant: start a 3:00 rest, log the round, and the refresh silently
+  // stopped the countdown and hid the bar mid-count — the athlete stands there waiting on a timer that
+  // died 2 seconds in. Rule 5 says the timer stays in view; it also has to stay ALIVE. Switching to a
+  // different session still clears it, because that rest belongs to the workout you left.
+  function clearTimerBar(sid) {
+    if (ACTIVE_TIMER && ACTIVE_TIMER.running() && sid && sid === TIMER_SID) return;
     if (ACTIVE_TIMER) ACTIVE_TIMER.stop();
-    ACTIVE_TIMER = null;
+    ACTIVE_TIMER = null; TIMER_SID = null;
     if (TBAR) TBAR.hidden = true;
     document.body.classList.remove('has-tbar');
   }
@@ -332,8 +350,17 @@
       b._p.textContent = st.paused ? '▶' : '⏸';
       document.body.classList.add('has-tbar');
     }
+    // A finished complex holds its last cue then gives the space back — but that "give it back" is a
+    // DELAYED unpub, and a timer restarted inside that window used to be killed by the stale one:
+    // the bar went hidden while a countdown was still running, breaking rule 5 (the timer stays in
+    // view). Found by j1, not by Phil. The pending unpub is now cancellable, and unpub refuses to
+    // hide a bar whose timer is live.
+    var unpubT = null;
+    function cancelUnpub() { if (unpubT) { clearTimeout(unpubT); unpubT = null; } }
+    function laterUnpub(ms) { cancelUnpub(); unpubT = setTimeout(function () { unpubT = null; unpub(); }, ms); }
     function unpub() {
       if (ACTIVE_TIMER !== api) return;
+      if (st.running) return;              // never blank the bar out from under a live countdown
       ACTIVE_TIMER = null;
       if (TBAR) TBAR.hidden = true;
       document.body.classList.remove('has-tbar');
@@ -346,7 +373,7 @@
         if (idx >= seq.length - 1) {
           clearTimeout(st.t); st.running = false; st.t = null;
           node.textContent = 'complex done'; pauseBtn.hidden = true;
-          pub('complex done'); setTimeout(unpub, 8000);   // hold the last cue, then give the space back
+          pub('complex done'); laterUnpub(8000);          // hold the last cue, then give the space back
           beep(); timerAlert('Complex done', 'move on', '', true);   // sticky — the last cue must not be missed
           return;
         }
@@ -367,7 +394,7 @@
       if (idx >= seq.length - 1) {                 // last round: end the complex rather than roll on
         clearTimeout(st.t); st.running = false; st.t = null;
         node.textContent = 'complex done'; pauseBtn.hidden = true;
-        pub('complex done'); setTimeout(unpub, 4000);
+        pub('complex done'); laterUnpub(4000);
         return;
       }
       idx += 1;
@@ -391,12 +418,14 @@
     api = {
       toggle: toggle,
       skip: skip,
+      running: function () { return st.running; },
       stop: function () { clearTimeout(st.t); st.t = null; st.running = false; st.paused = false; node.textContent = ''; pauseBtn.hidden = true; },
       start: function () {
         if (st.running) return;
         // one timer at a time — this is what lets the pinned bar be unambiguous
         if (ACTIVE_TIMER && ACTIVE_TIMER !== api) ACTIVE_TIMER.stop();
-        ACTIVE_TIMER = api;
+        cancelUnpub();                     // a restart cancels any pending "give the space back"
+        ACTIVE_TIMER = api; TIMER_SID = SESSION && (SESSION.session_id || SESSION.date);
         primeAudio(); st.running = true; st.end = Date.now() + interval * 1000; pauseBtn.hidden = false; tick();
       }
     };
@@ -419,7 +448,10 @@
       clearInterval(iv); iv = null;
       btn.classList.remove('holding');
       btn.removeEventListener('click', stopEarly);
-      beep(); timerAlert('Done', 'hold complete');         // was silent — you'd have to watch the button
+      // Only announce a COMPLETED hold. Stopping early is a deliberate act — the athlete already knows
+      // they stopped, and "Done" for a hold they cut short reads as the timer firing on its own.
+      beep();
+      if (held >= secs) timerAlert('Done', 'hold complete');
       done(held);
     }
     function stopEarly(ev) { ev.stopPropagation(); finish(); }
@@ -804,6 +836,7 @@
     }
     check.addEventListener('click', function () {
       if (check.classList.contains('done') || check.disabled) return;
+      if (check.classList.contains('holding')) return;   // same orphan-timer guard as the lifting row
       if (t.work_s) startIntervals(check, t.target_reps || 1, t.work_s, t.rest_s || 0, logIt);
       else if (t.duration_s) startHold(check, t.duration_s, function () { logIt(t.duration_s); });
       else logIt('');
@@ -952,6 +985,12 @@
     var check = el('button', 'check' + (isDur ? ' dur' : ''), isDur ? '▶' : '✓'); check.type = 'button';
     check.addEventListener('click', function () {
       if (check.disabled) return;
+      // A running hold registers its OWN stop-early listener, but THIS handler was registered first,
+      // so a second tap ran here BEFORE the stop — starting a SECOND countdown. The first was stopped
+      // and logged; the orphan kept running and fired "Done" minutes later, after the athlete had
+      // moved on. Phil: "I get a message of done when the timer's done, even though I already checked
+      // it off... then I get a timer that it's done later. That shouldn't come up."
+      if (check.classList.contains('holding')) return;   // the hold's own handler owns this tap
       if (check.classList.contains('done')) { uncheck(); return; }   // tap a done set again to undo
       if (isDur) startHold(check, t.duration_s, function (heldS) { commit(heldS); }); else commit();
     });
@@ -1112,12 +1151,20 @@
   }
 
   function render(s) {
+    clearTimerBar(s && (s.session_id || s.date));   // same session re-rendering keeps its live timer
     SESSION = s;
-    clearTimerBar();
     ROW_REG = {}; LEG_REG = {};   // fresh registries per session render
     renderNav('wo');
     // S19 AC2: the athlete sees what they're signing up for before they start.
-    meta.textContent = (s.name || s.theme) + ' · ' + s.date + (s.est_min ? ' · ~' + s.est_min + ' min' : '');
+    // Duration gets its OWN LINE. Phil: "the title's cut off. The number of time for the workout is a
+    // really key thing for the athlete, so that 34 minutes should be on a new line in the header, its
+    // own line." Appending it to the title meant the long session name truncated and took the
+    // duration with it — the one number the athlete plans their evening around.
+    meta.textContent = (s.name || s.theme) + ' · ' + s.date;
+    if (s.est_min) {
+      var dur = el('div', 'hdr-dur', '~' + s.est_min + ' min');
+      meta.parentNode ? meta.parentNode.insertBefore(dur, meta.nextSibling) : null;
+    }
     app.innerHTML = '';
     var back = el('button', 'back', '← Calendar'); back.type = 'button';
     back.addEventListener('click', function () { loadHome(); });
@@ -1528,7 +1575,7 @@
       // sets logged yet" above a "587 sets" legacy line read as a contradiction. When legacy exists,
       // point the athlete at their history instead of implying they have none.
       card.appendChild(el('div', 'p-empty', (x.legacy && x.legacy.sets)
-        ? 'No sets logged in Blueprint yet — your history is below.'
+        ? 'No sets logged in Blueprint yet.'
         : 'No sets logged yet — log one and your bests show up here.'));
     } else {
       // Phil: "best volume and one set font not so big same as exercise" — these were the loudest
@@ -1562,6 +1609,14 @@
       card.appendChild(el('div', 'p-level', 'Top of the ladder 🏆'));
     }
 
+    // SPARKLINE — the compact visual the removed "Before Blueprint" text line was standing in for.
+    // Phil: "two years is too long. It should be three months at the most, but ideally more like one
+    // month. People like to see sensational, and sensational is a lot of times provided by a shorter
+    // x-axis." And: "the profile has got to be inspiring mastery through repetition." So the window is
+    // 35 days (server-side SPARK_DAYS) and every session is a DOT — the count of dots is the
+    // repetition, the slope is the mastery. It sits above the numbers, not instead of them.
+    if (x.spark && x.spark.length >= 2) card.appendChild(sparkline(x.spark, x.best_one_unit));
+
     // HISTORY, not trends. Phil: "no trends need history". A percentage hides the numbers; the
     // athlete wants to see what they actually lifted, session by session.
     if (x.history && x.history.length) {
@@ -1577,25 +1632,57 @@
       card.appendChild(h);
     }
 
-    // LEGACY — the years before this app. Phil wanted the switch off Everfit to "make it a wash", so
-    // an athlete opening their profile sees the work they already did, not an empty card. It is a
-    // SUMMARY (best set + span + count), never the raw sets: 587 imported Squat sets as lines would
-    // bury the in-app history above. Sits below current history, visually quieter, because it is
-    // context, not today's progress. The data is flagged `history` and the engine never reads it.
-    if (x.legacy && x.legacy.sets) {
-      var yr = String(x.legacy.first || '').slice(0, 4);
-      var lg = el('div', 'p-legacy');
-      var b = x.legacy.best;
-      var head = 'Before Blueprint' + (yr ? ' · since ' + yr : '');
-      lg.appendChild(el('span', 'p-legacy-h', head));
-      var detail = x.legacy.sets + ' sets';
-      if (b) detail += ' · best ' + (b.load != null ? (b.load + ' lb × ' + b.reps) : (b.reps + ' reps'));
-      lg.appendChild(el('span', 'p-legacy-v', detail));
-      card.appendChild(lg);
-    }
+    // The per-lift "Before Blueprint" line is GONE. Phil: "take out all that text in each of the
+    // tiles of the exercises because it makes scrolling too long." The history still exists and is
+    // still the point — it belongs in a compact visual (a short-window sparkline), not a text line
+    // repeated on every card.
     return card;
   }
 
+
+  // A month of one lift, drawn small. Deliberately NOT a chart: no axes, no gridlines, no legend —
+  // those are for reading values, and the values are listed right underneath. This answers one
+  // question at a glance, "am I going up?", and shows how many times they showed up to do it.
+  function sparkline(pts, unit) {
+    // PAD has to clear the endpoint dot AND its halo stroke, or the last point - the one that matters
+    // most - bleeds over the card's rounded edge. It did, on every loaded lift, in the first render.
+    var W = 300, H = 52, PAD = 10;
+    var vs = pts.map(function (p) { return p.v; });
+    var lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
+    // A flat month is real and must not render as a wandering line: give it a band so it draws level.
+    if (hi - lo < 0.0001) { hi = lo + 1; lo = lo - 1; }
+    var n = pts.length;
+    var xy = pts.map(function (p, i) {
+      return [PAD + (n === 1 ? 0 : (i * (W - PAD * 2) / (n - 1))),
+              H - PAD - ((p.v - lo) / (hi - lo)) * (H - PAD * 2)];
+    });
+    var d = xy.map(function (c, i) { return (i ? 'L' : 'M') + c[0].toFixed(1) + ' ' + c[1].toFixed(1); }).join(' ');
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'spark'); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
+    function add(tag, attrs) {
+      var e = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      svg.appendChild(e); return e;
+    }
+    add('path', { class: 'spark-area', d: d + ' L' + xy[n - 1][0].toFixed(1) + ' ' + H + ' L' + xy[0][0].toFixed(1) + ' ' + H + ' Z' });
+    add('path', { class: 'spark-line', d: d });
+    // Every session is a dot: the repetition IS the message. The last one is emphasised because that
+    // is where they are now.
+    xy.forEach(function (c, i) {
+      add('circle', { class: i === n - 1 ? 'spark-dot spark-now' : 'spark-dot', cx: c[0].toFixed(1), cy: c[1].toFixed(1), r: i === n - 1 ? 3.6 : 2 });
+    });
+    var wrap = el('div', 'spark-wrap');
+    wrap.appendChild(svg);
+    // NAME THE UNIT. "up 17.5" on a deadlift card is estimated-1RM pounds, and unlabelled it could be
+    // pounds, reps or percent - the same class of unlabelled number the goal columns got wrong.
+    var up = Math.round((vs[n - 1] - vs[0]) * 10) / 10;
+    var u = /lb/.test(String(unit || '')) ? ' lb' : (up === 1 ? ' rep' : ' reps');
+    wrap.appendChild(el('div', 'spark-cap',
+      n + ' session' + (n === 1 ? '' : 's') + ' this month' + (up > 0 ? ' · up ' + up + u : '')));
+    return wrap;
+  }
 
   // ---- radar chart for the six training qualities ----
   // Axis labels are SPELLED OUT. Phil: "no one knows what lower body LE max is. That's internal.
@@ -1612,7 +1699,10 @@
     card.appendChild(el('div', 'p-cats-h', 'By quality'));
     // Wider than tall: the left/right labels ("UE max", "LE end") sit outside the ring and were
     // clipped by a square viewBox. The polygon stays centred; only the canvas got room.
-    var N = cats.length, W = 390, H = 260, CX = W / 2, CY = H / 2, R = 66;
+    // Phil, twice: "the font on the quality radar graph is too small. You can barely see lower body
+    // relative strength." The labels were 10px inside a 390-wide viewBox squeezed into a 320px box —
+    // about 8px on the phone. Widening the canvas lets the type grow AND scale down less.
+    var N = cats.length, W = 470, H = 300, CX = W / 2, CY = H / 2, R = 62;
     var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     svg.setAttribute('class', 'radar-svg');

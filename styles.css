@@ -895,3 +895,20 @@ body.has-tbar #app { padding-bottom: 128px; }
 .spark-dot { fill: var(--bp); }
 .spark-now { fill: var(--bp); stroke: var(--card); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .spark-cap { margin-top: 4px; font-size: var(--fs-12); color: var(--muted); }
+
+/* Swap search (DONE.md #19) — the way out when the curated alternates do not cover the gym you are
+   standing in. Sits BELOW Phil's reason-tagged list, which stays the first thing offered. */
+.swap-find { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.swap-q { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: var(--fs-15);
+  border: 1px solid var(--line); border-radius: var(--r-8); background: var(--white); color: var(--ink); }
+.swap-q:focus { outline: 2px solid var(--bp-alt); outline-offset: 1px; }
+.swap-hits { margin-top: 6px; max-height: 260px; overflow-y: auto; }
+/* Results must match the curated options above, which are full-width blocks. Left as inline-sized
+   buttons they read as a different, lesser kind of choice — and the ragged right edge is the first
+   thing the eye lands on. */
+.swap-hits .swap-opt { width: 100%; box-sizing: border-box; }
+.swap-note { padding: 8px 2px; font-size: var(--fs-13); color: var(--muted); }
+/* The swap panel can open near the bottom of a long session; the fixed nav must never cover its
+   results. Mirrors the padding the pinned timer bar already reserves. */
+.swap-panel { padding-bottom: 8px; }
+body #app { padding-bottom: 108px; }

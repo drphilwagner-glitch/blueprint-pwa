@@ -709,7 +709,10 @@
         alternates: oEx.alternates,
         level_goal: same ? oEx.level_goal : null,
         mode: same ? oEx.mode : 'accessory',
-        wants_load: same ? oEx.wants_load : false,
+        // A SEARCHED swap carries its own answer: Level Standards says whether that exercise is
+        // loaded. Forcing false gave a reps-only Bent Row with nowhere to record the weight — a set
+        // logged as "16 reps of Bent Row" is not a record of anything.
+        wants_load: same ? oEx.wants_load : (a.wants_load === true),
         load_prefill: same ? oEx.load_prefill : undefined,
         rest_s: oEx.rest_s, each_side: oEx.each_side,
         _alt_of: oEx, _alt_t: oT },
@@ -770,7 +773,82 @@
       b.addEventListener('click', function () { applySwapAll(origEx.exercise, a); });
       panel.appendChild(b);
     });
+
+    // SEARCH ANY EXERCISE — DONE.md #19. Phil's reason-tagged alternates stay first, because "my knee
+    // hurts" should surface the right movement without the athlete having to know one. But a curated
+    // list cannot cover a gym missing a rack, so this is the way out when it does not.
+    var find = el('div', 'swap-find');
+    var inp = document.createElement('input');
+    inp.type = 'search'; inp.className = 'swap-q'; inp.placeholder = 'Search any exercise…';
+    inp.setAttribute('aria-label', 'Search any exercise');
+    inp.autocomplete = 'off'; inp.autocapitalize = 'none'; inp.spellcheck = false;
+    var hits = el('div', 'swap-hits');
+    find.appendChild(inp); find.appendChild(hits);
+    panel.appendChild(find);
+
+    var already = {};
+    (origEx.alternates || []).forEach(function (a) { already[String(a.name || '').toLowerCase()] = 1; });
+    already[String(origEx.exercise || '').toLowerCase()] = 1;
+
+    function paint(list, note) {
+      hits.innerHTML = '';
+      if (note) { hits.appendChild(el('div', 'swap-note', note)); return; }
+      // Keep the last result clear of the fixed bottom nav. Without this the final match sits behind
+      // it and reads as "no more results" — the athlete simply never sees the one they wanted.
+      list.slice(0, 12).forEach(function (x) {
+        var hb = el('button', 'swap-opt'); hb.type = 'button';
+        if (x.region || x.tier_class) hb.appendChild(el('span', 'swap-cat', x.region || x.tier_class));
+        hb.appendChild(el('span', 'swap-name', x.display_name || x.exercise));
+        hb.addEventListener('click', function () {
+          // Same shape an Alternates row produces, so it flows through swapTarget unchanged: no
+          // level goal and no prefilled load, because an exercise the athlete picked themselves has
+          // no rung on this lift's ladder and inventing one would be a fabricated standard.
+          applySwapAll(origEx.exercise, { name: x.exercise, video_url: x.video_url || '',
+                                          reps: x.default_reps, wants_load: x.wants_load === true,
+                                          reason: 'searched' });
+        });
+        hits.appendChild(hb);
+      });
+      if (!list.length) hits.appendChild(el('div', 'swap-note', 'No exercise matches that.'));
+      try { hits.scrollTop = 0; find.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    }
+
+    var typing = null;
+    inp.addEventListener('input', function () {
+      var q = inp.value.trim().toLowerCase();
+      clearTimeout(typing);
+      if (q.length < 2) { hits.innerHTML = ''; return; }
+      typing = setTimeout(function () {
+        exerciseList(function (all, err) {
+          if (err) return paint([], 'Offline — search needs a connection.');
+          paint(all.filter(function (x) {
+            if (already[String(x.exercise || '').toLowerCase()]) return false;   // already offered above
+            return (String(x.display_name || '') + ' ' + String(x.exercise || '')).toLowerCase().indexOf(q) >= 0;
+          }));
+        });
+      }, 120);
+    });
+
     row.appendChild(panel);
+    return panel;
+  }
+
+  // The library, fetched once and cached. ~95 rows, so it costs one request per athlete per device and
+  // then nothing — and a cached copy means search still works in a gym with no signal.
+  var EXLIST = null;
+  function exerciseList(cb) {
+    if (EXLIST) return cb(EXLIST, null);
+    try {
+      var raw = localStorage.getItem('bp_exlist_' + athlete);
+      if (raw) { EXLIST = JSON.parse(raw).list; if (EXLIST && EXLIST.length) cb(EXLIST, null); }
+    } catch (e) {}
+    fetch(cfg.WEBAPP_URL + '?action=exercises&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+      .then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.ok || !d.exercises) { if (!EXLIST) cb([], 'bad'); return; }
+        EXLIST = d.exercises;
+        try { localStorage.setItem('bp_exlist_' + athlete, JSON.stringify({ at: Date.now(), list: EXLIST })); } catch (e) {}
+        cb(EXLIST, null);
+      }).catch(function () { if (!EXLIST) cb([], 'offline'); });
   }
 
   // Conditioning: rolling work/rest timer runs all reps hands-free, then log distance.

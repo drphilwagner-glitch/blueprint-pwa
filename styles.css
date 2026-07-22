@@ -532,7 +532,11 @@ button, input, select, .step, .check, .swapbtn, .ag-move, .wo, .nav-b, .tstart, 
    smaller because editing is the exception. */
 .l2 { display: grid; grid-template-columns: 28px 1fr 96px 58px; gap: var(--sp-4); align-items: center; }
 .c-hold { font-size: var(--fs-12); font-weight: 700; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
-.c-goal { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; overflow: hidden; }
+/* Phil 2026-07-22: "can we center the level goal so it's vertically center-aligned with reps and/or
+   pound tiles? Right now it's bottom-aligned." The lane is a flex column, so justify-content is the
+   vertical axis — it was defaulting to flex-start and the stepper beside it is taller. */
+.c-goal { display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
+  line-height: 1.05; overflow: hidden; }
 .c-goal .cl { font-size: var(--fs-8); font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); }
 .c-goal .cv { font-size: var(--fs-13); font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 .c-load, .c-reps { min-width: 0; display: flex; }
@@ -914,3 +918,7 @@ body.has-tbar #app { padding-bottom: 128px; }
 body #app { padding-bottom: 108px; }
 /* "max" is a prescription, not a missing value — it reads as a word, not a dash. */
 .stepper.is-max .val { font-size: var(--fs-15); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+
+/* Phil 2026-07-22: "same thing with the swap icon — can we center-align it with the exercise name?"
+   Line 1 holds the name, the swap control and the check, and they were sitting on the text baseline. */
+.l1 { align-items: center; }

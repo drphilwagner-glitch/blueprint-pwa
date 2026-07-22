@@ -1373,10 +1373,16 @@
     // Moving a workout lives on the CALENDAR (S16), not here. Phil: "We don't need to move to
     // another day on the workout that's shown. I would remove it." You decide what to shuffle while
     // looking at the week, not while standing in the gym with the session open.
+    // COMPLEXES ARE NUMBERED AS THE ATHLETE MEETS THEM. P3 leaves gaps when a slot goes unfilled, so
+    // Mason's 07-28 read "Complex 1" then "Complex 3" with no Complex 2 — Phil: "2 comes after 1."
+    // The Plan keeps P3's slot id (Comp3) as the identity; only the LABEL is renumbered, so nothing
+    // downstream that matches on slot name is affected.
+    var compSeen = 0;
     s.slots.forEach(function (slot) {
       var card = el('section', 'slot');
       var head = el('div', 'slot-head');
       var sLabel = slotLabel(slot.slot);
+      if (/^Comp\s*\d/i.test(String(slot.slot || ''))) { compSeen += 1; sLabel = 'Complex ' + compSeen; }
       head.appendChild(el('h2', 'slot-title', sLabel));   // "Warm Up 1" / "Complex 1"
       var timerNode = el('span', 'timer');
       // "Begin complex · 3:00" — a check means "I already did that set", so the timer can't

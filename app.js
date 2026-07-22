@@ -989,6 +989,10 @@
       // interval rows keep their own Start control, because there the timer IS the exercise.
       row._commit = function () { if (!row.classList.contains('done')) logIt(0); };
       row._isDur = false;
+      // The round button names the field it is waiting on ("Tap Woodchop's reps"). Without _needs it
+      // read "Tap Depth Jump's undefined" — Phil, 2026-07-22 — because a conditioning row was given
+      // everything the round button consults EXCEPT the word for what it wants.
+      row._needs = 'reps';
       // The round's Log button stays disabled until every row in it is CONFIRMED (rule 2b — you
       // cannot record a lift you did not do without passing through the number). A conditioning row
       // never set this flag, so the button was permanently disabled and Phil had to hunt for the

@@ -504,16 +504,35 @@
 
   // Compact −/+ stepper bound to state[key] (single increment; − left, value, + right).
   // extraCls (e.g. 'mini') styles a secondary/subtle stepper.
-  function stepper(state, key, delta, unit, extraCls, onTouch) {
+  // "MAX" IS A REAL PRESCRIPTION, NOT A MISSING NUMBER. Phil 2026-07-22: "single-leg calf raise, when
+  // I chose that as a swap out, it gave me 10 reps instead of max. Can we have max show up, and then
+  // when you click it, you can scale up or down, plus or minus?"
+  //
+  // So the stepper carries the word until the athlete touches it, then becomes the count they actually
+  // did — starting from their own best rather than from 1, because the first tap after a max set is a
+  // correction, not a fresh count. The value only reaches the Workbook once it is a number; logging
+  // the string "max" would record a set nobody can compare to anything.
+  function isMaxVal(v) { return typeof v === 'string' && v.trim().toLowerCase() === 'max'; }
+  function stepper(state, key, delta, unit, extraCls, onTouch, maxBase) {
     var f = el('div', 'stepper' + (extraCls ? ' ' + extraCls : ''));
     var val = el('span', 'val');
-    function draw() { var v = state[key]; val.textContent = (v === '' || v == null) ? '—' : v; }
+    function draw() {
+      var v = state[key];
+      f.classList.toggle('is-max', isMaxVal(v));
+      val.textContent = (v === '' || v == null) ? '—' : v;
+    }
     // Touching the number in any way is the athlete asserting it's what they actually did — adjusting
     // it, or tapping it to confirm the prescribed value stands. Both count (rule 2b).
     function touched() { f.classList.remove('unconfirmed'); if (onTouch) onTouch(); }
     function btn(sign) {
       var b = el('button', 'step', sign > 0 ? '+' : '−'); b.type = 'button';
-      b.addEventListener('click', function () { var c = Number(state[key] || 0), nv = Math.round((c + sign * delta) * 10) / 10; if (nv < 0) nv = 0; state[key] = nv; draw(); touched(); });
+      b.addEventListener('click', function () {
+        // Leaving "max": start from the athlete's own best for this lift, so + means "one more than
+        // last time" rather than "1".
+        var c = isMaxVal(state[key]) ? (Number(maxBase) > 0 ? Number(maxBase) : 0) : Number(state[key] || 0);
+        var nv = Math.round((c + sign * delta) * 10) / 10; if (nv < 0) nv = 0;
+        state[key] = nv; draw(); touched();
+      });
       return b;
     }
     f.appendChild(btn(-1)); f.appendChild(val); if (unit) f.appendChild(el('span', 'unit', unit)); f.appendChild(btn(1));
@@ -927,12 +946,31 @@
     // are rep counts — drawing a distance field for them asked the athlete for a number that does
     // not exist. Phil: "no distance, just reps you put in for overhead slam or depth jump."
     var wantsDist = !!t.wants_distance;
+    // A PURE REP COUNT gets the same control as a stability row. Phil 2026-07-22: "The depth jump
+    // overhead slam showed prescribed reps, and the reps box was really wide. There should just be one
+    // box for reps, just like the stability exercises, like band pull apart or band walks. Just make
+    // it the same way."
+    //
+    // A free-text number input was both wider and a different interaction from every other rep on the
+    // screen, and it duplicated the number: "prescribed 4 reps" sat next to an empty box whose
+    // placeholder was also 4. One stepper, pre-filled with the prescription, is the whole row — you
+    // tap it to confirm 4, or +/- to say what you actually did (rule 2b, same as every other row).
+    var isPureReps = !wantsDist && !t.duration_s && !t.work_s;
+    if (isPureReps) {
+      var tr = t.target_reps;
+      var repState = { reps: isMaxVal(tr) ? 'max' : ((tr != null && tr !== '') ? Number(tr) : '') };
+      var st = stepper(repState, 'reps', 1, '', 'unconfirmed',
+        function () { repsOut.v = repState.reps; }, (ex.best_reps || t.target_reps));
+      l2.appendChild(lane('c-goal', '', null));               // no duplicate prescription
+      l2.appendChild(lane('c-actual', 'reps', st));
+    } else {
     var di = el('input', wantsDist ? 'dist-in' : 'reps-in'); di.type = 'number';
     di.placeholder = wantsDist ? '—' : String(t.target_reps || '');
     di.inputMode = wantsDist ? 'decimal' : 'numeric';
     di.addEventListener('input', function () { if (wantsDist) dist.v = di.value; else repsOut.v = di.value; });
     l2.appendChild(lane('c-goal', 'prescribed', el('span', 'cv goal-v', scheme)));
     l2.appendChild(lane('c-actual', wantsDist ? 'distance' : 'reps', di));
+    }
     l2.appendChild(lane('c-second', t.duration_s ? 'time' : (t.work_s ? 'work' : ''),
       t.duration_s ? el('span', 'cv', Math.round(t.duration_s / 60) + ' min')
         : (t.work_s ? el('span', 'cv', t.work_s + 's') : null)));
@@ -941,7 +979,10 @@
     function logIt(dur) {
       // log the reps the athlete actually did (falling back to the prescription), and a distance ONLY
       // when the prescription was a distance
-      var doneReps = (!wantsDist && repsOut.v !== '') ? Number(repsOut.v) : t.target_reps;
+      var rawReps = (!wantsDist && repsOut.v !== '' && repsOut.v != null) ? repsOut.v : t.target_reps;
+      // Never log the word. An untouched "max" means the athlete did not tell us the count, so the
+      // reps go blank rather than as a string no report can read.
+      var doneReps = isMaxVal(rawReps) ? '' : Number(rawReps);
       var l = mkLog(slot, ex.exercise, t, { load: '', reps: doneReps });
       if (!l) return;                         // athlete left the workout mid-interval; nothing to log
       l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';

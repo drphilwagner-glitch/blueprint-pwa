@@ -912,3 +912,5 @@ body.has-tbar #app { padding-bottom: 128px; }
    results. Mirrors the padding the pinned timer bar already reserves. */
 .swap-panel { padding-bottom: 8px; }
 body #app { padding-bottom: 108px; }
+/* "max" is a prescription, not a missing value — it reads as a word, not a dash. */
+.stepper.is-max .val { font-size: var(--fs-15); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }

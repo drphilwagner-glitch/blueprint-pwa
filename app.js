@@ -432,6 +432,12 @@
     };
     return api;
   }
+  // How many timed holds are counting right now. A re-render mid-hold detaches the row the athlete is
+  // holding, so the countdown finishes against a node that is no longer on screen and the set silently
+  // never logs — Phil: "I couldn't log sets 1 through 6." Same shape as the late calendar render that
+  // killed a rest timer and the late workout fetch that stole the profile: an old response overwriting
+  // a screen the athlete is actively using.
+  var HOLDS_RUNNING = 0;
   function startHold(btn, secs, done) {                    // duration items: countdown then log
     // Phil, after a full session: "There's no way to stop the exercise timer... I should be able to
     // tap and stop it because I should be able to log it without the timer. It forced me to do the
@@ -439,6 +445,7 @@
     // set ended, not a countdown. Tapping again STOPS it and logs what was actually held.
     primeAudio();                                          // unlock audio on the tap that starts it (iOS)
     var rem = secs, held = 0;
+    HOLDS_RUNNING++;
     btn.classList.add('holding'); btn.textContent = rem + 's';
     var iv = setInterval(function () {
       rem--; held++; btn.textContent = rem + 's';
@@ -447,6 +454,7 @@
     function finish() {
       if (!iv) return;
       clearInterval(iv); iv = null;
+      HOLDS_RUNNING = Math.max(0, HOLDS_RUNNING - 1);
       btn.classList.remove('holding');
       btn.removeEventListener('click', stopEarly);
       // Only announce a COMPLETED hold. Stopping early is a deliberate act — the athlete already knows
@@ -707,19 +715,21 @@
       ex: { exercise: a.name, display_name: a.name, athlete_name: a.name, variant_name: '',
         video_url: a.video_url || '',
         alternates: oEx.alternates,
-        level_goal: same ? oEx.level_goal : null,
+        // A SEARCHED swap carries the athlete's real prescription for that lift when the server
+        // supplied one, so the row shows the rung's own goal instead of nothing.
+        level_goal: same ? oEx.level_goal : (a.level_goal || null),
         mode: same ? oEx.mode : 'accessory',
         // A SEARCHED swap carries its own answer: Level Standards says whether that exercise is
         // loaded. Forcing false gave a reps-only Bent Row with nowhere to record the weight — a set
         // logged as "16 reps of Bent Row" is not a record of anything.
         wants_load: same ? oEx.wants_load : (a.wants_load === true),
-        load_prefill: same ? oEx.load_prefill : undefined,
+        load_prefill: same ? oEx.load_prefill : (a.prefill_load != null ? a.prefill_load : undefined),
         rest_s: oEx.rest_s, each_side: oEx.each_side,
         _alt_of: oEx, _alt_t: oT },
       t: { set_no: oT.set_no, kind: oT.kind,
-        target_load: same ? oT.target_load : '',
+        target_load: same ? oT.target_load : (a.prefill_load != null ? a.prefill_load : ''),
         target_reps: (numReps == null ? oT.target_reps : numReps),
-        duration_s: same ? oT.duration_s : null,
+        duration_s: same ? oT.duration_s : (a.duration_s != null ? a.duration_s : null),
         rest_s: oT.rest_s }
     };
   }
@@ -800,12 +810,30 @@
         if (x.region || x.tier_class) hb.appendChild(el('span', 'swap-cat', x.region || x.tier_class));
         hb.appendChild(el('span', 'swap-name', x.display_name || x.exercise));
         hb.addEventListener('click', function () {
-          // Same shape an Alternates row produces, so it flows through swapTarget unchanged: no
-          // level goal and no prefilled load, because an exercise the athlete picked themselves has
-          // no rung on this lift's ladder and inventing one would be a fabricated standard.
-          applySwapAll(origEx.exercise, { name: x.exercise, video_url: x.video_url || '',
-                                          reps: x.default_reps, wants_load: x.wants_load === true,
-                                          reason: 'searched' });
+          // INHERIT THE REAL PRESCRIPTION. Phil: "that exercise I choose should inherit the reps...
+          // single-leg calf raise gave me 10 reps instead of max." Carrying only the ORIGINAL row's
+          // numbers meant swapping a duration carry into Bent Row produced a load box and NO reps box,
+          // and the set logged with reps blank. Ask the server what this athlete's prescription for
+          // that lift actually is — the same getScheme that prescribes everything else — rather than
+          // inventing a default here.
+          hb.disabled = true;
+          var fallback = { name: x.exercise, video_url: x.video_url || '', reps: x.default_reps,
+                           wants_load: x.wants_load === true, reason: 'searched' };
+          fetch(cfg.WEBAPP_URL + '?action=exscheme&athlete=' + encodeURIComponent(athlete) +
+                '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(x.exercise) + '&sets=3')
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              if (!d || !d.ok) return applySwapAll(origEx.exercise, fallback);
+              applySwapAll(origEx.exercise, {
+                name: x.exercise, video_url: x.video_url || '', reason: 'searched',
+                reps: (d.reps != null ? d.reps : x.default_reps),
+                wants_load: !!d.wants_load,
+                prefill_load: (d.load != null ? d.load : null),
+                level_goal: d.level_goal || null,
+                duration_s: (d.duration_s != null ? d.duration_s : null)
+              });
+            })
+            .catch(function () { applySwapAll(origEx.exercise, fallback); });
         });
         hits.appendChild(hb);
       });
@@ -914,7 +942,10 @@
       // log the reps the athlete actually did (falling back to the prescription), and a distance ONLY
       // when the prescription was a distance
       var doneReps = (!wantsDist && repsOut.v !== '') ? Number(repsOut.v) : t.target_reps;
-      var l = mkLog(slot, ex.exercise, t, { load: '', reps: doneReps }); l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';
+      var l = mkLog(slot, ex.exercise, t, { load: '', reps: doneReps });
+      if (!l) return;                         // athlete left the workout mid-interval; nothing to log
+      l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';
+      LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, ex.exercise, t.set_no)] = true;
       logRows([l]); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
     }
     check.addEventListener('click', function () {
@@ -968,7 +999,9 @@
     // EDIT: if this set was already logged (opening a completed day), show the LOGGED actuals and start
     // it checked. Uncheck → adjust → re-check appends a correction row (server keeps the latest).
     var lgd = ex.logged && ex.logged[String(t.set_no) + '|'];
-    var wasLogged = !!lgd;
+    // The server's map OR this device's own record — whichever knows. A queued-but-unconfirmed set is
+    // still a set the athlete did.
+    var wasLogged = !!lgd || !!LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, ex.exercise, t.set_no)];
     if (lgd) {
       if (lgd.load !== '' && lgd.load != null) state.load = Number(lgd.load);
       if (lgd.reps !== '' && lgd.reps != null) state.reps = Number(lgd.reps);
@@ -1042,15 +1075,21 @@
     var lastLogId = null;
     function commit(heldS) {   // checking = "already did it" — the timer is its own Start button, not tied to this
       var log = mkLog(slot, cur.exercise, t, state);
+      // mkLog returns null once the athlete has left the workout (SESSION is gone). A timed hold can
+      // finish AFTER that — the whole reason the guard exists — so every caller has to check, not just
+      // logRows. Dereferencing it threw here and took the rest of the commit with it.
+      if (!log) return;
       // Log what was actually HELD, not what was prescribed — a carry stopped at 40s is a 40s carry.
       if (isDur) log.duration_s = (heldS != null && heldS > 0) ? heldS : t.duration_s;
       lastLogId = log.log_id;
+      LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)] = true;
       logRows([log]);
       row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
       refocus();   // rule 1: finishing a set advances what's in focus
     }
     function uncheck() {   // undo an accidental check (pulls the log back if not yet sent)
       if (lastLogId) qDel([lastLogId]).then(updateBadge).catch(function () {});
+      delete LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)];
       lastLogId = null; row.classList.remove('done'); check.classList.remove('done');
       check.textContent = isDur ? '▶' : '✓';
       refocus();
@@ -1244,9 +1283,14 @@
     // own line." Appending it to the title meant the long session name truncated and took the
     // duration with it — the one number the athlete plans their evening around.
     meta.textContent = (s.name || s.theme) + ' · ' + s.date;
-    if (s.est_min) {
-      var dur = el('div', 'hdr-dur', '~' + s.est_min + ' min');
-      meta.parentNode ? meta.parentNode.insertBefore(dur, meta.nextSibling) : null;
+    // REMOVE THE OLD ONE FIRST. This line lives in the HEADER, outside #app, so `app.innerHTML = ''`
+    // below never cleared it — and render() runs again on every post-log refresh, so each logged set
+    // stacked another "~46 min" under the title. Phil saw three, then five.
+    if (meta.parentNode) {
+      Array.prototype.forEach.call(meta.parentNode.querySelectorAll('.hdr-dur'), function (n) { n.remove(); });
+    }
+    if (s.est_min && meta.parentNode) {
+      meta.parentNode.insertBefore(el('div', 'hdr-dur', '~' + s.est_min + ' min'), meta.nextSibling);
     }
     app.innerHTML = '';
     var back = el('button', 'back', '← Calendar'); back.type = 'button';
@@ -1392,6 +1436,12 @@
   function mondayOf(s) { var x = new Date(s + 'T00:00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
   function ymd(d) { return d.toLocaleDateString('en-CA'); }
   function loadHome() {
+    // Takes a screen ticket like every other loader. Without one, a slow week fetch resolving AFTER the
+    // athlete opened a workout ran renderCalendar over the top of it — and renderCalendar sets
+    // SESSION = null, so the very next set they logged silently did nothing (mkLog has no session to
+    // attach it to). That is Phil's "I couldn't log sets 1 through 6" and "couldn't even update and
+    // log set 3": the set was not rejected, it was dropped by a screen the athlete had already left.
+    var mine = newScreen();
     // Same instant-paint as openSession: the calendar is the FIRST thing an athlete sees, so it must
     // never sit on a spinner waiting for a cold backend build.
     var cachedWk = null;
@@ -1399,11 +1449,15 @@
     if (cachedWk && cachedWk.length) renderCalendar(cachedWk); else show('Loading your plan…');
     fetch(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (r) { return r.json(); }).then(function (data) {
+        // Cache the week regardless — it is good data. Only DRAW if the athlete is still here.
+        if (data.ok && data.sessions && data.sessions.length) {
+          try { localStorage.setItem('bp_week_' + athlete, JSON.stringify({ at: Date.now(), sessions: data.sessions })); } catch (e) {}
+        }
+        if (!isCurrent(mine)) return;
         if (!data.ok) { if (!cachedWk) show('Access denied — check your link.', 'err'); return; }
         if (!data.sessions || !data.sessions.length) { if (!cachedWk) show('No workouts scheduled yet.'); return; }
-        try { localStorage.setItem('bp_week_' + athlete, JSON.stringify({ at: Date.now(), sessions: data.sessions })); } catch (e) {}
         renderCalendar(data.sessions);
-      }).catch(function () { if (!cachedWk) show('Offline — reconnect to see your plan.', 'err'); });
+      }).catch(function () { if (!cachedWk && isCurrent(mine)) show('Offline — reconnect to see your plan.', 'err'); });
   }
   // Calendar = a CURRENT-WEEK strip + a day list. Phil, after using the month grid: "the list is
   // probably better than the calendar above. I don't know why we have the calendar above." He was
@@ -1641,6 +1695,19 @@
   // rewrites it, so a slow workout fetch resolving after the athlete opened the profile stole the tab
   // back and the profile then refused to draw at all. Same class of bug as the late calendar render
   // that killed a running rest timer: an old response overwriting a newer screen.
+  // WHAT THIS DEVICE HAS LOGGED, regardless of whether the server has confirmed it yet.
+  //
+  // A row decided it was logged purely from `ex.logged`, which comes from the server. But logging is a
+  // QUEUE: the set is recorded locally and confirmed seconds later, and a session refresh landing in
+  // between rebuilds the row as UNLOGGED. The athlete sees the set they just did come back empty.
+  // Phil: "I couldn't log sets 1 through 6", "I couldn't even update and log set 3". The set was
+  // usually IN the queue — the screen just said otherwise, which is worse than losing it, because he
+  // logged it again.
+  // Cleared per session render only when the server's own logged-map has caught up.
+  var LOCAL_DONE = {};
+  function doneKey(sid, slot, exName, setNo) {
+    return [sid, slot && slot.complex_name, exName, setNo].join('|');
+  }
   var SCREEN_SEQ = 0;
   function newScreen() { return ++SCREEN_SEQ; }
   function isCurrent(t) { return t === SCREEN_SEQ; }
@@ -1977,6 +2044,7 @@
   }
 
   function openSession(sessionId) {
+    var _screen = newScreen();   // claims the screen: a pending calendar/profile draw must not win
     try { sessionStorage.setItem('bp_open_session', sessionId); } catch (e) {}
     var cached = cachedSession(sessionId);
     if (cached) { render(cached); } else { show('Loading…'); }

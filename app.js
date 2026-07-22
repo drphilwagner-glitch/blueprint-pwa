@@ -482,6 +482,24 @@
       set_no: t.set_no, side: '', target_load: t.target_load, target_reps: t.target_reps,
       actual_load: state.load, actual_reps: state.reps, flag: '' };
   }
+  // EACH-SIDE: one tile, two rows. Phil 2026-07-22: "single input logging two rows (L and R) meaning
+  // log reps and or weight in 1 tile rather than separating them for L versus R logging of the same
+  // set." The athlete enters the set ONCE — the UI does not change — but the record keeps both limbs.
+  //
+  // This is here because `side` was hardcoded '' at the mkLog site, so since the grouped-card rewrite
+  // every each-side lift wrote ONE row instead of two and the engine saw half the volume for exactly
+  // the lifts where left and right are separate work. evidence/S9.md had "proved" L/R by POSTing
+  // crafted rows at the server; nothing drove the client, so the regression was invisible. j10 drives it.
+  function splitSides(row, eachSide) {
+    if (!row) return [];
+    if (!eachSide) return [row];
+    var R = {}; for (var k in row) if (Object.prototype.hasOwnProperty.call(row, k)) R[k] = row[k];
+    row.side = 'L'; R.side = 'R';
+    // A SEPARATE log_id. Idempotency is keyed on log_id (HARD rule 4), so sharing one would make the
+    // server ack the R row as a duplicate and drop it — a silent half-log with no error anywhere.
+    R.log_id = uuid();
+    return [row, R];
+  }
   // LEVEL GOAL (rung pass standard), muted, on line 1 next to the name. ONE value only — the weight, or
   // the reps for bodyweight. Returns null (nothing shown) for warm-up sets and for non-leveled exercises
   // (accessories/stability not in Level Standards) so they never show a bogus goal.
@@ -1015,7 +1033,7 @@
       if (!l) return;                         // athlete left the workout mid-interval; nothing to log
       l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';
       LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, ex.exercise, t.set_no)] = true;
-      logRows([l]); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
+      logRows(splitSides(l, ex.each_side)); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
       // COLLAPSE. refocus() is what recomputes a round and folds it away once every row in it is done,
       // and the lifting commit() has always called it — this one never did. So a complex collapsed and
       // a warm-up containing a carry or a Depth Jump did not, which is exactly the split Phil saw:
@@ -1040,7 +1058,11 @@
     if (ex.mode === 'conditioning') return conditioningRow(slot, ex, t);
     var isDur = !!t.duration_s, isAcc = ex.mode === 'accessory';
     var row = el('div', 'ex-row' + (t.kind === 'warmup' ? ' warmup' : ''));
-    var cur = { exercise: ex.exercise, video: ex.video_url };   // swap target
+    // swap target. `each_side` rides along because the LOG needs it (splitSides) and because it must
+    // follow the SWAP: swapping Bulgarian Split Squat for a two-legged alternate has to stop writing
+    // L/R rows, and the swap handler already carries the flag onto the new `ex` (see the alternates
+    // branch above). Rebuilt from `ex` on every render, so there is nothing to keep in sync by hand.
+    var cur = { exercise: ex.exercise, video: ex.video_url, each_side: ex.each_side };
 
     // --- line 1: name · level goal .......... ⇄ Swap ---
     var l1 = el('div', 'l1');
@@ -1157,7 +1179,7 @@
       if (isDur) log.duration_s = (heldS != null && heldS > 0) ? heldS : t.duration_s;
       lastLogId = log.log_id;
       LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)] = true;
-      logRows([log]);
+      logRows(splitSides(log, cur.each_side));
       row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
       refocus();   // rule 1: finishing a set advances what's in focus
     }

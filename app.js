@@ -17,6 +17,12 @@
   var app = document.getElementById('app');
   var meta = document.getElementById('meta');
   var syncEl = document.getElementById('sync');
+  // CLIENT CACHE VERSION. Every cached payload is keyed by it, so a build that changes payload shape
+  // ignores what the device already has instead of painting it. Without this, a server-side fix
+  // reached nobody: the phone instant-paints the OLD session from localStorage and Phil sees the bug
+  // he already reported, days after it was fixed. Bump this whenever the payload shape changes —
+  // same discipline as sw.js's CACHE and the server's _PAYLOAD_SCHEMA_V.
+  var CACHE_V = 'c3';
   var SESSION = null;
 
   function todayISO() { return new Date().toLocaleDateString('en-CA'); }
@@ -886,14 +892,14 @@
   function exerciseList(cb) {
     if (EXLIST) return cb(EXLIST, null);
     try {
-      var raw = localStorage.getItem('bp_exlist_' + athlete);
+      var raw = localStorage.getItem('bp_exlist_' + CACHE_V + '_' + athlete);
       if (raw) { EXLIST = JSON.parse(raw).list; if (EXLIST && EXLIST.length) cb(EXLIST, null); }
     } catch (e) {}
     fetch(cfg.WEBAPP_URL + '?action=exercises&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (r) { return r.json(); }).then(function (d) {
         if (!d.ok || !d.exercises) { if (!EXLIST) cb([], 'bad'); return; }
         EXLIST = d.exercises;
-        try { localStorage.setItem('bp_exlist_' + athlete, JSON.stringify({ at: Date.now(), list: EXLIST })); } catch (e) {}
+        try { localStorage.setItem('bp_exlist_' + CACHE_V + '_' + athlete, JSON.stringify({ at: Date.now(), list: EXLIST })); } catch (e) {}
         cb(EXLIST, null);
       }).catch(function () { if (!EXLIST) cb([], 'offline'); });
   }
@@ -976,6 +982,24 @@
         : (t.work_s ? el('span', 'cv', t.work_s + 's') : null)));
     row.appendChild(l2);
     var check = el('button', 'check cond-go', t.work_s ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓')); check.type = 'button';
+    if (isPureReps) {
+      // Phil: "it still doesn't let me save the set like on the others. When you tap the boxes, it
+      // puts log set." A pure rep count has no timer to start, so it is an ordinary row — the round's
+      // one Log button should record it along with everything else in that round (rule 2b). Timed and
+      // interval rows keep their own Start control, because there the timer IS the exercise.
+      row._commit = function () { if (!row.classList.contains('done')) logIt(0); };
+      row._isDur = false;
+      // The round's Log button stays disabled until every row in it is CONFIRMED (rule 2b — you
+      // cannot record a lift you did not do without passing through the number). A conditioning row
+      // never set this flag, so the button was permanently disabled and Phil had to hunt for the
+      // row's own control: "it still doesn't let me save the set like on the others."
+      row._confirmed = false;
+      st.addEventListener('click', function () { row._confirmed = true; syncRound(row.closest('.round')); });
+      row._sum = function () {
+        var v = repState.reps;
+        return { name: (ex.athlete_name || ex.display_name || ex.exercise), val: (v === '' || v == null ? '—' : v) + ' reps' };
+      };
+    }
     function logIt(dur) {
       // log the reps the athlete actually did (falling back to the prescription), and a distance ONLY
       // when the prescription was a distance
@@ -988,6 +1012,11 @@
       l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';
       LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, ex.exercise, t.set_no)] = true;
       logRows([l]); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
+      // COLLAPSE. refocus() is what recomputes a round and folds it away once every row in it is done,
+      // and the lifting commit() has always called it — this one never did. So a complex collapsed and
+      // a warm-up containing a carry or a Depth Jump did not, which is exactly the split Phil saw:
+      // "complex 3 and complex 2 collapsed, it just didn't do that for the warm-up sets."
+      refocus();
     }
     check.addEventListener('click', function () {
       if (check.classList.contains('done') || check.disabled) return;
@@ -1465,6 +1494,17 @@
     refocus();   // rule 1: set the opening focus before the athlete sees anything
   }
 
+  // Sweep payloads written by an older build. localStorage is small on iOS and a stale session that
+  // can never be read again is pure cost.
+  try {
+    var kill = [];
+    for (var ki = 0; ki < localStorage.length; ki++) {
+      var k = localStorage.key(ki);
+      if (/^bp_(sess|week|prof|exlist)_/.test(k) && k.indexOf('_' + CACHE_V + '_') < 0) kill.push(k);
+    }
+    kill.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+  } catch (e) {}
+
   function load() {
     if (!cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return show('App not configured yet (WEBAPP_URL).', 'err');
     if (!athlete || !token) return show('Missing athlete or token — open your personal link.', 'err');
@@ -1486,13 +1526,13 @@
     // Same instant-paint as openSession: the calendar is the FIRST thing an athlete sees, so it must
     // never sit on a spinner waiting for a cold backend build.
     var cachedWk = null;
-    try { var raw = localStorage.getItem('bp_week_' + athlete); cachedWk = raw ? JSON.parse(raw).sessions : null; } catch (e) {}
+    try { var raw = localStorage.getItem('bp_week_' + CACHE_V + '_' + athlete); cachedWk = raw ? JSON.parse(raw).sessions : null; } catch (e) {}
     if (cachedWk && cachedWk.length) renderCalendar(cachedWk); else show('Loading your plan…');
     fetch(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (r) { return r.json(); }).then(function (data) {
         // Cache the week regardless — it is good data. Only DRAW if the athlete is still here.
         if (data.ok && data.sessions && data.sessions.length) {
-          try { localStorage.setItem('bp_week_' + athlete, JSON.stringify({ at: Date.now(), sessions: data.sessions })); } catch (e) {}
+          try { localStorage.setItem('bp_week_' + CACHE_V + '_' + athlete, JSON.stringify({ at: Date.now(), sessions: data.sessions })); } catch (e) {}
         }
         if (!isCurrent(mine)) return;
         if (!data.ok) { if (!cachedWk) show('Access denied — check your link.', 'err'); return; }
@@ -1546,6 +1586,10 @@
         var wrap = el('div', 'wo-wrap');
         var line = el('div', 'wo-line');
         var b = el('button', 'wo st-' + s.status); b.type = 'button';
+        // The session id on the tile. Without it the journeys could only pick a workout by INDEX into
+        // a list the calendar rebuilds on every navigation — j7 and j8 both fell back to "whatever is
+        // first" and passed by accident, and j9 could not find a conditioning session at all.
+        b.dataset.session = s.session_id;
         b.appendChild(el('div', 'wo-name', s.name || s.theme || 'session'));
         // Phil 2026-07-18: "add workout duration and top 2 exercises in workout name in calendar like
         // workout header has, no need for # of exercises". The exercise COUNT told the athlete
@@ -1752,7 +1796,7 @@
   var SCREEN_SEQ = 0;
   function newScreen() { return ++SCREEN_SEQ; }
   function isCurrent(t) { return t === SCREEN_SEQ; }
-  function profCacheKey() { return 'bp_prof_' + athlete; }
+  function profCacheKey() { return 'bp_prof_' + CACHE_V + '_' + athlete; }
   function cachedProfile() {
     try { var raw = localStorage.getItem(profCacheKey()); return raw ? JSON.parse(raw).data : null; } catch (e) { return null; }
   }
@@ -2073,7 +2117,7 @@
   // The one hazard is re-rendering UNDER someone mid-set, which would wipe what they had typed. So a
   // late refresh only repaints while the screen is still untouched — once a set is logged or a
   // stepper is touched, the rendered view wins and the fresh payload is only cached for next time.
-  function sessCacheKey(sid) { return 'bp_sess_' + athlete + '_' + sid; }
+  function sessCacheKey(sid) { return 'bp_sess_' + CACHE_V + '_' + athlete + '_' + sid; }
   function cacheSession(sid, session) {
     try { localStorage.setItem(sessCacheKey(sid), JSON.stringify({ at: Date.now(), session: session })); } catch (e) {}
   }

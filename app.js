@@ -599,7 +599,12 @@
   function videoEmbed(url) {
     var warm = seenBefore(url);
     var auto = warm ? '1' : '0';
-    var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+    // `shorts/` included deliberately: Phil's Workbook uses youtube.com/shorts/<id> URLs (Chest
+    // Supported Row, Seated External Rotation). A Shorts id is a normal 11-char YouTube id and plays
+    // through the standard /embed/ path, but without this the URL fell through to a plain link and the
+    // clip would not play inline. Found 2026-07-23 when Phil swapped three dead links and one landed as
+    // a Short.
+    var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
     if (yt) return { type: 'iframe', warm: warm, src: 'https://www.youtube.com/embed/' + yt[1] + '?autoplay=' + auto + '&mute=1&playsinline=1&rel=0' };
     var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
     if (vm) return { type: 'iframe', warm: warm, src: 'https://player.vimeo.com/video/' + vm[1] + '?autoplay=' + auto + '&muted=1&playsinline=1' };

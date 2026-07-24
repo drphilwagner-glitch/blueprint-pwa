@@ -721,6 +721,7 @@
   // Registry of rendered rows, keyed by the ORIGINAL exercise, so a swap can reach every set of that
   // exercise (QA-05), not just the row it was tapped from. Reset per render(); rebuilt rows re-register.
   var ROW_REG = {};
+  var SHOWN_NOTE = {};   // per-render: the one-line note (#35) shows under an exercise's FIRST row only
   function regRow(entry) {
     var k = (entry.ex._alt_of || entry.ex).exercise;
     (ROW_REG[k] = ROW_REG[k] || []).push(entry);
@@ -745,6 +746,15 @@
       lr.appendChild(sw);
     }
     return lr;
+  }
+  // ONE-LINE COACH NOTE (#35), under the exercise name and only on its FIRST row (SHOWN_NOTE guards
+  // it, since an exercise repeats across set-rounds). Phil types it in the Exercise Videos `note`
+  // column; CSS clamps it to a single line with an ellipsis so length can never push it to two lines.
+  // Empty note or already-shown -> nothing rendered.
+  function noteUnder(row, ex) {
+    if (!ex.note || SHOWN_NOTE[ex.exercise]) return;
+    SHOWN_NOTE[ex.exercise] = true;
+    row.appendChild(el('div', 'ex-note', ex.note));
   }
   // Build the row descriptor for one choice — either the original exercise, or an alternate carrying
   // its OWN dosing (Alternates-tab reps, no external load).
@@ -983,6 +993,7 @@
     var l1 = el('div', 'l1');
     l1.appendChild(el('span', 'ex-name', exLabel(ex)));
     row.appendChild(l1);
+    noteUnder(row, ex);
     var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
       : ((t.target_reps || 1) + (t.work_s ? ('×' + t.work_s + 's') : ' reps'));
     var dist = { v: '' }, repsOut = { v: '' };
@@ -1097,6 +1108,7 @@
       name = el('span', 'ex-name', exLabel(ex));
     }
     l1.appendChild(name);
+    // the one-line coach note goes under the name, once per exercise (added after l1 below)
     // d. SWAP — against the name, left-aligned and centred on it. Phil: "left aligned swap icon,
     // need tile? not vertical align with name" — it acts on the exercise, so it belongs beside it,
     // and it loses the boxed tile that made it read as a third control.
@@ -1107,6 +1119,7 @@
       l1.appendChild(sw);
     }
     row.appendChild(l1);   // the ✓ is appended to l1 further down, once it exists
+    noteUnder(row, ex);
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
     var state = { load: prefill, reps: t.target_reps };
@@ -1401,7 +1414,7 @@
   function render(s) {
     clearTimerBar(s && (s.session_id || s.date));   // same session re-rendering keeps its live timer
     SESSION = s;
-    ROW_REG = {}; LEG_REG = {};   // fresh registries per session render
+    ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};   // fresh registries per session render
     renderNav('wo');
     // S19 AC2: the athlete sees what they're signing up for before they start.
     // Duration gets its OWN LINE. Phil: "the title's cut off. The number of time for the workout is a

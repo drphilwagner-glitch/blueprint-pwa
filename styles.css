@@ -332,6 +332,8 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 /* one-line coach note under the exercise name (#35). Block, full width, clamped to a single line with
    an ellipsis so note length can never push the row to two lines. */
 .ex-note { display: block; width: 100%; font-size: var(--fs-13); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 2px 0 0; }
+/* the literal "Max" goal for a max-reps alternate (#29) */
+.goal-max { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: var(--fs-12); letter-spacing: .3px; }
 .lg-row .goaltag { flex: 0 0 auto; }
 .lg-row .swapbtn { flex: 0 0 auto; margin-left: auto; }
 .lg-row .swap-panel { flex: 1 1 100%; }

@@ -771,10 +771,14 @@
   function swapTarget(a, oEx, oT) {
     if (a.main) return { ex: oEx, t: oT };
     var same = altIsSame(a);
-    var numReps = (a.reps !== '' && a.reps != null && !isNaN(a.reps)) ? Number(a.reps) : null;
+    // A "max" alternate (Alternates `reps` = max) must carry 'max' THROUGH the swap. The old code ran
+    // isNaN('max') -> numReps null -> target_reps fell back to the ORIGINAL exercise's reps, which is
+    // Phil's "single-leg calf raise bodyweight gave me 10 reps instead of max" (#29).
+    var altMax = isMaxVal(a.reps);
+    var numReps = (!altMax && a.reps !== '' && a.reps != null && !isNaN(a.reps)) ? Number(a.reps) : null;
     return {
       ex: { exercise: a.name, display_name: a.name, athlete_name: a.name, variant_name: '',
-        video_url: a.video_url || '',
+        video_url: a.video_url || '', note: a.note || '', best_reps: a.best_reps,   // best_reps -> "Max" last+1 (#29)
         alternates: oEx.alternates,
         // A SEARCHED swap carries the athlete's real prescription for that lift when the server
         // supplied one, so the row shows the rung's own goal instead of nothing.
@@ -789,7 +793,7 @@
         _alt_of: oEx, _alt_t: oT },
       t: { set_no: oT.set_no, kind: oT.kind,
         target_load: same ? oT.target_load : (a.prefill_load != null ? a.prefill_load : ''),
-        target_reps: (numReps == null ? oT.target_reps : numReps),
+        target_reps: altMax ? 'max' : (numReps == null ? oT.target_reps : numReps),
         duration_s: same ? oT.duration_s : (a.duration_s != null ? a.duration_s : null),
         rest_s: oT.rest_s }
     };
@@ -1014,10 +1018,16 @@
     var isPureReps = !wantsDist && !t.duration_s && !t.work_s;
     if (isPureReps) {
       var tr = t.target_reps;
-      var repState = { reps: isMaxVal(tr) ? 'max' : ((tr != null && tr !== '') ? Number(tr) : '') };
+      // MAX reps (#29): the goal is literally "Max", and the input PRE-FILLS with one more than the
+      // athlete did last time (best logged reps + 1), or 0 if they have never done it — so a teenager
+      // sees a concrete number to beat, not the word "max" they have to interpret and tap.
+      var isMaxLift = isMaxVal(tr);
+      var lastReps = Number(ex.best_reps) || 0;
+      var repState = { reps: isMaxLift ? (lastReps ? lastReps + 1 : 0)
+                                       : ((tr != null && tr !== '') ? Number(tr) : '') };
       var st = stepper(repState, 'reps', 1, '', 'unconfirmed',
         function () { repsOut.v = repState.reps; }, (ex.best_reps || t.target_reps));
-      l2.appendChild(lane('c-goal', '', null));               // no duplicate prescription
+      l2.appendChild(lane('c-goal', '', isMaxLift ? el('span', 'goal-max', 'Max') : null));
       l2.appendChild(lane('c-actual', 'reps', st));
     } else {
     var di = el('input', wantsDist ? 'dist-in' : 'reps-in'); di.type = 'number';
@@ -1122,7 +1132,12 @@
     noteUnder(row, ex);
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
-    var state = { load: prefill, reps: t.target_reps };
+    // MAX reps (#29): the goal is literally "Max"; the input pre-fills with the athlete's best logged
+    // reps for THIS movement + 1 (best_reps, keyed by name across sessions), or 0 if never done — a
+    // concrete number to beat, not the word "max". Carried through a swap by swapTarget.
+    var isMaxReps = isMaxVal(t.target_reps);
+    var maxPrefill = (Number(ex.best_reps) || 0) ? Number(ex.best_reps) + 1 : 0;
+    var state = { load: prefill, reps: isMaxReps ? maxPrefill : t.target_reps };
     // Weighted = has a prescribed load, a loaded accessory with a prefill, or a flagged loaded carry.
     var weighted = (t.target_load !== '' && t.target_load != null) || (isAcc && prefill !== '') || !!ex.wants_load;
     if (weighted && (state.load === '' || state.load == null)) state.load = 0;   // carries/blank start at 0 to bump up
@@ -1191,8 +1206,9 @@
     // number bolded?" — it is coach-facing context, so it is NOT bold and never competes with the
     // actual (rule 8).
     var gv = goalValue(ex, t);
-    if (!gv) row.classList.add('no-goal');   // "collapse set to be shorter if no goal"
-    l2.appendChild(lane('c-goal', 'level goal', gv ? el('span', 'cv goal-v', gv) : null));
+    if (!gv && !isMaxReps) row.classList.add('no-goal');   // "collapse set to be shorter if no goal"
+    l2.appendChild(lane('c-goal', 'level goal',
+      isMaxReps ? el('span', 'cv goal-max', 'Max') : (gv ? el('span', 'cv goal-v', gv) : null)));
 
     // b. THE ACTUAL — always this lane, whatever kind of number it is.
     // c. THE SECONDARY — the lane still exists when empty, so every row is the same shape (rule 6).

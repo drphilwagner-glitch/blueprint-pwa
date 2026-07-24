@@ -547,7 +547,10 @@
     }
     // Touching the number in any way is the athlete asserting it's what they actually did — adjusting
     // it, or tapping it to confirm the prescribed value stands. Both count (rule 2b).
-    function touched() { f.classList.remove('unconfirmed'); if (onTouch) onTouch(); }
+    // `.confirmed` marks a stepper the athlete ACTUALLY touched — distinct from a warm-up stepper,
+    // which is born without `.unconfirmed` and so looked "confirmed" to screenTouched() even though
+    // nobody touched it (#38).
+    function touched() { f.classList.remove('unconfirmed'); f.classList.add('confirmed'); if (onTouch) onTouch(); }
     function btn(sign) {
       var b = el('button', 'step', sign > 0 ? '+' : '−'); b.type = 'button';
       b.addEventListener('click', function () {
@@ -803,10 +806,22 @@
       LEG_REG[key] = { node: newLeg, ex: tgt2.ex, slot: lg.slot, timer: lg.timer };
     }
   }
+  // PRINCIPLES 1: never show an internal code to an athlete. The Alternates `reason` column is a
+  // MATCHING key with a fixed small vocabulary (equip / noequip / le_pain / ue_pain / none), so it
+  // stays as codes for the engine — but the athlete must read plain words. Humanise the known codes;
+  // pass anything else through unchanged, so Phil can still type a custom phrase in the sheet and it
+  // shows as-is (that is the rule-1 escape hatch). `none` shows nothing — it is "just an alternative",
+  // not a scenario. This lives in code, not the sheet, because Phil's sheet edits kept getting reverted
+  // when the Alternates tab was regenerated and "le_pain" came back (feedback #28, more than once).
+  var REASON_LABELS = { le_pain: 'Lower body pain', ue_pain: 'Upper body pain',
+                        equip: 'Have equipment', noequip: 'No equipment', none: '', searched: '' };
+  function reasonLabel(code) {
+    var k = String(code == null ? '' : code).trim();
+    return Object.prototype.hasOwnProperty.call(REASON_LABELS, k.toLowerCase()) ? REASON_LABELS[k.toLowerCase()] : k;
+  }
   // Swap panel: pick a reason-tagged alternate → every set of that exercise becomes it, with the
   // alternate's own dosing. "Keep original" reverts. Works from an alternate row too (_alt_of).
-  // PRINCIPLES 1+2: the reason is shown as-is (Phil edits the Alternates 'reason' column to plain
-  // words), and the list shows only the reason + movement — never the dosing.
+  // PRINCIPLES 2: the list shows only the reason + movement — never the dosing.
   function toggleSwap(row, ex) {
     var open = row.querySelector('.swap-panel');
     if (open) { open.remove(); return; }
@@ -822,7 +837,8 @@
         // Phil: "alternatives have catgories (i.e. equip) which should all be cpas w diff font to
         // differentiate exercise name after it." The reason and the movement were one run-on string
         // ("Upper-body pain: blackburns"), so the category read as part of the name.
-        if (a.reason) b.appendChild(el('span', 'swap-cat', a.reason));
+        var rl = reasonLabel(a.reason);
+        if (rl) b.appendChild(el('span', 'swap-cat', rl));
         b.appendChild(el('span', 'swap-name', a.name));
         // A `same` alternate keeps the whole prescription — worth saying, because it's the difference
         // between "swap and keep your working weight" and "swap into an accessory".
@@ -1099,7 +1115,16 @@
     if (weighted && (state.load === '' || state.load == null)) state.load = 0;   // carries/blank start at 0 to bump up
     // EDIT: if this set was already logged (opening a completed day), show the LOGGED actuals and start
     // it checked. Uncheck → adjust → re-check appends a correction row (server keeps the latest).
-    var lgd = ex.logged && ex.logged[String(t.set_no) + '|'];
+    // Match a logged set by set number REGARDLESS of side. An each-side exercise logs TWO rows for one
+    // tile (L and R), so the server keys them "<set>|L" / "<set>|R", not "<set>|". The old empty-side
+    // lookup missed them, so after a reload an each-side set failed to re-show as done (#38, an
+    // interaction with the S9 each-side split — one such row broke the whole round's restore).
+    var lgd = null;
+    if (ex.logged) {
+      var _pfx = String(t.set_no) + '|';
+      lgd = ex.logged[_pfx];                                                   // normal set (empty side)
+      if (!lgd) for (var _k in ex.logged) { if (_k.indexOf(_pfx) === 0) { lgd = ex.logged[_k]; break; } }  // |L or |R
+    }
     // The server's map OR this device's own record — whichever knows. A queued-but-unconfirmed set is
     // still a set the athlete did.
     var wasLogged = !!lgd || !!LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, ex.exercise, t.set_no)];
@@ -1501,6 +1526,11 @@
               // Re-committing appends a fresh log_id; the server keeps the latest per set (hard rule 1:
               // Sessions is append-only, corrections append).
               (pending.length ? pending : all).forEach(function (r) { r._commit(); });
+              // COLLAPSE ON UPDATE, like a first-time log (#23). Reaching this round to edit it added
+              // `.open` (round-sum click), and CSS only folds a done round when `is-done:not(.open)`.
+              // A fresh log never had `.open`, so it collapsed; an edit left it set and the round stayed
+              // expanded after Update. Committing is "I'm done with this round" either way — drop `.open`.
+              rb.classList.remove('open');
             };
           })(roundBox, act));
           roundBox.appendChild(act);
@@ -2162,7 +2192,13 @@
     try { var raw = localStorage.getItem(sessCacheKey(sid)); return raw ? JSON.parse(raw).session : null; } catch (e) { return null; }
   }
   function screenTouched() {
-    return !!document.querySelector('.ex-row.done') || !!document.querySelector('.stepper:not(.unconfirmed)');
+    // "Is there in-progress work the fresh network render must not wipe?" — a logged row, or a stepper
+    // the athlete actually touched. It used to test `.stepper:not(.unconfirmed)`, which a WARM-UP
+    // stepper matches from birth (it never gets `.unconfirmed`). So instant-painting a cached session
+    // whose first round is a warm-up (Curtsy) made this true before the athlete touched anything, and
+    // the fresh render carrying the logged/done state was skipped — logged sets never re-showed as done
+    // after a reload (#38). `.confirmed` is set only on a real touch.
+    return !!document.querySelector('.ex-row.done') || !!document.querySelector('.stepper.confirmed');
   }
 
   function openSession(sessionId) {

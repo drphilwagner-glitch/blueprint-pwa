@@ -787,12 +787,22 @@
         // A SEARCHED swap carries its own answer: Level Standards says whether that exercise is
         // loaded. Forcing false gave a reps-only Bent Row with nowhere to record the weight — a set
         // logged as "16 reps of Bent Row" is not a record of anything.
-        wants_load: same ? oEx.wants_load : (a.wants_load === true),
+        // A `same` alt of a weighted lift stays weighted even though we blank the inherited load below:
+        // `weighted` is otherwise inferred from target_load, so without this the blanked Front Squat
+        // would read as a bodyweight lift and show reps where the load stepper belongs.
+        wants_load: same ? (oEx.wants_load || (oT.target_load !== '' && oT.target_load != null))
+                         : (a.wants_load === true),
         load_prefill: same ? oEx.load_prefill : (a.prefill_load != null ? a.prefill_load : undefined),
         rest_s: oEx.rest_s, each_side: oEx.each_side,
         _alt_of: oEx, _alt_t: oT },
       t: { set_no: oT.set_no, kind: oT.kind,
-        target_load: same ? oT.target_load : (a.prefill_load != null ? a.prefill_load : ''),
+        // A `same` alternate keeps the reps & %s but NOT the original's weight — Back Squat -> Front
+        // Squat is the same prescription on a different bar, and Front Squat is the lighter lift. So the
+        // weight starts from the athlete's OWN best logged Front Squat + 5 (the #26 rule), or blank if
+        // he has never done it, for him to fill in (Phil 2026-07-24). It used to inherit oT.target_load
+        // (Back Squat's weight), which is what Phil reported.
+        target_load: same ? (Number(a.best_load) ? Number(a.best_load) + 5 : '')
+                          : (a.prefill_load != null ? a.prefill_load : ''),
         target_reps: altMax ? 'max' : (numReps == null ? oT.target_reps : numReps),
         duration_s: same ? oT.duration_s : (a.duration_s != null ? a.duration_s : null),
         rest_s: oT.rest_s }
@@ -856,7 +866,7 @@
         b.appendChild(el('span', 'swap-name', a.name));
         // A `same` alternate keeps the whole prescription — worth saying, because it's the difference
         // between "swap and keep your working weight" and "swap into an accessory".
-        if (altIsSame(a)) b.appendChild(el('span', 'swap-same', 'same sets, reps & load'));
+        if (altIsSame(a)) b.appendChild(el('span', 'swap-same', 'same sets & reps'));
       }
       b.addEventListener('click', function () { applySwapAll(origEx.exercise, a); });
       panel.appendChild(b);

@@ -1000,12 +1000,19 @@
       }
     }, 1000);
   }
-  function conditioningRow(slot, ex, t) {
+  function conditioningRow(slot, ex, t, timer) {
     // Same two lines and the same four columns as a lifting row (rule 6). Running's actual is the
     // DISTANCE, its secondary is the time — so it lands in column b under every other lift's weight.
     var row = el('div', 'ex-row cond');
     var l1 = el('div', 'l1');
     l1.appendChild(el('span', 'ex-name', exLabel(ex)));
+    // A conditioning row is swappable too — Depth Jump had no swap icon at all (Phil 2026-07-27:
+    // "Depth jump has no swap option ... every exercise needs that swap icon"). The row registers below
+    // so a swap replaces every set of it, exactly like a lifting row (QA-05).
+    var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
+    sw.title = 'Change exercise';
+    sw.addEventListener('click', function () { toggleSwap(row, ex); });
+    l1.appendChild(sw);
     row.appendChild(l1);
     noteUnder(row, ex);
     var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
@@ -1100,6 +1107,7 @@
       else logIt('');
     });
     l1.appendChild(check);   // same as a lifting row: the action rides with the name
+    regRow({ row: row, slot: slot, ex: ex, t: t, timer: timer, isASide: false });   // so a swap reaches it (QA-05)
     return row;
   }
 
@@ -1107,7 +1115,7 @@
   // Control rule (Phil 2026-07-15): WEIGHTED lifts adjust weight only (reps are the fixed goal);
   // BODYWEIGHT/stability lifts adjust reps; loaded carries (wants_load) get a weight field beside the hold.
   function exerciseRow(slot, ex, t, timer, isASide) {
-    if (ex.mode === 'conditioning') return conditioningRow(slot, ex, t);
+    if (ex.mode === 'conditioning') return conditioningRow(slot, ex, t, timer);
     var isDur = !!t.duration_s, isAcc = ex.mode === 'accessory';
     var row = el('div', 'ex-row' + (t.kind === 'warmup' ? ' warmup' : ''));
     // swap target. `each_side` rides along because the LOG needs it (splitSides) and because it must
@@ -1132,12 +1140,13 @@
     // d. SWAP — against the name, left-aligned and centred on it. Phil: "left aligned swap icon,
     // need tile? not vertical align with name" — it acts on the exercise, so it belongs beside it,
     // and it loses the boxed tile that made it read as a third control.
-    if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
-      var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
-      sw.title = 'Change exercise';
-      sw.addEventListener('click', function () { toggleSwap(row, ex); });
-      l1.appendChild(sw);
-    }
+    // EVERY exercise is swappable — even with zero curated alternates you can search any exercise.
+    // Phil 2026-07-27: "every exercise needs that swap icon ... if there are no alternates you can pick
+    // any exercise through that search box." The icon used to hide when a lift had no alternates.
+    var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
+    sw.title = 'Change exercise';
+    sw.addEventListener('click', function () { toggleSwap(row, ex); });
+    l1.appendChild(sw);
     row.appendChild(l1);   // the ✓ is appended to l1 further down, once it exists
     noteUnder(row, ex);
 

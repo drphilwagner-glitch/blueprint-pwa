@@ -1,5 +1,9 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; }
+/* No double-tap-to-zoom anywhere — Mason double-tapped while a swap loaded and the screen zoomed
+   in/out (Phil, 2026-07-27). manipulation keeps pan/scroll but kills the double-tap gesture; the
+   viewport lock in index.html is the belt-and-suspenders for standalone (home-screen) mode. */
+html { touch-action: manipulation; }
 body {
   font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg); color: var(--ink);
@@ -700,7 +704,10 @@ body.has-tbar #app { padding-bottom: 128px; }
 /* the round's one action */
 .roundlog {
   width: 100%; min-height: 46px; border: 0; border-radius: var(--r-10);
-  background: var(--bp); color: var(--white); font-size: var(--fs-15); font-weight: 800;
+  /* GREEN when it's ready to log — it is THE action, and green is the app's "logged/passed" colour, so
+     it should not read as just another blue button (Phil, 2026-07-27: Mason didn't see how to log). The
+     disabled "Set N · tap…" state below stays muted until the set is confirmed. */
+  background: var(--ok); color: var(--white); font-size: var(--fs-15); font-weight: 800;
   font-variant-numeric: tabular-nums; padding: 0 12px;
 }
 .roundlog[disabled] { background: var(--control-flat); color: var(--muted); font-weight: 700; }

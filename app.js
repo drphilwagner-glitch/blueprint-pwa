@@ -978,6 +978,9 @@
           // that lift actually is — the same getScheme that prescribes everything else — rather than
           // inventing a default here.
           hb.disabled = true;
+          // Whether a searched swap gets a weight field is DATA, not a guess: the Alternates 'weighted'
+          // (Y/N) column and a variant's loaded root drive x.wants_load from the server (Phil, 2026-07-27:
+          // "add a column G under Alternates for weighted exercises").
           var fallback = { name: x.exercise, video_url: x.video_url || '', reps: x.default_reps,
                            wants_load: x.wants_load === true, reason: 'searched' };
           fetch(cfg.WEBAPP_URL + '?action=exscheme&athlete=' + encodeURIComponent(athlete) +
@@ -988,7 +991,7 @@
               applySwapAll(origEx.exercise, {
                 name: x.exercise, video_url: x.video_url || '', reason: 'searched',
                 reps: (d.reps != null ? d.reps : x.default_reps),
-                wants_load: !!d.wants_load,
+                wants_load: (x.wants_load === true) || !!d.wants_load,   // weighted column OR Level Standards
                 prefill_load: (d.load != null ? d.load : null),
                 level_goal: d.level_goal || null,
                 duration_s: (d.duration_s != null ? d.duration_s : null)
@@ -1003,16 +1006,25 @@
     }
 
     var typing = null;
+    // Number words and digits are the same to a searching athlete. The library carries BOTH "1 Leg
+    // Squat" and "Single Leg RDL", so "one leg", "single leg" and "1 leg" must all find both (Phil,
+    // 2026-07-27: "If I put in one leg, will one leg squat come up?"). Normalise every form to a digit.
+    function normEx(s) {
+      return String(s || '').toLowerCase()
+        .replace(/\bsingle\b/g, '1').replace(/\bone\b/g, '1').replace(/\btwo\b/g, '2')
+        .replace(/\bthree\b/g, '3').replace(/\bfour\b/g, '4');
+    }
     inp.addEventListener('input', function () {
       var q = inp.value.trim().toLowerCase();
       clearTimeout(typing);
       if (q.length < 2) { hits.innerHTML = ''; return; }
+      var nq = normEx(q);
       typing = setTimeout(function () {
         exerciseList(function (all, err) {
           if (err) return paint([], 'Offline — search needs a connection.');
           paint(all.filter(function (x) {
             if (already[String(x.exercise || '').toLowerCase()]) return false;   // already offered above
-            return (String(x.display_name || '') + ' ' + String(x.exercise || '')).toLowerCase().indexOf(q) >= 0;
+            return normEx(String(x.display_name || '') + ' ' + String(x.exercise || '')).indexOf(nq) >= 0;
           }));
         });
       }, 120);
@@ -1481,22 +1493,18 @@
     }
     btn.classList.remove('logged');
     var unconfirmed = pending.filter(function (r) { return !r._confirmed; });
+    // The button names the SET, never the exercise. Phil, 2026-07-27: after swapping he saw
+    // "…90-90 Lift" in the button — "It should just say 'Log Set whatever number it is.'" So both the
+    // prompt and the log label lead with the set number ("Set 1"), dropping the "(warm-up)" clutter.
+    var setLabel = String(title || 'set').replace(/\s*\(.*\)\s*$/, '');   // "Set 1 (warm-up)" -> "Set 1"
     if (unconfirmed.length) {
       btn.disabled = true;
-      // NAME THE EXERCISE. Phil's round had a warm-up A-side (exempt) and a work B-side that needed
-      // confirming, and the button just said "tap your reps" while that row sat below the fold — so
-      // the workout looked broken rather than gated.
-      var who = unconfirmed[0]._sum ? unconfirmed[0]._sum().name : '';
-      btn.textContent = rows.length > 1 && who
-        ? 'Tap ' + who + '’s ' + unconfirmed[0]._needs
-        : 'Tap your ' + unconfirmed[0]._needs + ' to confirm it';
+      // Still say WHAT it wants (reps or weight) so the athlete knows the gate — but keyed to the set,
+      // not the exercise name. The amber-highlighted row already shows WHICH row needs it.
+      btn.textContent = setLabel + ' · tap your ' + unconfirmed[0]._needs;
     } else {
       btn.disabled = false;
-      // Phil, THIRD time: "it says 'Log set 1 (warm-up, 45 lbs. x 8)'. Just put 'Log set 1'. This is
-      // the third time I brought this up. It doesn't need to have this massively long piece."
-      // The numbers are already on screen directly above the button — repeating them was me solving
-      // a problem (blind tapping) that the amber confirm-the-actual gate already solves.
-      btn.textContent = 'Log ' + title;
+      btn.textContent = 'Log ' + setLabel;
     }
   }
 
@@ -1962,6 +1970,14 @@
   }
   // "Workout" = today's session, else the next planned one (the legacy advance endpoint does this).
   function openToday() {
+    // RETURN TO THE SESSION THE ATHLETE IS IN — not "advance to today". Mason, day 1: he opened Monday
+    // from the calendar, logged sets, tapped Profile, then tapped Workout — and this used to re-fetch
+    // action=plan (which ADVANCES / re-derives a session), so it handed back a fresh program from set 1
+    // and his logged sets appeared gone. bp_open_session is the exact session he opened; go back to it
+    // (openSession re-fetches it and restores every logged set). Only fall back to "today" when there is
+    // no session open. (Phil, 2026-07-27 — worst bug of the launch.)
+    var open = null; try { open = sessionStorage.getItem('bp_open_session'); } catch (e) {}
+    if (open) return openSession(open);
     var mine = newScreen();
     show('Loading…'); renderNav('wo');
     fetch(planUrl()).then(function (r) { return r.json(); }).then(function (data) {

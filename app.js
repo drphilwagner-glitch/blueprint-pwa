@@ -890,7 +890,7 @@
     var sp = row.querySelector('.swap-panel'); if (sp) sp.remove();   // one panel at a time
     var origEx = ex._alt_of || ex;
     var panel = el('div', 'hist-panel');
-    panel.appendChild(el('div', 'hist-h', 'History · ' + exLabel(origEx) + ' · set by set'));
+    panel.appendChild(el('div', 'hist-h', 'History · ' + exLabel(origEx)));
     var body = el('div', 'hist-body'); body.appendChild(el('div', 'hist-note', 'Loading…'));
     panel.appendChild(body);
     row.appendChild(panel);
@@ -901,15 +901,16 @@
         body.innerHTML = '';
         var days = (d && d.ok && d.days) || [];
         if (!days.length) { body.appendChild(el('div', 'hist-note', 'No history yet — first time.')); return; }
-        // One row PER DAY, its sets IN ORDER, so today's set N lines up against past set Ns. Nothing
-        // here is emphasised — the only bold on screen is what the athlete is logging today (Phil).
+        // BY DATE (Phil, 2026-07-25): a row per day — the date on the left, then that day's sets in
+        // order. No source tag; the date carries recency. Set counts vary because his Everfit logging
+        // did (some days he did not log every set) — Phil accepts that; Blueprint days are consistent.
+        // Nothing here is bold — history is reference; the only bold on screen is what he logs today.
         days.forEach(function (day) {
           var line = el('div', 'hist-row');
           line.appendChild(el('span', 'hist-date', fmtHistDate(day.date)));
           var sets = el('div', 'hist-sets');
           (day.sets || []).forEach(function (s) { sets.appendChild(el('span', 'hist-set', fmtHistSet(s))); });
           line.appendChild(sets);
-          if (day.src === 'everfit') line.appendChild(el('span', 'hist-src', 'Everfit'));
           body.appendChild(line);
         });
       })

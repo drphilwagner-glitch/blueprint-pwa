@@ -537,16 +537,34 @@
   // correction, not a fresh count. The value only reaches the Workbook once it is a number; logging
   // the string "max" would record a set nobody can compare to anything.
   function isMaxVal(v) { return typeof v === 'string' && v.trim().toLowerCase() === 'max'; }
-  function stepper(state, key, delta, unit, extraCls, onTouch, maxBase) {
-    var f = el('div', 'stepper' + (extraCls ? ' ' + extraCls : ''));
-    var val = el('span', 'val');
+  function stepper(state, key, delta, unit, extraCls, onTouch, maxBase, editable) {
+    var f = el('div', 'stepper' + (extraCls ? ' ' + extraCls : '') + (editable ? ' editable' : ''));
+    // EDITABLE: the value itself is a tap-to-type field, so a weight is ENTERED, not bumped up from 0
+    // one press at a time. Phil, B2 2026-07-25: "74 taps to reach 185 from 0." The ± buttons stay for
+    // fine ±2.5 tweaks once they are near their weight — this is "both", not one or the other. A cold
+    // value (0, never done) shows an EMPTY field with a placeholder so they just type the number; a
+    // known value shows the number to nudge. Editable is for the LOAD only (numeric); reps/"max" keep
+    // the plain readout.
+    var val;
+    if (editable) {
+      val = document.createElement('input');
+      val.className = 'val'; val.type = 'text'; val.inputMode = 'decimal';
+      val.autocomplete = 'off'; val.setAttribute('aria-label', 'weight'); val.placeholder = '0';
+    } else {
+      val = el('span', 'val');
+    }
     function draw() {
       var v = state[key];
       f.classList.toggle('is-max', isMaxVal(v));
-      val.textContent = (v === '' || v == null) ? '—' : v;
+      if (editable) {
+        // Leave the field alone while it is focused (typing), or the redraw fights the keystroke.
+        if (document.activeElement !== val) val.value = (v == null || v === '' || Number(v) === 0) ? '' : v;
+      } else {
+        val.textContent = (v === '' || v == null) ? '—' : v;
+      }
     }
     // Touching the number in any way is the athlete asserting it's what they actually did — adjusting
-    // it, or tapping it to confirm the prescribed value stands. Both count (rule 2b).
+    // it, typing it, or tapping to confirm the prescribed value stands. All count (rule 2b).
     // `.confirmed` marks a stepper the athlete ACTUALLY touched — distinct from a warm-up stepper,
     // which is born without `.unconfirmed` and so looked "confirmed" to screenTouched() even though
     // nobody touched it (#38).
@@ -563,7 +581,19 @@
       return b;
     }
     f.appendChild(btn(-1)); f.appendChild(val); if (unit) f.appendChild(el('span', 'unit', unit)); f.appendChild(btn(1));
-    val.addEventListener('click', touched);
+    if (editable) {
+      val.addEventListener('input', function () {
+        var raw = val.value.replace(/[^0-9.]/g, '');
+        // keep only the first dot
+        raw = raw.replace(/(\..*)\./g, '$1');
+        state[key] = raw === '' ? '' : (Math.round(Number(raw) * 10) / 10);
+        touched();
+      });
+      val.addEventListener('focus', function () { try { val.select(); } catch (e) {} });
+      val.addEventListener('blur', draw);
+    } else {
+      val.addEventListener('click', touched);
+    }
     draw();
     return f;
   }
@@ -843,6 +873,48 @@
     var k = String(code == null ? '' : code).trim();
     return Object.prototype.hasOwnProperty.call(REASON_LABELS, k.toLowerCase()) ? REASON_LABELS[k.toLowerCase()] : k;
   }
+  // HISTORY panel: "what did I do last time?" — the most-used Everfit feature (Phil 2026-07-25). Fetches
+  // this exercise's past days on tap (Blueprint sessions + Everfit legacy, newest first) so a kid can
+  // check "wait, what did I do last time" without leaving the workout.
+  function fmtHistDate(d) {
+    var m = String(d).match(/(\d{4})-(\d{2})-(\d{2})/); if (!m) return String(d || '');
+    return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m[2]) - 1] + ' ' + Number(m[3]);
+  }
+  function fmtHistSet(s) {
+    if (s.load != null && s.load !== '') return s.load + '×' + (s.reps != null ? s.reps : '—');
+    return (s.reps != null ? s.reps : '—');
+  }
+  function toggleHistory(row, ex) {
+    var open = row.querySelector('.hist-panel');
+    if (open) { open.remove(); return; }
+    var sp = row.querySelector('.swap-panel'); if (sp) sp.remove();   // one panel at a time
+    var origEx = ex._alt_of || ex;
+    var panel = el('div', 'hist-panel');
+    panel.appendChild(el('div', 'hist-h', 'History · ' + exLabel(origEx) + ' · set by set'));
+    var body = el('div', 'hist-body'); body.appendChild(el('div', 'hist-note', 'Loading…'));
+    panel.appendChild(body);
+    row.appendChild(panel);
+    fetch(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
+          '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(origEx.exercise))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        body.innerHTML = '';
+        var days = (d && d.ok && d.days) || [];
+        if (!days.length) { body.appendChild(el('div', 'hist-note', 'No history yet — first time.')); return; }
+        // One row PER DAY, its sets IN ORDER, so today's set N lines up against past set Ns. Nothing
+        // here is emphasised — the only bold on screen is what the athlete is logging today (Phil).
+        days.forEach(function (day) {
+          var line = el('div', 'hist-row');
+          line.appendChild(el('span', 'hist-date', fmtHistDate(day.date)));
+          var sets = el('div', 'hist-sets');
+          (day.sets || []).forEach(function (s) { sets.appendChild(el('span', 'hist-set', fmtHistSet(s))); });
+          line.appendChild(sets);
+          if (day.src === 'everfit') line.appendChild(el('span', 'hist-src', 'Everfit'));
+          body.appendChild(line);
+        });
+      })
+      .catch(function () { body.innerHTML = ''; body.appendChild(el('div', 'hist-note', 'Could not load history.')); });
+  }
   // Swap panel: pick a reason-tagged alternate → every set of that exercise becomes it, with the
   // alternate's own dosing. "Keep original" reverts. Works from an alternate row too (_alt_of).
   // PRINCIPLES 2: the list shows only the reason + movement — never the dosing.
@@ -1013,6 +1085,10 @@
     sw.title = 'Change exercise';
     sw.addEventListener('click', function () { toggleSwap(row, ex); });
     l1.appendChild(sw);
+    var hb = el('button', 'histbtn'); hb.type = 'button'; hb.innerHTML = '🕐';   // "what did I do last time" (#history)
+    hb.title = 'History — what you did last time';
+    hb.addEventListener('click', function () { toggleHistory(row, ex); });
+    l1.appendChild(hb);
     row.appendChild(l1);
     noteUnder(row, ex);
     var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
@@ -1147,6 +1223,12 @@
     sw.title = 'Change exercise';
     sw.addEventListener('click', function () { toggleSwap(row, ex); });
     l1.appendChild(sw);
+    // HISTORY — "what did I do last time?" the most-used Everfit feature (Phil 2026-07-25). Beside the
+    // swap icon; taps open a panel of past days (Blueprint sessions + Everfit legacy).
+    var hb = el('button', 'histbtn'); hb.type = 'button'; hb.innerHTML = '🕐';
+    hb.title = 'History — what you did last time';
+    hb.addEventListener('click', function () { toggleHistory(row, ex); });
+    l1.appendChild(hb);
     row.appendChild(l1);   // the ✓ is appended to l1 further down, once it exists
     noteUnder(row, ex);
 
@@ -1233,7 +1315,7 @@
     // c. THE SECONDARY — the lane still exists when empty, so every row is the same shape (rule 6).
     var aLabel = 'reps', bLabel = '', aNode = null, bNode = null;
     if (weighted) {
-      var wStep = stepper(state, 'load', 2.5, '', '', critical === 'load' ? confirmActual : null);
+      var wStep = stepper(state, 'load', 2.5, '', '', critical === 'load' ? confirmActual : null, null, true);   // editable: tap-to-type the weight (B2)
       if (needsConfirm && critical === 'load') wStep.classList.add('unconfirmed');
       aLabel = 'lb'; aNode = wStep;
       if (isDur) { bLabel = 'time'; bNode = el('span', 'cv', t.duration_s + 's'); }   // carry: time is secondary

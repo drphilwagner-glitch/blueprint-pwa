@@ -47,6 +47,11 @@ body {
 .step { min-width: 36px; min-height: 40px; border: 0; background: var(--control); border-radius: var(--r-6); font-weight: 700; font-size: var(--fs-13); color: var(--ink); }
 .step:active { background: var(--control-active); }
 .val { min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+/* B2: the load value is a TAP-TO-TYPE field. Strip the native input chrome so it reads as the same
+   big number as the span readout; a subtle fill on focus signals it is editable. */
+.stepper input.val { border: 0; background: transparent; outline: none; -webkit-appearance: none; appearance: none; min-width: 0; width: 100%; box-sizing: border-box; color: var(--ink); font: inherit; text-align: center; font-variant-numeric: tabular-nums; }
+.stepper input.val:focus { background: var(--surface-2); border-radius: var(--r-6); }
+.stepper input.val::placeholder { color: var(--muted); font-weight: 700; }
 .unit { font-size: var(--fs-12); color: var(--muted); padding: 0 2px; }
 .hint { font-size: var(--fs-12); color: var(--muted); }
 .check { min-width: 54px; min-height: 42px; border: 0; border-radius: var(--r-9); background: var(--bp); color: var(--white); font-weight: 700; font-size: var(--fs-17); }
@@ -554,6 +559,21 @@ button, input, select, .step, .check, .swapbtn, .ag-move, .wo, .nav-b, .tstart, 
 /* swap lives with the name now */
 .l1 .swapbtn { flex: 0 0 auto; width: 38px; min-height: 32px; padding: 0;
   font-size: var(--fs-15); color: var(--bp); background: var(--bp-tint); border: 1.5px solid var(--bp-line); border-radius: var(--r-9); }
+/* history clock sits beside swap — quieter than swap; taps open the "what did I do last time" panel */
+.l1 .histbtn { flex: 0 0 auto; width: 34px; min-height: 32px; padding: 0; font-size: var(--fs-13);
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-9); }
+.hist-panel { display: flex; flex-direction: column; gap: 1px; width: 100%; margin-top: 6px;
+  border: 1px solid var(--line); border-radius: var(--r-9); background: var(--surface-2); padding: 8px; }
+.hist-h { font-size: var(--fs-10); text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+.hist-note { font-size: var(--fs-12); color: var(--muted); padding: 2px 0; }
+/* set-by-set, PER DAY. Nothing here is emphasised — history is reference; the only bold on screen is
+   what the athlete is logging today (Phil, 2026-07-25). */
+.hist-row { display: flex; align-items: baseline; gap: var(--sp-6); padding: 3px 0; }
+.hist-row + .hist-row { border-top: 1px solid var(--line-soft); }
+.hist-date { flex: 0 0 auto; width: 50px; font-size: var(--fs-11); color: var(--muted); }
+.hist-sets { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 2px var(--sp-8); }
+.hist-set { font-size: var(--fs-12); font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+.hist-src { flex: 0 0 auto; align-self: center; font-size: var(--fs-9); color: var(--muted); background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-6); padding: 0 4px; }
 
 /* profile: the lift is the headline, the variant you're currently on is a quiet sub-label */
 .p-var { font-size: var(--fs-11); color: var(--muted); margin-top: -4px; }
@@ -571,6 +591,11 @@ span.ex-name { display: block; }
 .l2 .check { width: 58px; min-width: 58px; height: 46px; font-size: var(--fs-20); border-width: 2px; }
 .l2 .stepper .step { width: 24px; min-width: 24px; flex: 0 0 24px; font-size: var(--fs-15); opacity: .75; }
 .l2 .stepper .val { font-size: var(--fs-15); font-weight: 800; }
+/* Only ONE number per row is the headline the athlete is logging (Phil, 2026-07-25): the WEIGHT on a
+   loaded lift, or the REPS on a bodyweight lift. Both live in c-actual and stay bold black. The reps
+   beside a weight (c-second) are secondary — light gray, the same muted tone as the lane label, so
+   nothing competes with the load (Phil: "even lighter, like a light gray"). */
+.l2 .c-second .stepper .val { font-weight: 600; color: var(--muted); }
 /* RULE 8 — the level goal is coach-facing context: legible, never competing with the athlete's numbers. */
 .l1 .goaltag { flex: 0 0 auto; margin-left: auto; font-size: var(--fs-11); color: var(--muted); white-space: nowrap; }
 .l1 .goaltag .lbl { font-size: var(--fs-9); text-transform: uppercase; letter-spacing: .4px; }

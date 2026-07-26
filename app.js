@@ -1542,6 +1542,10 @@
     SESSION = s;
     ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};   // fresh registries per session render
     renderNav('wo');
+    // PREFETCH the swap search library (and warm the backend) the instant a workout opens, so tapping
+    // Swap and searching is immediate instead of the ~10s cold wait Mason hit mid-set (Phil, 2026-07-27).
+    // exerciseList() caches in memory + localStorage, so this fetches once and every later call is free.
+    try { setTimeout(function () { exerciseList(function () {}); }, 0); } catch (e) {}
     // S19 AC2: the athlete sees what they're signing up for before they start.
     // Duration gets its OWN LINE. Phil: "the title's cut off. The number of time for the workout is a
     // really key thing for the athlete, so that 34 minutes should be on a new line in the header, its

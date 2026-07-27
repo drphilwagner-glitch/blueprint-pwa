@@ -1523,30 +1523,56 @@
 
   function refocus() {
     var cards = [].slice.call(app.querySelectorAll('.slot'));
-    var seenCurrent = false;
-    cards.forEach(function (card) {
+    // First pass: per-slot done state. anyDone lets us tell a slot the athlete MOVED PAST (a later slot
+    // has logged sets) from the one they're actually on now.
+    var info = cards.map(function (card) {
       var rounds = [].slice.call(card.querySelectorAll('.round'));
-      var nowIdx = -1;
-      rounds.forEach(function (rb, i) {
+      var doneCount = 0;
+      rounds.forEach(function (rb) {
+        var rows = [].slice.call(rb.querySelectorAll('.ex-row'));
+        if (rows.length > 0 && rows.every(function (r) { return r.classList.contains('done'); })) doneCount++;
+      });
+      return { card: card, rounds: rounds, done: doneCount, total: rounds.length,
+               allDone: rounds.length > 0 && doneCount === rounds.length, anyDone: doneCount > 0 };
+    });
+    // A collapsed, not-fully-logged complex: "X of Y done" if some sets landed (partial), else "not done"
+    // (Phil, 2026-07-27: "five of the six were done… it shouldn't say not done").
+    var partialLabel = function (x) { return x.done > 0 ? (x.done + ' of ' + x.total + ' done') : 'not done'; };
+    var lastActiveIdx = -1;
+    info.forEach(function (x, i) { if (x.anyDone) lastActiveIdx = i; });   // last slot with any logged round
+    var seenCurrent = false;
+    info.forEach(function (x, i) {
+      var card = x.card, rounds = x.rounds, nowIdx = -1;
+      rounds.forEach(function (rb, ri) {
         var rows = [].slice.call(rb.querySelectorAll('.ex-row'));
         var done = rows.length > 0 && rows.every(function (r) { return r.classList.contains('done'); });
         rb.classList.toggle('is-done', done);
-        if (!done && nowIdx < 0) nowIdx = i;
+        if (!done && nowIdx < 0) nowIdx = ri;
       });
-      rounds.forEach(function (rb, i) {
+      rounds.forEach(function (rb, ri) {
         rb.classList.remove('is-now', 'is-next', 'is-later');
-        if (i === nowIdx) rb.classList.add('is-now');
-        else if (nowIdx >= 0 && i === nowIdx + 1) rb.classList.add('is-next');
-        else if (nowIdx >= 0 && i > nowIdx + 1) rb.classList.add('is-later');
+        if (ri === nowIdx) rb.classList.add('is-now');
+        else if (nowIdx >= 0 && ri === nowIdx + 1) rb.classList.add('is-next');
+        else if (nowIdx >= 0 && ri > nowIdx + 1) rb.classList.add('is-later');
         roundSummary(rb); syncRound(rb);
       });
-      var slotDone = rounds.length > 0 && nowIdx < 0;
       card.classList.remove('slot-done', 'slot-now', 'slot-later');
-      if (slotDone) card.classList.add('slot-done');
-      else if (!seenCurrent) { seenCurrent = true; card.classList.add('slot-now'); }
-      else card.classList.add('slot-later');
       var st = card.querySelector('.slot-state');
-      if (st) st.textContent = slotDone ? 'done' : (card.classList.contains('slot-later') ? 'not started' : '');
+      if (x.allDone) {
+        card.classList.add('slot-done');                 // fully logged -> collapsed, "done"
+        if (st) st.textContent = 'done';
+      } else if (i < lastActiveIdx) {
+        // a LATER slot has logged sets, so the athlete moved past this one. Collapse it: "X of Y done"
+        // if partial, else "not done" — never "not started" (Phil, 2026-07-27).
+        card.classList.add('slot-later');
+        if (st) st.textContent = partialLabel(x);
+      } else if (!seenCurrent) {
+        seenCurrent = true; card.classList.add('slot-now');   // the slot the athlete is actually on -> expanded
+        if (st) st.textContent = '';
+      } else {
+        card.classList.add('slot-later');                 // not reached -> collapsed; partial-aware label
+        if (st) st.textContent = partialLabel(x);
+      }
     });
   }
 

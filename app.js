@@ -1943,28 +1943,21 @@
         p.appendChild(again);
       });
     }
-    var today2 = todayISO(), past = s.date < today2;
-    var quick = el('div', 'move-quick');
-    // Phil 2026-07-18: "4 option + 1 day, +2 days, -1 day, -2 days...no 1 week needed". Moving a
-    // session EARLIER was the one thing the old panel couldn't do \u2014 and moving 7/27 to 7/26 is
-    // exactly what he tried. A past/missed session can only come forward, so it gets today/tomorrow.
-    var opts = past ? [['Today', 0], ['Tomorrow', 1], ['+2 days', 2]]
-                    : [['-2 days', -2], ['-1 day', -1], ['+1 day', 1], ['+2 days', 2]];
-    opts.forEach(function (q) {
-      var target = addDays(past ? today2 : s.date, q[1]);
-      var b = el('button', 'move-opt', q[0]); b.type = 'button';
-      if (target < today2) b.disabled = true;   // nothing moves into the past
-      b.addEventListener('click', function () { go(target); });
-      quick.appendChild(b);
-    });
-    p.appendChild(quick);
+    // Phil 2026-07-27: "you probably only need two buttons: the date and move to today. Since we don't
+    // have drag and drop, that's all that really matters." So: one TODAY button (pull a session to
+    // now \u2014 the common case, e.g. getting a jump on next week early) and a date picker for any other
+    // day. The old -2/-1/+1/+2 relative row is gone; a specific date is clearer than counting offsets.
+    var today2 = todayISO();
     var rowEl = el('div', 'move-any');
+    var todayBtn = el('button', 'move-opt', 'Today'); todayBtn.type = 'button';
+    todayBtn.addEventListener('click', function () { go(today2); });
     var dIn = el('input', 'move-date'); dIn.type = 'date';
-    dIn.value = past ? today2 : s.date;
-    dIn.min = today2;
+    dIn.value = (s.date < today2) ? today2 : s.date;
+    dIn.min = today2;                                    // nothing moves into the past
     var gBtn = el('button', 'move-go', 'Move'); gBtn.type = 'button';
     gBtn.addEventListener('click', function () { if (dIn.value) go(dIn.value); });
-    rowEl.appendChild(dIn); rowEl.appendChild(gBtn); p.appendChild(rowEl);
+    rowEl.appendChild(todayBtn); rowEl.appendChild(dIn); rowEl.appendChild(gBtn);
+    p.appendChild(rowEl);
     wrap.appendChild(p);
   }
 

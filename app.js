@@ -601,6 +601,9 @@
   // ATHLETE-FACING name: server sends athlete_name = shown_name override (Exercise Videos tab) ||
   // variant (Level Standards col D) || display_name. The level (3.1) is internal and hidden here.
   function exLabel(ex) {
+    // If the athlete logged a SWAP into this slot, show what they actually DID, not the prescribed
+    // name — reopening a done session should read back the real workout (Phil, 2026-07-27).
+    if (ex.logged_as) return ex.logged_as;
     return ex.athlete_name || ex.variant_name || ex.display_name || ex.exercise || '';
   }
 

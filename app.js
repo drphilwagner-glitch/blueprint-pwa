@@ -810,9 +810,11 @@
       ex: { exercise: a.name, display_name: a.name, athlete_name: a.name, variant_name: '',
         video_url: a.video_url || '', note: a.note || '', best_reps: a.best_reps,   // best_reps -> "Max" last+1 (#29)
         alternates: oEx.alternates,
-        // A SEARCHED swap carries the athlete's real prescription for that lift when the server
-        // supplied one, so the row shows the rung's own goal instead of nothing.
-        level_goal: same ? oEx.level_goal : (a.level_goal || null),
+        // NO ALTERNATE carries a level goal (Phil, 2026-07-28: "no alternates have level goal"). A
+        // "same" alt keeps the set count, reps & %s, but not the original's level-goal weight — DB
+        // Bulgarian Split Squat / 1-leg Step Down were showing BSS's / Step Down's goal, which is wrong.
+        // A SEARCHED swap still carries its OWN prescription (a.level_goal from exscheme) when there is one.
+        level_goal: (a.level_goal || null),
         mode: same ? oEx.mode : 'accessory',
         // A SEARCHED swap carries its own answer: Level Standards says whether that exercise is
         // loaded. Forcing false gave a reps-only Bent Row with nowhere to record the weight — a set
@@ -888,14 +890,16 @@
     var open = row.querySelector('.hist-panel');
     if (open) { open.remove(); return; }
     var sp = row.querySelector('.swap-panel'); if (sp) sp.remove();   // one panel at a time
-    var origEx = ex._alt_of || ex;
+    // History is for the exercise ON THE ROW RIGHT NOW — the swapped-in one, not the original. Phil,
+    // 2026-07-28: swapped in a calf machine, history showed the 4" calf raise. `ex` is the current
+    // exercise; `ex._alt_of` is the thing it replaced (used by the swap panel, NOT here).
     var panel = el('div', 'hist-panel');
-    panel.appendChild(el('div', 'hist-h', 'History · ' + exLabel(origEx)));
+    panel.appendChild(el('div', 'hist-h', 'History · ' + exLabel(ex)));
     var body = el('div', 'hist-body'); body.appendChild(el('div', 'hist-note', 'Loading…'));
     panel.appendChild(body);
     row.appendChild(panel);
     fetch(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
-          '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(origEx.exercise))
+          '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(ex.exercise))
       .then(function (r) { return r.json(); })
       .then(function (d) {
         body.innerHTML = '';
@@ -1828,6 +1832,15 @@
       cur.setDate(cur.getDate() + 1);
     }
     app.appendChild(list);
+    // OPEN ON TODAY, not the oldest day. The list runs chronologically so past days stay scrollable
+    // ABOVE, but the default view should start at today (Phil, 2026-07-28: "first date shows 7/20;
+    // default at top should be 7/26"). Scroll today's row to the top; if today has no row (gap day),
+    // the first day on/after today.
+    try {
+      var todayRow = list.querySelector('.day-row.today') ||
+        Array.prototype.filter.call(list.querySelectorAll('.day-row'), function (r) { return r.dataset.date >= today; })[0];
+      if (todayRow) setTimeout(function () { todayRow.scrollIntoView({ block: 'start' }); }, 0);
+    } catch (e) {}
   }
   // Long-press to pick up a workout, drag over a day, release to move it there (S22). Phil asked if
   // moving days could be "hold it down, ideally, and move the date". Pointer Events cover touch AND

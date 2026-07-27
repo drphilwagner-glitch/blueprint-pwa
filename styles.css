@@ -222,6 +222,9 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 /* level-up celebration in the finish summary */
 .sum-row.levelup { border-left: 4px solid var(--ok); font-weight: 700; background: var(--ok-bg); }
 @media (prefers-color-scheme: dark){ .sum-row.levelup { background: var(--ok-deep); } }
+/* Main lifts — the coach's headline block; brand-blue accent, always present */
+.sum-t.main { color: var(--bp); }
+.sum-row.main { border-left: 4px solid var(--bp); font-weight: 600; }
 
 /* rest-timer "up" alert — a half-screen banner that flashes then fades as the timer rolls on */
 .talert { position: fixed; left: 0; right: 0; top: 22%; z-index: 60; display: flex; flex-direction: column;

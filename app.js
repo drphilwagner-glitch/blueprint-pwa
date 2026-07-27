@@ -598,13 +598,31 @@
     return f;
   }
 
+  // Capitalise a name the Workbook left all-lowercase ("front press" -> "Front Press"), but NEVER touch
+  // one it already capitalised — "SingleLeg Calf Raise", "1 Leg Front Squat to Bench" carry the sheet's
+  // intended casing (including a deliberate lowercase "to"), so a name with ANY uppercase is shown
+  // verbatim. Phil 2026-07-27: "It should be capitalized too. Front press, just like it is in the
+  // workbook." Only the fully-lowercase case is a data-entry slip worth fixing on the way out.
+  function titleName(s) {
+    s = String(s || '');
+    if (/[A-Z]/.test(s)) return s;                                   // sheet chose the casing — respect it
+    return s.replace(/\b([a-z])/g, function (_, c) { return c.toUpperCase(); });
+  }
+  // A COMPOSED header/tile string ("Upper Body · front press + Deadlift · 2026-07-06") title-cased
+  // per segment, so only a fully-lowercase piece ("front press") is lifted; "Upper Body", "Deadlift"
+  // and the date are each already capitalised (or have no letters) and pass through untouched.
+  function titlePhrase(s) {
+    return String(s || '').split(' · ').map(function (seg) {
+      return seg.split(' + ').map(titleName).join(' + ');
+    }).join(' · ');
+  }
   // ATHLETE-FACING name: server sends athlete_name = shown_name override (Exercise Videos tab) ||
   // variant (Level Standards col D) || display_name. The level (3.1) is internal and hidden here.
   function exLabel(ex) {
     // If the athlete logged a SWAP into this slot, show what they actually DID, not the prescribed
     // name — reopening a done session should read back the real workout (Phil, 2026-07-27).
-    if (ex.logged_as) return ex.logged_as;
-    return ex.athlete_name || ex.variant_name || ex.display_name || ex.exercise || '';
+    if (ex.logged_as) return titleName(ex.logged_as);
+    return titleName(ex.athlete_name || ex.variant_name || ex.display_name || ex.exercise || '');
   }
 
   // ---- In-app video: play in an overlay dismissed with one ✕ (no leaving the app) ----
@@ -1422,12 +1440,12 @@
       app.appendChild(el('h3', 'sum-t ' + cls, title));
       items.forEach(function (c) {
         var txt;
-        if (c.first) txt = c.exercise + ' — first time 🎉';
+        if (c.first) txt = titleName(c.exercise) + ' — first time 🎉';
         else {
           var parts = [];
           if (c.intensity_pct != null) parts.push((c.intensity_pct >= 0 ? '+' : '') + c.intensity_pct + '% 1RM');
           if (c.volume_pct != null) parts.push((c.volume_pct >= 0 ? '+' : '') + c.volume_pct + '% vol');
-          txt = c.exercise + ' — ' + (parts.join(' · ') || 'logged');
+          txt = titleName(c.exercise) + ' — ' + (parts.join(' · ') || 'logged');
         }
         app.appendChild(el('div', 'sum-row ' + cls, txt));
       });
@@ -1438,10 +1456,23 @@
       app.appendChild(back);
     }
     if (!d || !d.ok || !d.logged) { app.appendChild(el('p', 'empty', 'Nice work.')); backLink(); return; }
+    // MAIN LIFTS FIRST — the coach's headline. Every tested lift logged today shows what he did, so a
+    // main lift (Front Press 75×5) is never crowded out of the synopsis by a first-time accessory
+    // (Phil 2026-07-27). The highlight lists below stay a curated few; this one is complete.
+    if (d.mains && d.mains.length) {
+      app.appendChild(el('h3', 'sum-t main', 'Main lifts 🏋️'));
+      d.mains.forEach(function (m) {
+        var result = m.loaded ? ((m.load != null ? m.load : '?') + ' lb × ' + (m.reps != null ? m.reps : '?'))
+                              : ((m.reps != null ? m.reps : '?') + ' reps');
+        var tail = m.leveled ? ' · leveled up 🎉'
+          : (m.delta_pct != null && m.delta_pct > 0) ? ' · ▲ +' + m.delta_pct + '%' : '';
+        app.appendChild(el('div', 'sum-row main', titleName(m.name || m.exercise) + ' — ' + result + tail));
+      });
+    }
     if (d.level_ups && d.level_ups.length) {   // celebrate any rung the athlete passed this session
       app.appendChild(el('h3', 'sum-t up', 'Leveled up! 🎉'));
       d.level_ups.forEach(function (u) {
-        app.appendChild(el('div', 'sum-row up levelup', u.exercise + ' → level ' + u.level));
+        app.appendChild(el('div', 'sum-row up levelup', titleName(u.exercise) + ' → level ' + u.level));
       });
     }
     block('Top gains 🔺', d.best, 'up');
@@ -1590,7 +1621,7 @@
     // really key thing for the athlete, so that 34 minutes should be on a new line in the header, its
     // own line." Appending it to the title meant the long session name truncated and took the
     // duration with it — the one number the athlete plans their evening around.
-    meta.textContent = (s.name || s.theme) + ' · ' + s.date;
+    meta.textContent = titlePhrase(s.name || s.theme) + ' · ' + s.date;
     // REMOVE THE OLD ONE FIRST. This line lives in the HEADER, outside #app, so `app.innerHTML = ''`
     // below never cleared it — and render() runs again on every post-log refresh, so each logged set
     // stacked another "~46 min" under the title. Phil saw three, then five.
@@ -1839,12 +1870,12 @@
         // a list the calendar rebuilds on every navigation — j7 and j8 both fell back to "whatever is
         // first" and passed by accident, and j9 could not find a conditioning session at all.
         b.dataset.session = s.session_id;
-        b.appendChild(el('div', 'wo-name', s.name || s.theme || 'session'));
+        b.appendChild(el('div', 'wo-name', titlePhrase(s.name || s.theme || 'session')));
         // Phil 2026-07-18: "add workout duration and top 2 exercises in workout name in calendar like
         // workout header has, no need for # of exercises". The exercise COUNT told the athlete
         // nothing they could act on; the two main lifts and the time commitment do.
         var bits = [];
-        if (s.top_ex && s.top_ex.length) bits.push(s.top_ex.join(' + '));
+        if (s.top_ex && s.top_ex.length) bits.push(s.top_ex.map(titleName).join(' + '));
         if (s.est_min) bits.push('~' + s.est_min + ' min');
         var sub = bits.join(' · ');
         if (s.status === 'done') sub = '✓ done' + (sub ? ' · ' + sub : '');

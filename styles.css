@@ -947,6 +947,10 @@ body.has-tbar #app { padding-bottom: 128px; }
    buttons they read as a different, lesser kind of choice — and the ragged right edge is the first
    thing the eye lands on. */
 .swap-hits .swap-opt { width: 100%; box-sizing: border-box; }
+.swap-opt.loading { position: relative; opacity: .7; }
+.swap-opt .swap-spin { position: absolute; right: 11px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
+  border: 2px solid var(--line); border-top-color: var(--bp); border-radius: 50%; animation: swap-spin .7s linear infinite; }
+@keyframes swap-spin { to { transform: rotate(360deg); } }
 .swap-note { padding: 8px 2px; font-size: var(--fs-13); color: var(--muted); }
 /* The swap panel can open near the bottom of a long session; the fixed nav must never cover its
    results. Mirrors the padding the pinned timer bar already reserves. */

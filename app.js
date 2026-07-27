@@ -982,6 +982,12 @@
           // that lift actually is — the same getScheme that prescribes everything else — rather than
           // inventing a default here.
           hb.disabled = true;
+          // The exscheme fetch is slow (5-13s). Without a visible cue the disabled button reads as
+          // "didn't register", so Mason kept tapping (Phil, 2026-07-28). Show a spinner on the chosen
+          // row and block the rest, so it plainly reads as "working".
+          hb.classList.add('loading');
+          hb.appendChild(el('span', 'swap-spin'));
+          hits.querySelectorAll('.swap-opt').forEach(function (b) { if (b !== hb) b.disabled = true; });
           // Whether a searched swap gets a weight field is DATA, not a guess: the Alternates 'weighted'
           // (Y/N) column and a variant's loaded root drive x.wants_load from the server (Phil, 2026-07-27:
           // "add a column G under Alternates for weighted exercises").

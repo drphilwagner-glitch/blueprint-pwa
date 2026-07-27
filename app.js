@@ -22,7 +22,7 @@
   // reached nobody: the phone instant-paints the OLD session from localStorage and Phil sees the bug
   // he already reported, days after it was fixed. Bump this whenever the payload shape changes —
   // same discipline as sw.js's CACHE and the server's _PAYLOAD_SCHEMA_V.
-  var CACHE_V = 'c3';
+  var CACHE_V = 'c4';   // bumped: old cached sessions predate swap-logged matching; force a clean re-fetch
   var SESSION = null;
 
   function todayISO() { return new Date().toLocaleDateString('en-CA'); }
@@ -2376,7 +2376,14 @@
       .then(function (r) { return r.json(); }).then(function (data) {
         if (!data.ok || !data.session) { if (!cached) show('No workout that day.'); return; }
         cacheSession(sessionId, data.session);
-        if (!cached || !screenTouched()) render(data.session);   // never repaint over work in progress
+        // Re-render unless the athlete is actively logging over a cached paint. BUT a reopened session
+        // the SERVER already has logged sets for must always show its review state — the stale cached
+        // paint (from before those sets landed) is why 7/27 opened blank after logging (Phil, 2026-07-27).
+        // The render merges LOCAL_DONE, so in-progress local work is not lost by repainting.
+        var srvLogged = (data.session.slots || []).some(function (sl) {
+          return (sl.exercises || []).some(function (e) { return e.logged && Object.keys(e.logged).length; });
+        });
+        if (!cached || !screenTouched() || srvLogged) render(data.session);
       }).catch(function () { if (!cached) show('Offline — reconnect to open this workout.', 'err'); });
   }
 

@@ -2262,13 +2262,15 @@
           .filter(function (p) { return p.v > 0; }).reverse();
         if (pts.length >= 2) panel.appendChild(bigChart(pts, vunit, 'Volume'));
         if (stale) panel.appendChild(el('div', 'p-detail-note', 'Not trained in the last two months — showing your most recent sessions.'));
-        // PR flag: walk oldest -> newest, mark each session that set a NEW best est-1RM. That session's
-        // card is bolded and starred (Phil: "bold and star the row where it's a 1RM").
-        var pr = {}, run = -Infinity;
-        days.slice().reverse().forEach(function (day) {
+        // Star ONLY the all-time best session — not every intermediate record. Phil 2026-07-28: "It's
+        // only best if it's the all-time best 1RM, so it shouldn't be 99 and 66 for RDL. It should just
+        // be 99." Newest-first + strict > marks the most recent day that holds the top est-1RM.
+        var pr = {}, bestVal = -Infinity, bestDate = null;
+        days.forEach(function (day) {
           var o = _sess1rm(day.sets);
-          if (o != null && o > run + 1e-9) { run = o; pr[String(day.date).slice(0, 10)] = o; }
+          if (o != null && o > bestVal) { bestVal = o; bestDate = String(day.date).slice(0, 10); }
         });
+        if (bestDate != null) pr[bestDate] = bestVal;
         // one card per session (days come newest-first from the server)
         days.forEach(function (day) {
           var sets = day.sets || [], isPR = !!pr[String(day.date).slice(0, 10)];

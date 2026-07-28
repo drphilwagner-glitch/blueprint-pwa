@@ -2397,7 +2397,10 @@
     { key: 'Upper Body Str Endurance',  label: 'Upper body strength endurance' },
     { key: 'Lower Body Str Endurance',  label: 'Lower body strength endurance' }
   ];
-  function ladderCard(cats) {
+  // TAP A BAR -> that quality's lifts (S20 drill-down, Phil 2026-07-28). The bars ARE the navigation:
+  // tapping one opens its lifts inline (weakest first, badged "sets your level"), replacing the old flat
+  // all-exercises scroll. `byQuality` is { qualityKey: [lift rows, weakest-first] }.
+  function ladderCard(cats, byQuality) {
     var byKey = {};
     (cats || []).forEach(function (c) { byKey[c.category] = c; });
     // The ceiling is DATA (server sends orderMax = the highest rung Level Standards define). Hardcoding 9
@@ -2408,10 +2411,13 @@
     (cats || []).forEach(function (c) { if (c && c.orderMax) OM = Math.max(OM, Number(c.orderMax)); });
     OM = Math.max(3, Math.round(OM / 3) * 3);
     var card = el('div', 'ladder');
-    card.appendChild(el('div', 'ladder-h', 'By quality'));
+    card.appendChild(el('div', 'ladder-h', 'By quality — tap a bar for the lifts'));
+    var panels = [];
     LADDER_ORDER.forEach(function (q) {
       var c = byKey[q.key];
-      var row = el('div', 'ldr-row' + (c ? '' : ' empty'));
+      var lifts = (byQuality && byQuality[q.key]) || [];
+      var tappable = lifts.length > 0;
+      var row = el('div', 'ldr-row' + (c ? '' : ' empty') + (tappable ? ' opens' : ''));
       // label (two lines: "Upper body" / "max strength" — fits a 390px phone without shrinking type)
       var lab = el('div', 'ldr-lab');
       var m = q.label.match(/^(upper body|lower body)\s+(.*)$/i);
@@ -2430,17 +2436,30 @@
         track.appendChild(fill);
       }
       row.appendChild(track);
-      // the level badge (the weakest lift's level — the quality's real level)
-      row.appendChild(el('div', 'ldr-badge', c ? ('L' + c.low) : '—'));
+      // the level badge (the weakest lift's level) + a chevron when the bar opens lifts
+      var badge = el('div', 'ldr-badge', c ? ('L' + c.low) : '—');
+      if (tappable) badge.appendChild(el('span', 'ldr-chev', '▾'));
+      row.appendChild(badge);
       card.appendChild(row);
-      // which lift sets this level — the one thing a coach acts on
-      if (c && c.sets_level) {
-        var who = (c.sets_level_variant && c.sets_level_variant !== c.sets_level) ? c.sets_level_variant : c.sets_level;
-        card.appendChild(el('div', 'ldr-sets', who + ' sets this level'));
+      if (tappable) {
+        var panel = el('div', 'ldr-drill'); panel.hidden = true;
+        lifts.forEach(function (lift, i) {
+          var pc = profileCard(lift);
+          if (i === 0) pc.insertBefore(el('div', 'pc-sets', 'sets your level'), pc.firstChild);   // weakest = the floor
+          panel.appendChild(pc);
+        });
+        card.appendChild(panel);
+        panels.push({ row: row, panel: panel });
+        row.setAttribute('role', 'button'); row.setAttribute('tabindex', '0'); row.setAttribute('aria-expanded', 'false');
+        var toggle = function () {
+          var willOpen = panel.hidden;
+          panels.forEach(function (p) { p.panel.hidden = true; p.row.classList.remove('open'); p.row.setAttribute('aria-expanded', 'false'); });
+          if (willOpen) { panel.hidden = false; row.classList.add('open'); row.setAttribute('aria-expanded', 'true'); }
+        };
+        row.addEventListener('click', toggle);
+        row.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
       }
     });
-    // No caption. Phil 2026-07-28: "it should show nothing... The better things need to be pictures.
-    // People know that further right is better." The bars are self-explanatory; words under them are noise.
     return card;
   }
 
@@ -2478,13 +2497,26 @@
       categories = [];
     }
 
-    // BY QUALITY, as a radar. Phil: "Six things is useless... potentially having a radar graph to
-    // visually show this rather than list it." Six rows of near-identical numbers is a table nobody
-    // reads; the same six points as a SHAPE shows the imbalance at a glance, which is the only reason
-    // the athlete cares. Plotted on LEVEL ORDER 1..9 (1.1=1 ... 3.3=9) — the real ladder position.
-    // Hand-built SVG: no library, works offline, and it is ~40 lines.
+    // BY QUALITY, as the LADDER — and now the navigation. Group every lift under its rolled-up quality
+    // (server sends x.quality) so tapping a bar opens that quality's lifts, weakest first. This REPLACES
+    // the old flat "needs work / strongest / everything else" scroll (S20 spec, Phil 2026-07-28).
+    var QKEYS = ['Upper Body Max', 'Lower Body Max', 'Upper Body Relative', 'Lower Body Relative',
+                 'Upper Body Str Endurance', 'Lower Body Str Endurance'];
+    var byQuality = {}, other = [];
+    list.forEach(function (x) {
+      if (x.quality && QKEYS.indexOf(x.quality) >= 0) (byQuality[x.quality] || (byQuality[x.quality] = [])).push(x);
+      else other.push(x);   // accessories / stability / carries — no strength-quality bar; kept, never hidden
+    });
+    var byLevel = function (a, b) {   // weakest first; tie-break on LEAST progress (the true floor, matching
+      var la = parseFloat(a.level), lb = parseFloat(b.level);   // the ladder fill + server sets_level); un-levelled last
+      if (isNaN(la) && isNaN(lb)) return 0; if (isNaN(la)) return 1; if (isNaN(lb)) return -1;
+      if (la !== lb) return la - lb;
+      return (a.progress || 0) - (b.progress || 0);
+    };
+    Object.keys(byQuality).forEach(function (k) { byQuality[k].sort(byLevel); });
+
     if (categories && categories.length >= 3) {
-      app.appendChild(ladderCard(categories));
+      app.appendChild(ladderCard(categories, byQuality));
     } else if (categories && categories.length) {
       var cw = el('div', 'p-cats');
       cw.appendChild(el('div', 'p-cats-h', 'By quality'));
@@ -2497,32 +2529,20 @@
       app.appendChild(cw);
     }
 
-    // Phil: "exercise order top 3 by need/lowest level, rest collapsed. top 3 by need/highest level."
-    var levelled = list.filter(function (x) { return x.level && !isNaN(parseFloat(x.level)); });
-    var byLevel = levelled.slice().sort(function (a, b) { return parseFloat(a.level) - parseFloat(b.level); });
-    var lowest = byLevel.slice(0, 3);
-    var highest = byLevel.slice().reverse().filter(function (x) { return lowest.indexOf(x) < 0; }).slice(0, 3);
-    var shown = lowest.concat(highest);
-    var rest = list.filter(function (x) { return shown.indexOf(x) < 0; });
-
-    function section(title, sub, items) {
-      if (!items.length) return;
-      var h = el('div', 'p-sec');
-      h.appendChild(el('span', 'p-sec-t', title));
-      if (sub) h.appendChild(el('span', 'p-sec-s', sub));
-      app.appendChild(h);
-      items.forEach(function (x) { app.appendChild(profileCard(x)); });
-    }
-    section('Needs the most work', 'lowest levels', lowest);
-    section('Your strongest', 'highest levels', highest);
-
-    if (rest.length) {
-      var togg = el('button', 'p-more', 'Everything else (' + rest.length + ')'); togg.type = 'button';
+    // If the ladder can't render (fewer than 3 qualities), fall back to a flat list so lifts are never
+    // stranded. Otherwise every quality lift lives under its bar; only the non-quality "other work"
+    // (accessories, carries, stability) needs its own home so nothing disappears.
+    var laddered = categories && categories.length >= 3;
+    if (!laddered) {
+      list.slice().sort(byLevel).forEach(function (x) { app.appendChild(profileCard(x)); });
+    } else if (other.length) {
+      other.sort(byLevel);
+      var togg = el('button', 'p-more', 'Other work (' + other.length + ')'); togg.type = 'button';
       var wrap = el('div', 'p-rest'); wrap.hidden = true;
-      rest.forEach(function (x) { wrap.appendChild(profileCard(x)); });
+      other.forEach(function (x) { wrap.appendChild(profileCard(x)); });
       togg.addEventListener('click', function () {
         wrap.hidden = !wrap.hidden;
-        togg.textContent = (wrap.hidden ? 'Everything else (' + rest.length + ')' : 'Hide the rest');
+        togg.textContent = (wrap.hidden ? 'Other work (' + other.length + ')' : 'Hide other work');
       });
       app.appendChild(togg); app.appendChild(wrap);
     }

@@ -888,8 +888,20 @@ body.has-tbar #app { padding-bottom: 128px; }
   padding: 14px 12px 12px; margin-bottom: var(--sp-12); }
 .ladder-h { font-size: var(--fs-11); font-weight: 800; text-transform: uppercase; letter-spacing: .8px;
   color: var(--muted); margin-bottom: 12px; }
-.ldr-row { display: grid; grid-template-columns: 92px 1fr 34px; align-items: center; gap: 10px; margin-bottom: 6px; }
+.ldr-row { display: grid; grid-template-columns: 92px 1fr 42px; align-items: center; gap: 10px; margin-bottom: 6px;
+  border-radius: 8px; }
 .ldr-row.empty { opacity: .45; }
+/* a bar that opens its lifts on tap (NOT the workout's .tap primary-button class) */
+.ldr-row.opens { cursor: pointer; padding: 4px 4px; margin: -4px -4px 2px; }
+.ldr-row.opens:active { background: var(--surface-3); }
+.ldr-row.opens.open { background: var(--bp-tint); }
+.ldr-chev { display: inline-block; margin-left: 3px; font-size: 9px; color: var(--muted); transition: transform .15s; }
+.ldr-row.open .ldr-chev { transform: rotate(180deg); }
+.ldr-drill { padding: 4px 0 10px; display: flex; flex-direction: column; gap: 8px; }
+.ldr-drill[hidden] { display: none; }   /* the class rule above outranks the UA [hidden]; restore it */
+/* the weakest lift in a quality — the one that sets the level */
+.pc-sets { align-self: flex-start; font-size: var(--fs-10); font-weight: 800; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--bp); background: var(--bp-tint); border-radius: 999px; padding: 2px 8px; margin-bottom: 2px; }
 .ldr-lab { display: flex; flex-direction: column; line-height: 1.12; }
 .ldr-lab-1 { font-size: var(--fs-11); font-weight: 700; color: var(--muted); }
 .ldr-lab-2 { font-size: var(--fs-13); font-weight: 800; color: var(--ink); }
@@ -903,8 +915,7 @@ body.has-tbar #app { padding-bottom: 128px; }
 .ldr-fill { position: absolute; top: 0; bottom: 0; left: 0; z-index: 2;
   background: linear-gradient(90deg, color-mix(in srgb, var(--bp) 62%, white), var(--bp));
   border-radius: 8px 0 0 8px; }
-.ldr-badge { font-size: var(--fs-12); font-weight: 800; color: var(--bp); text-align: right; }
-.ldr-sets { grid-column: 1 / -1; font-size: var(--fs-11); color: var(--muted); margin: -2px 0 8px 102px; }
+.ldr-badge { font-size: var(--fs-12); font-weight: 800; color: var(--bp); text-align: right; white-space: nowrap; }
 .hdr-dur { font-size: var(--fs-13); font-weight: 800; color: var(--white);
   opacity: .95; margin-top: 2px; letter-spacing: .2px; }
 

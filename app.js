@@ -802,10 +802,15 @@
   // it, since an exercise repeats across set-rounds). Phil types it in the Exercise Videos `note`
   // column; CSS clamps it to a single line with an ellipsis so length can never push it to two lines.
   // Empty note or already-shown -> nothing rendered.
-  function noteUnder(row, ex) {
-    if (!ex.note || SHOWN_NOTE[ex.exercise]) return;
+  function noteUnder(row, ex, isMax) {
+    // A max-reps movement (Accordion Squat, any 'max' alternate) has no rep target — it reads "0" until
+    // the athlete fills it in, which alone looks broken. Show the instruction so it's obvious what to do.
+    // Phil types a note in the Exercise Videos `note` column; that wins. Otherwise a max lift gets the
+    // AMRAP instruction automatically. Phil raised this twice (2026-07-28).
+    var note = ex.note || (isMax ? 'Do as many as you can' : '');
+    if (!note || SHOWN_NOTE[ex.exercise]) return;
     SHOWN_NOTE[ex.exercise] = true;
-    row.appendChild(el('div', 'ex-note', ex.note));
+    row.appendChild(el('div', 'ex-note', note));
   }
   // Build the row descriptor for one choice — either the original exercise, or an alternate carrying
   // its OWN dosing (Alternates-tab reps, no external load).
@@ -1134,7 +1139,7 @@
     hb.addEventListener('click', function () { toggleHistory(row, ex); });
     l1.appendChild(hb);
     row.appendChild(l1);
-    noteUnder(row, ex);
+    noteUnder(row, ex, isMaxVal(t.target_reps));
     var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
       : ((t.target_reps || 1) + (t.work_s ? ('×' + t.work_s + 's') : ' reps'));
     var dist = { v: '' }, repsOut = { v: '' };
@@ -1274,7 +1279,7 @@
     hb.addEventListener('click', function () { toggleHistory(row, ex); });
     l1.appendChild(hb);
     row.appendChild(l1);   // the ✓ is appended to l1 further down, once it exists
-    noteUnder(row, ex);
+    noteUnder(row, ex, isMaxVal(t.target_reps));
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
     // MAX reps (#29): the goal is literally "Max"; the input pre-fills with the athlete's best logged
@@ -2158,7 +2163,7 @@
       if (x.best_volume != null) {
         var s2 = el('div', 'p-stat');
         s2.appendChild(el('span', 'p-stat-l', 'Best volume'));
-        s2.appendChild(el('span', 'p-stat-v', x.best_volume + (x.volume_unit === 'reps' ? ' reps' : ' lb·reps')));
+        s2.appendChild(el('span', 'p-stat-v', x.best_volume + ' ' + (x.volume_unit || 'lb')));
         stats.appendChild(s2);
       }
       card.appendChild(stats);
@@ -2177,34 +2182,75 @@
       card.appendChild(el('div', 'p-level', 'Top of the ladder 🏆'));
     }
 
-    // SPARKLINE — the compact visual the removed "Before Blueprint" text line was standing in for.
-    // Phil: "two years is too long. It should be three months at the most, but ideally more like one
-    // month. People like to see sensational, and sensational is a lot of times provided by a shorter
-    // x-axis." And: "the profile has got to be inspiring mastery through repetition." So the window is
-    // 35 days (server-side SPARK_DAYS) and every session is a DOT — the count of dots is the
-    // repetition, the slope is the mastery. It sits above the numbers, not instead of them.
+    // The compact sparkline stays as the at-a-glance "am I going up?".
     if (x.spark && x.spark.length >= 2) card.appendChild(sparkline(x.spark, x.best_one_unit));
 
-    // HISTORY, not trends. Phil: "no trends need history". A percentage hides the numbers; the
-    // athlete wants to see what they actually lifted, session by session.
-    if (x.history && x.history.length) {
-      var h = el('div', 'p-hist');
-      h.appendChild(el('div', 'p-hist-h', 'History'));
-      x.history.forEach(function (r) {
-        var line = el('div', 'p-hist-r');
-        line.appendChild(el('span', 'p-hist-d', r.date));
-        line.appendChild(el('span', 'p-hist-v',
-          r.load != null ? (r.load + ' lb' + (r.reps != null ? ' × ' + r.reps : '')) : (r.reps + ' reps')));
-        h.appendChild(line);
+    // TAP TO OPEN THE FULL HISTORY — Phil 2026-07-28, from Everfit: "tap an exercise, it shows the 1RM
+    // improvement in a graph, the 1RM, and the volume." The point of this screen is to make progress
+    // OBVIOUS with no interpretation. So a tap opens a bigger 1RM chart and a card per session (est 1RM,
+    // volume, the sets). Lazy-loaded so the profile list stays instant; the full per-set data comes from
+    // action=history (Blueprint + imported Everfit days both).
+    if (x.has_data || (x.legacy && x.legacy.sets)) {
+      var toggle = el('button', 'p-more'); toggle.type = 'button';
+      toggle.textContent = 'See progress ▾';
+      var detail = el('div', 'p-detail'); detail.style.display = 'none'; detail._loaded = false;
+      toggle.addEventListener('click', function () {
+        var open = detail.style.display !== 'none';
+        detail.style.display = open ? 'none' : 'block';
+        toggle.textContent = open ? 'See progress ▾' : 'Hide progress ▴';
+        if (!open && !detail._loaded) { detail._loaded = true; loadProfileDetail(x, detail); }
       });
-      card.appendChild(h);
+      card.appendChild(toggle);
+      card.appendChild(detail);
     }
-
-    // The per-lift "Before Blueprint" line is GONE. Phil: "take out all that text in each of the
-    // tiles of the exercises because it makes scrolling too long." The history still exists and is
-    // still the point — it belongs in a compact visual (a short-window sparkline), not a text line
-    // repeated on every card.
     return card;
+  }
+
+  var _est1rm = function (load, reps) { return (load > 0 && reps > 0) ? Math.round(load * (1 + reps / 30)) : null; };
+  // The tap-to-open history: a large 1RM chart + one card per session (est 1RM, volume, and every set).
+  function loadProfileDetail(x, panel) {
+    panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Loading…'));
+    fetch(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
+          '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(x.exercise))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        panel.innerHTML = '';
+        var days = (d && d.ok && d.days) || [];
+        if (!days.length) { panel.appendChild(el('div', 'p-detail-note', 'No history yet — log a set and it shows here.')); return; }
+        // per-day best est-1RM (loaded) or best reps (bodyweight) -> the improvement line
+        var pts = days.map(function (day) {
+          var best = null, loaded = false;
+          (day.sets || []).forEach(function (s) {
+            var l = Number(s.load), rp = Number(s.reps);
+            if (l > 0) { loaded = true; var e = _est1rm(l, rp); if (e != null && (best == null || e > best)) best = e; }
+            else if (rp > 0 && (best == null || rp > best)) best = rp;
+          });
+          return { date: day.date, v: best };
+        }).filter(function (p) { return p.v != null; }).reverse();   // oldest -> newest for the chart
+        if (pts.length >= 2) panel.appendChild(bigChart(pts, x.best_one_unit));
+        // one card per session (days come newest-first from the server)
+        days.forEach(function (day) {
+          var sets = day.sets || [], oneRM = null, vol = 0, loaded = false;
+          sets.forEach(function (s) {
+            var l = Number(s.load), rp = Number(s.reps);
+            if (l > 0) { loaded = true; vol += l * (rp || 0); var e = _est1rm(l, rp); if (e != null && (oneRM == null || e > oneRM)) oneRM = e; }
+            else if (rp > 0) { vol += rp; }
+          });
+          var c = el('div', 'p-sess');
+          var head = el('div', 'p-sess-h');
+          head.appendChild(el('span', 'p-sess-d', fmtHistDate(day.date)));
+          var st = el('span', 'p-sess-s');
+          if (oneRM != null) st.appendChild(el('span', 'p-sess-1rm', (loaded ? oneRM + ' lb' : oneRM + ' reps') + ' 1RM'));
+          st.appendChild(el('span', 'p-sess-vol', 'Vol ' + Math.round(vol) + (loaded ? ' lb' : ' reps')));
+          head.appendChild(st);
+          c.appendChild(head);
+          var tbl = el('div', 'p-sess-sets');
+          sets.forEach(function (s) { tbl.appendChild(el('span', 'p-sess-set', fmtHistSet(s))); });
+          c.appendChild(tbl);
+          panel.appendChild(c);
+        });
+      })
+      .catch(function () { panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Could not load history.')); });
   }
 
 
@@ -2249,6 +2295,34 @@
     var u = /lb/.test(String(unit || '')) ? ' lb' : (up === 1 ? ' rep' : ' reps');
     wrap.appendChild(el('div', 'spark-cap',
       n + ' session' + (n === 1 ? '' : 's') + ' this month' + (up > 0 ? ' · up ' + up + u : '')));
+    return wrap;
+  }
+
+  // A LARGER, labelled 1RM chart for the tap-open detail (Everfit-style): area fill, dots, the latest
+  // value called out, and a date span + total gain caption. The point is progress you can't miss.
+  function bigChart(pts, unit) {
+    var isLb = !/rep/i.test(String(unit || 'lb'));
+    var u = isLb ? ' lb' : ' reps';
+    var vs = pts.map(function (p) { return p.v; });
+    var lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
+    if (hi === lo) hi = lo + 1;
+    var W = 300, H = 150, PADX = 10, PADT = 24, PADB = 24, n = pts.length, NS = 'http://www.w3.org/2000/svg';
+    var xy = pts.map(function (p, i) {
+      return [PADX + (n === 1 ? 0 : (i * (W - PADX * 2) / (n - 1))), (H - PADB) - ((p.v - lo) / (hi - lo)) * (H - PADT - PADB)];
+    });
+    var d = xy.map(function (c, i) { return (i ? 'L' : 'M') + c[0].toFixed(1) + ' ' + c[1].toFixed(1); }).join(' ');
+    var svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'bigchart'); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    function add(tag, attrs, txt) { var e = document.createElementNS(NS, tag); Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); }); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; }
+    add('path', { class: 'bc-area', d: d + ' L' + xy[n - 1][0].toFixed(1) + ' ' + (H - PADB) + ' L' + xy[0][0].toFixed(1) + ' ' + (H - PADB) + ' Z' });
+    add('path', { class: 'bc-line', d: d });
+    xy.forEach(function (c, i) { add('circle', { class: i === n - 1 ? 'bc-dot bc-now' : 'bc-dot', cx: c[0].toFixed(1), cy: c[1].toFixed(1), r: i === n - 1 ? 4 : 2.4 }); });
+    add('text', { class: 'bc-val', x: (xy[n - 1][0] > W - 46 ? xy[n - 1][0] - 6 : xy[n - 1][0] + 6).toFixed(1),
+      y: Math.max(13, xy[n - 1][1] - 7).toFixed(1), 'text-anchor': xy[n - 1][0] > W - 46 ? 'end' : 'start' }, vs[n - 1] + u);
+    var wrap = el('div', 'bc-wrap'); wrap.appendChild(svg);
+    var up = Math.round((vs[n - 1] - vs[0]) * 10) / 10;
+    var cap = el('div', 'bc-cap');
+    cap.textContent = fmtHistDate(pts[0].date) + ' → ' + fmtHistDate(pts[n - 1].date) + (up > 0 ? '   ▲ up ' + up + u : '');
+    wrap.appendChild(cap);
     return wrap;
   }
 

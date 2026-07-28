@@ -939,6 +939,26 @@ body.has-tbar #app { padding-bottom: 128px; }
 .spark-now { fill: var(--bp); stroke: var(--card); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .spark-cap { margin-top: 4px; font-size: var(--fs-12); color: var(--muted); }
 
+/* Profile tap-open detail — the Everfit-style history: a bigger 1RM chart + a card per session. */
+.p-more { align-self: flex-start; border: 1px solid var(--line); background: var(--white); color: var(--bp);
+  font-weight: 700; font-size: var(--fs-13); padding: 6px 12px; border-radius: var(--r-9); }
+.p-detail { margin-top: 8px; display: flex; flex-direction: column; gap: var(--sp-8); }
+.p-detail-note { color: var(--muted); font-size: var(--fs-13); padding: 10px; text-align: center; }
+.bigchart { width: 100%; height: 150px; display: block; }
+.bc-area { fill: var(--bp-tint); stroke: none; }
+.bc-line { fill: none; stroke: var(--bp); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.bc-dot { fill: var(--bp); }
+.bc-now { fill: var(--bp); stroke: var(--white); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.bc-val { fill: var(--ink); font-size: 13px; font-weight: 800; }
+.bc-cap { margin-top: 2px; font-size: var(--fs-12); color: var(--muted); text-align: center; }
+.p-sess { border: 1px solid var(--line); border-radius: var(--r-9); padding: 8px 10px; }
+.p-sess-h { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); }
+.p-sess-d { font-weight: 800; font-size: var(--fs-13); }
+.p-sess-s { display: flex; gap: 10px; font-size: var(--fs-12); color: var(--muted); }
+.p-sess-1rm { font-weight: 700; color: var(--bp); }
+.p-sess-sets { display: flex; flex-wrap: wrap; gap: var(--sp-6, 6px); margin-top: 6px; }
+.p-sess-set { font-size: var(--fs-12); color: var(--ink); background: var(--bp-tint); border-radius: var(--r-8); padding: 2px 7px; }
+
 /* Swap search (DONE.md #19) — the way out when the curated alternates do not cover the gym you are
    standing in. Sits BELOW Phil's reason-tagged list, which stays the first thing offered. */
 .swap-find { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }

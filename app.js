@@ -1816,7 +1816,20 @@
         }
         if (!isCurrent(mine)) return;
         if (!data.ok) { if (!cachedWk) show('Access denied — check your link.', 'err'); return; }
-        if (!data.sessions || !data.sessions.length) { if (!cachedWk) show('No workouts scheduled yet.'); return; }
+        if (!data.sessions || !data.sessions.length) {
+          if (!cachedWk) {
+            // A not-yet-started athlete (Grace, June) has no program until their start date — tell them
+            // WHEN it begins instead of a bare "no workouts" (Phil 2026-07-28). Past/absent start -> generic.
+            var sd = data.start_date, today2 = todayISO();
+            if (sd && sd > today2) {
+              var p2 = String(sd).split('-'), dd = new Date(+p2[0], +p2[1] - 1, +p2[2]);
+              var mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dd.getMonth()];
+              var dow = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dd.getDay()];
+              show('Your program starts ' + dow + ', ' + mon + ' ' + dd.getDate() + '. See you then! 💪');
+            } else { show('No workouts scheduled yet.'); }
+          }
+          return;
+        }
         renderCalendar(data.sessions);
       }).catch(function () { if (!cachedWk && isCurrent(mine)) show('Offline — reconnect to see your plan.', 'err'); });
   }

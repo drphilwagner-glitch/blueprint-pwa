@@ -882,21 +882,32 @@ body.has-tbar #app { padding-bottom: 128px; }
   border-radius: var(--r-10); background: var(--white); font-size: var(--fs-14); font-weight: 700; color: var(--bp); }
 .p-rest[hidden] { display: none; }
 
-/* ---- BY QUALITY as a radar (Phil: "six things is useless... a radar graph to visually show this") ---- */
-.p-radar { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-14);
-  padding: 14px 12px 10px; margin-bottom: var(--sp-12); }
-.radar-svg { display: block; width: 100%; max-width: 100%; height: auto; margin: 2px auto 0; }
-.radar-ring { fill: none; stroke: var(--line); stroke-width: 1; }
-.radar-ring.outer { stroke: var(--line-hard); }
-.radar-spoke { stroke: var(--line); stroke-width: 1; }
-.radar-shape { fill: color-mix(in srgb, var(--bp) 22%, transparent); stroke: var(--bp); stroke-width: 2;
-  stroke-linejoin: round; }
-.radar-dot { fill: var(--bp); }
-.radar-label { font-size: 17px; font-weight: 700; fill: var(--muted);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+/* ---- BY QUALITY as a LADDER (Phil 2026-07-28: the radar's 9 discrete rungs "can't show anything";
+   fill to the weakest lift's exact rung+fraction so 4.1 and 4.9 read differently) ---- */
+.ladder { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-14);
+  padding: 14px 12px 12px; margin-bottom: var(--sp-12); }
+.ladder-h { font-size: var(--fs-11); font-weight: 800; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--muted); margin-bottom: 12px; }
+.ldr-row { display: grid; grid-template-columns: 92px 1fr 34px; align-items: center; gap: 10px; margin-bottom: 6px; }
+.ldr-row.empty { opacity: .45; }
+.ldr-lab { display: flex; flex-direction: column; line-height: 1.12; }
+.ldr-lab-1 { font-size: var(--fs-11); font-weight: 700; color: var(--muted); }
+.ldr-lab-2 { font-size: var(--fs-13); font-weight: 800; color: var(--ink); }
+.ldr-track { position: relative; height: 16px; background: var(--surface-3); border: 1px solid var(--line);
+  border-radius: 8px; overflow: hidden; }
+/* ticks sit ABOVE the fill so all 9 rungs stay countable; difference-blend keeps them visible on both
+   the dark fill and the light track (white-on-difference reads light over blue, dark over grey). */
+.ldr-tick { position: absolute; top: 2px; bottom: 2px; width: 1px; background: #fff;
+  mix-blend-mode: difference; opacity: .45; z-index: 3; }
+.ldr-tick.block { opacity: .85; width: 1.5px; }
+.ldr-fill { position: absolute; top: 0; bottom: 0; left: 0; z-index: 2;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bp) 62%, white), var(--bp));
+  border-radius: 8px 0 0 8px; }
+.ldr-badge { font-size: var(--fs-12); font-weight: 800; color: var(--bp); text-align: right; }
+.ldr-sets { grid-column: 1 / -1; font-size: var(--fs-11); color: var(--muted); margin: -2px 0 8px 102px; }
+.ladder-cap { font-size: var(--fs-10); color: var(--muted); margin-top: 6px; line-height: 1.35; }
 .hdr-dur { font-size: var(--fs-13); font-weight: 800; color: var(--white);
   opacity: .95; margin-top: 2px; letter-spacing: .2px; }
-.radar-legend { text-align: center; font-size: var(--fs-10); color: var(--muted); margin-top: 4px; }
 
 /* Play-on-demand: the overlay opens EMPTY with a button; the embed is built only on that tap. */
 .vstage { display: flex; align-items: center; justify-content: center; width: 100%; }
@@ -956,8 +967,12 @@ body.has-tbar #app { padding-bottom: 128px; }
 .p-sess-d { font-weight: 800; font-size: var(--fs-13); }
 .p-sess-s { display: flex; gap: 10px; font-size: var(--fs-12); color: var(--muted); }
 .p-sess-1rm { font-weight: 700; color: var(--bp); }
-.p-sess-sets { display: flex; flex-wrap: wrap; gap: var(--sp-6, 6px); margin-top: 6px; }
-.p-sess-set { font-size: var(--fs-12); color: var(--ink); background: var(--bp-tint); border-radius: var(--r-8); padding: 2px 7px; }
+.p-sess-tbl { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: var(--fs-13); }
+.p-sess-tbl th { text-align: right; font-size: var(--fs-12); font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .3px; padding: 2px 8px; border-bottom: 1px solid var(--line); }
+.p-sess-tbl th:first-child, .p-sess-tbl td:first-child { text-align: left; color: var(--muted); }
+.p-sess-tbl td { text-align: right; padding: 3px 8px; color: var(--ink); }
+.p-sess-tbl tr:not(:last-child) td { border-bottom: 1px solid var(--bp-tint); }
 
 /* Swap search (DONE.md #19) — the way out when the curated alternates do not cover the gym you are
    standing in. Sits BELOW Phil's reason-tagged list, which stays the first thing offered. */

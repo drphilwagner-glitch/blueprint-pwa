@@ -2216,7 +2216,11 @@
       .then(function (d) {
         panel.innerHTML = '';
         var days = (d && d.ok && d.days) || [];
-        if (!days.length) { panel.appendChild(el('div', 'p-detail-note', 'No history yet — log a set and it shows here.')); return; }
+        // LAST 2 MONTHS (Phil 2026-07-28: "the last two months is fine"). No date-range selector; a
+        // fixed 60-day window keeps the graph sensational and the list short.
+        var cut = new Date(); cut.setDate(cut.getDate() - 62); var cutStr = ymd(cut);
+        days = days.filter(function (day) { return String(day.date).slice(0, 10) >= cutStr; });
+        if (!days.length) { panel.appendChild(el('div', 'p-detail-note', 'No sets in the last two months.')); return; }
         // per-day best est-1RM (loaded) or best reps (bodyweight) -> the improvement line
         var pts = days.map(function (day) {
           var best = null, loaded = false;
@@ -2244,8 +2248,24 @@
           st.appendChild(el('span', 'p-sess-vol', 'Vol ' + Math.round(vol) + (loaded ? ' lb' : ' reps')));
           head.appendChild(st);
           c.appendChild(head);
-          var tbl = el('div', 'p-sess-sets');
-          sets.forEach(function (s) { tbl.appendChild(el('span', 'p-sess-set', fmtHistSet(s))); });
+          // Set-by-set table like Everfit (SET · LB · REPS), cleaner than "lb x reps". A loaded lift
+          // shows the LB column; a bodyweight lift is SET · REPS. %1RM / PR stars / level tag dropped
+          // per Phil 2026-07-28.
+          var tbl = el('table', 'p-sess-tbl');
+          var htr = el('tr', 'p-sess-thr');
+          htr.appendChild(el('th', '', 'Set'));
+          if (loaded) htr.appendChild(el('th', '', 'lb'));
+          htr.appendChild(el('th', '', 'reps'));
+          tbl.appendChild(htr);
+          sets.forEach(function (s, i) {
+            var l = Number(s.load), rp = Number(s.reps);
+            var tr = el('tr', '');
+            var setLbl = String(s.set || (i + 1)) + (s.side ? ' ' + s.side : '');
+            tr.appendChild(el('td', '', setLbl));
+            if (loaded) tr.appendChild(el('td', '', (s.load !== '' && s.load != null && !isNaN(l)) ? String(l) : '—'));
+            tr.appendChild(el('td', '', (s.reps !== '' && s.reps != null && !isNaN(rp)) ? String(rp) : '—'));
+            tbl.appendChild(tr);
+          });
           c.appendChild(tbl);
           panel.appendChild(c);
         });
@@ -2326,76 +2346,69 @@
     return wrap;
   }
 
-  // ---- radar chart for the six training qualities ----
-  // Axis labels are SPELLED OUT. Phil: "no one knows what lower body LE max is. That's internal.
-  // Should be lower body max strength." LE/UE are coach shorthand from the Workbook — an athlete has
-  // never seen them. Two short lines fit a 390px phone; abbreviating to save pixels was me optimising
-  // the wrong thing.
-  function qualityLines(label) {
-    var t = String(label || '').replace(/-/g, ' ');
-    var m = t.match(/^(lower body|upper body)\s+(.*)$/i);
-    return m ? [m[1], m[2]] : [t];
-  }
-  function radarCard(cats) {
-    var card = el('div', 'p-radar');
-    card.appendChild(el('div', 'p-cats-h', 'By quality'));
-    // Wider than tall: the left/right labels ("UE max", "LE end") sit outside the ring and were
-    // clipped by a square viewBox. The polygon stays centred; only the canvas got room.
-    // Phil, twice: "the font on the quality radar graph is too small. You can barely see lower body
-    // relative strength." The labels were 10px inside a 390-wide viewBox squeezed into a 320px box —
-    // about 8px on the phone. Widening the canvas lets the type grow AND scale down less.
-    var N = cats.length, W = 470, H = 300, CX = W / 2, CY = H / 2, R = 62;
-    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-    svg.setAttribute('class', 'radar-svg');
-    function mk(tag, attrs) {
-      var n = document.createElementNS('http://www.w3.org/2000/svg', tag);
-      Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); });
-      return n;
-    }
-    // angle for axis i, starting at 12 o'clock
-    function pt(i, rad) {
-      var a = (Math.PI * 2 * i / N) - Math.PI / 2;
-      return [CX + Math.cos(a) * rad, CY + Math.sin(a) * rad];
-    }
-    // rings at each BLOCK boundary (level 1, 2, 3) so the shape reads against the ladder
-    [1 / 3, 2 / 3, 1].forEach(function (f, idx) {
-      var pts = [];
-      for (var i = 0; i < N; i++) { var p = pt(i, R * f); pts.push(p[0].toFixed(1) + ',' + p[1].toFixed(1)); }
-      svg.appendChild(mk('polygon', { points: pts.join(' '), class: 'radar-ring' + (idx === 2 ? ' outer' : '') }));
+  // ---- the LADDER: six training qualities as filled rungs ----
+  // Phil 2026-07-28 replaced the radar with this: "the radar is not granular enough to show anything
+  // because there are only nine options... people can't really identify if they're really that much
+  // better in one area versus another." A radar plots each quality at one of 9 discrete rungs — two
+  // athletes both on rung 4 draw the same shape. The ladder fills to the WEAKEST lift's exact position
+  // (rung + how far it has climbed toward the next, the existing clearance math), so a bar at 4.1 and a
+  // bar at 4.9 read differently. The label shown is that weakest lift's level, because a quality's
+  // level is the MINIMUM of its member lifts — never an average (S20 spec, the rule that matters most).
+  //
+  // The six labels + their order are FIXED and spelled out (LE/UE is coach shorthand no athlete has
+  // seen); the mapping to Workbook tier classes is the server's (_tierCategory_), read not hardcoded.
+  // Conditioning qualities slot in later by adding to this list — no layout change.
+  var LADDER_ORDER = [
+    { key: 'Upper Body Max',            label: 'Upper body max strength' },
+    { key: 'Lower Body Max',            label: 'Lower body max strength' },
+    { key: 'Upper Body Relative',       label: 'Upper body relative strength' },
+    { key: 'Lower Body Relative',       label: 'Lower body relative strength' },
+    { key: 'Upper Body Str Endurance',  label: 'Upper body strength endurance' },
+    { key: 'Lower Body Str Endurance',  label: 'Lower body strength endurance' }
+  ];
+  function ladderCard(cats) {
+    var byKey = {};
+    (cats || []).forEach(function (c) { byKey[c.category] = c; });
+    // The ceiling is DATA (server sends orderMax = the highest rung Level Standards define). Hardcoding 9
+    // meant an advanced kid pegged near full and extending the sheet would silently overflow the bar; now
+    // the bars rescale the moment Phil adds level-4 rungs. Round to a multiple of 3 so every level is a
+    // whole block of three steps.
+    var OM = 9;
+    (cats || []).forEach(function (c) { if (c && c.orderMax) OM = Math.max(OM, Number(c.orderMax)); });
+    OM = Math.max(3, Math.round(OM / 3) * 3);
+    var card = el('div', 'ladder');
+    card.appendChild(el('div', 'ladder-h', 'By quality'));
+    LADDER_ORDER.forEach(function (q) {
+      var c = byKey[q.key];
+      var row = el('div', 'ldr-row' + (c ? '' : ' empty'));
+      // label (two lines: "Upper body" / "max strength" — fits a 390px phone without shrinking type)
+      var lab = el('div', 'ldr-lab');
+      var m = q.label.match(/^(upper body|lower body)\s+(.*)$/i);
+      if (m) { lab.appendChild(el('span', 'ldr-lab-1', m[1])); lab.appendChild(el('span', 'ldr-lab-2', m[2])); }
+      else { lab.appendChild(el('span', 'ldr-lab-2', q.label)); }
+      row.appendChild(lab);
+      // the track: OM rung ticks, continuous fill to the weakest lift's exact rung+fraction
+      var track = el('div', 'ldr-track');
+      for (var i = 1; i < OM; i++) {
+        var tk = el('div', 'ldr-tick' + (i % 3 === 0 ? ' block' : ''));   // heavier at each level boundary
+        tk.style.left = (i / OM * 100) + '%'; track.appendChild(tk);
+      }
+      if (c) {
+        var pos = c.maxed && c.n === c.maxed ? OM : Math.min(OM, (Number(c.order) || 0) + (Number(c.frac) || 0));
+        var fill = el('div', 'ldr-fill'); fill.style.width = (pos / OM * 100) + '%';
+        track.appendChild(fill);
+      }
+      row.appendChild(track);
+      // the level badge (the weakest lift's level — the quality's real level)
+      row.appendChild(el('div', 'ldr-badge', c ? ('L' + c.low) : '—'));
+      card.appendChild(row);
+      // which lift sets this level — the one thing a coach acts on
+      if (c && c.sets_level) {
+        var who = (c.sets_level_variant && c.sets_level_variant !== c.sets_level) ? c.sets_level_variant : c.sets_level;
+        card.appendChild(el('div', 'ldr-sets', who + ' sets this level'));
+      }
     });
-    for (var i = 0; i < N; i++) {
-      var e = pt(i, R);
-      svg.appendChild(mk('line', { x1: CX, y1: CY, x2: e[0].toFixed(1), y2: e[1].toFixed(1), class: 'radar-spoke' }));
-    }
-    // the athlete's shape
-    var poly = [], dots = [];
-    cats.forEach(function (c, i) {
-      var frac = Math.max(0.06, Math.min(1, (Number(c.order) || 0) / (Number(c.orderMax) || 9)));
-      var p = pt(i, R * frac);
-      poly.push(p[0].toFixed(1) + ',' + p[1].toFixed(1));
-      dots.push(p);
-    });
-    svg.appendChild(mk('polygon', { points: poly.join(' '), class: 'radar-shape' }));
-    dots.forEach(function (p) { svg.appendChild(mk('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: 3, class: 'radar-dot' })); });
-    // labels outside the ring
-    cats.forEach(function (c, i) {
-      var p = pt(i, R + 18);
-      var lines = qualityLines(c.label);
-      var anchor = p[0] < CX - 6 ? 'end' : (p[0] > CX + 6 ? 'start' : 'middle');
-      var t = mk('text', { x: p[0].toFixed(1), y: p[1].toFixed(1), class: 'radar-label' });
-      t.setAttribute('text-anchor', anchor);
-      t.setAttribute('dominant-baseline', 'middle');
-      lines.forEach(function (ln, li) {
-        var ts = mk('tspan', { x: p[0].toFixed(1), dy: (li === 0 ? (lines.length > 1 ? '-0.5em' : '0') : '1.1em') });
-        ts.textContent = ln;
-        t.appendChild(ts);
-      });
-      svg.appendChild(t);
-    });
-    card.appendChild(svg);
-    var legend = el('div', 'radar-legend', 'outer edge = level 3.3 · rings are levels 1, 2, 3');
-    card.appendChild(legend);
+    card.appendChild(el('div', 'ladder-cap', 'Each bar fills to your weakest lift in that quality — that’s the level. ' + OM + ' rungs: levels 1–' + (OM / 3) + ' × three steps each.'));
     return card;
   }
 
@@ -2439,7 +2452,7 @@
     // the athlete cares. Plotted on LEVEL ORDER 1..9 (1.1=1 ... 3.3=9) — the real ladder position.
     // Hand-built SVG: no library, works offline, and it is ~40 lines.
     if (categories && categories.length >= 3) {
-      app.appendChild(radarCard(categories));
+      app.appendChild(ladderCard(categories));
     } else if (categories && categories.length) {
       var cw = el('div', 'p-cats');
       cw.appendChild(el('div', 'p-cats-h', 'By quality'));

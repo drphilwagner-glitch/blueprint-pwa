@@ -905,7 +905,6 @@ body.has-tbar #app { padding-bottom: 128px; }
   border-radius: 8px 0 0 8px; }
 .ldr-badge { font-size: var(--fs-12); font-weight: 800; color: var(--bp); text-align: right; }
 .ldr-sets { grid-column: 1 / -1; font-size: var(--fs-11); color: var(--muted); margin: -2px 0 8px 102px; }
-.ladder-cap { font-size: var(--fs-10); color: var(--muted); margin-top: 6px; line-height: 1.35; }
 .hdr-dur { font-size: var(--fs-13); font-weight: 800; color: var(--white);
   opacity: .95; margin-top: 2px; letter-spacing: .2px; }
 
@@ -963,6 +962,9 @@ body.has-tbar #app { padding-bottom: 128px; }
 .bc-val { fill: var(--ink); font-size: 13px; font-weight: 800; }
 .bc-cap { margin-top: 2px; font-size: var(--fs-12); color: var(--muted); text-align: center; }
 .p-sess { border: 1px solid var(--line); border-radius: var(--r-9); padding: 8px 10px; }
+/* a session that set a new best 1RM — bolded + starred so PRs stand out in the volume history */
+.p-sess.pr { border-color: var(--bp); background: var(--bp-tint); }
+.p-sess.pr .p-sess-d { color: var(--bp); }
 .p-sess-h { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); }
 .p-sess-d { font-weight: 800; font-size: var(--fs-13); }
 .p-sess-s { display: flex; gap: 10px; font-size: var(--fs-12); color: var(--muted); }

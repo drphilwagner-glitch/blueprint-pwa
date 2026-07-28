@@ -2207,7 +2207,24 @@
   }
 
   var _est1rm = function (load, reps) { return (load > 0 && reps > 0) ? Math.round(load * (1 + reps / 30)) : null; };
-  // The tap-to-open history: a large 1RM chart + one card per session (est 1RM, volume, and every set).
+  // The tap-to-open history: a VOLUME (tonnage) chart + one card per session. Phil 2026-07-28: "it's
+  // best to graph tonnage rather than 1RM, and then bold and star the row where it's a 1RM in the
+  // history. The graph should not be a 1RM. It should be the volume." Volume is the honest progress
+  // signal across variant changes (a harder Dip variant lowers reps but the 1RM chart read as
+  // "getting worse"); the PR star still marks where a new best 1RM landed.
+  function _sessVol(sets) {   // tonnage: load×reps for loaded sets, reps for bodyweight (warm-ups included)
+    var v = 0; (sets || []).forEach(function (s) {
+      var l = Number(s.load), rp = Number(s.reps);
+      if (l > 0) v += l * (rp || 0); else if (rp > 0) v += rp;
+    }); return Math.round(v);
+  }
+  function _sess1rm(sets) {   // best est-1RM in a session (reps for bodyweight) — used only to flag PRs
+    var best = null; (sets || []).forEach(function (s) {
+      var l = Number(s.load), rp = Number(s.reps);
+      var e = (l > 0 && rp > 0) ? _est1rm(l, rp) : (rp > 0 ? rp : null);
+      if (e != null && (best == null || e > best)) best = e;
+    }); return best;
+  }
   function loadProfileDetail(x, panel) {
     panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Loading…'));
     fetch(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
@@ -2215,42 +2232,56 @@
       .then(function (r) { return r.json(); })
       .then(function (d) {
         panel.innerHTML = '';
-        var days = (d && d.ok && d.days) || [];
-        // LAST 2 MONTHS (Phil 2026-07-28: "the last two months is fine"). No date-range selector; a
-        // fixed 60-day window keeps the graph sensational and the list short.
+        var all = (d && d.ok && d.days) || [];   // newest-first; server already dropped flagged outliers
+        if (!all.length) { panel.appendChild(el('div', 'p-detail-note', 'No history yet.')); return; }
+        // WINDOW: last 2 months if the lift was trained recently (Phil: "the last two months is fine"),
+        // otherwise fall back to the most recent sessions — a lift not done in months (Bent Row) must
+        // still show its trajectory, not an empty "no sets in two months".
         var cut = new Date(); cut.setDate(cut.getDate() - 62); var cutStr = ymd(cut);
-        days = days.filter(function (day) { return String(day.date).slice(0, 10) >= cutStr; });
-        if (!days.length) { panel.appendChild(el('div', 'p-detail-note', 'No sets in the last two months.')); return; }
-        // per-day best est-1RM (loaded) or best reps (bodyweight) -> the improvement line
-        var pts = days.map(function (day) {
-          var best = null, loaded = false;
-          (day.sets || []).forEach(function (s) {
-            var l = Number(s.load), rp = Number(s.reps);
-            if (l > 0) { loaded = true; var e = _est1rm(l, rp); if (e != null && (best == null || e > best)) best = e; }
-            else if (rp > 0 && (best == null || rp > best)) best = rp;
+        var recent = all.filter(function (day) { return String(day.date).slice(0, 10) >= cutStr; });
+        var stale = recent.length === 0;
+        var days = recent.length ? recent : all.slice(0, 14);
+        // CURRENT VARIANT ONLY (Phil 2026-07-28: "elevator dips not dips"). A harder variant means fewer
+        // reps, which reads as regression when every variant is mashed together. The server now resolves
+        // each day's variant to the canonical Workbook name (workbook_name), so this is an EXACT match to
+        // the current variant — no keywords. Generic/parent-named days (Blueprint logs) count as current.
+        var cur = String(x.variant || '').trim().toLowerCase();
+        var pname = String(x.name || '').trim().toLowerCase();
+        if (cur) {
+          var sameVar = days.filter(function (day) {
+            var dv = String(day.variant || '').trim().toLowerCase();
+            return !dv || dv === cur || dv === pname;
           });
-          return { date: day.date, v: best };
-        }).filter(function (p) { return p.v != null; }).reverse();   // oldest -> newest for the chart
-        if (pts.length >= 2) panel.appendChild(bigChart(pts, x.best_one_unit));
+          if (sameVar.length >= 2 && sameVar.length < days.length) days = sameVar;
+        }
+        // Loaded or bodyweight? Infer from the DATA (Dips is reps-only — never show it in lb).
+        var loaded = days.some(function (day) { return (day.sets || []).some(function (s) { return Number(s.load) > 0; }); });
+        var vunit = loaded ? 'lb' : 'reps';
+        // the improvement line is VOLUME per session, oldest -> newest
+        var pts = days.map(function (day) { return { date: day.date, v: _sessVol(day.sets) }; })
+          .filter(function (p) { return p.v > 0; }).reverse();
+        if (pts.length >= 2) panel.appendChild(bigChart(pts, vunit, 'Volume'));
+        if (stale) panel.appendChild(el('div', 'p-detail-note', 'Not trained in the last two months — showing your most recent sessions.'));
+        // PR flag: walk oldest -> newest, mark each session that set a NEW best est-1RM. That session's
+        // card is bolded and starred (Phil: "bold and star the row where it's a 1RM").
+        var pr = {}, run = -Infinity;
+        days.slice().reverse().forEach(function (day) {
+          var o = _sess1rm(day.sets);
+          if (o != null && o > run + 1e-9) { run = o; pr[String(day.date).slice(0, 10)] = o; }
+        });
         // one card per session (days come newest-first from the server)
         days.forEach(function (day) {
-          var sets = day.sets || [], oneRM = null, vol = 0, loaded = false;
-          sets.forEach(function (s) {
-            var l = Number(s.load), rp = Number(s.reps);
-            if (l > 0) { loaded = true; vol += l * (rp || 0); var e = _est1rm(l, rp); if (e != null && (oneRM == null || e > oneRM)) oneRM = e; }
-            else if (rp > 0) { vol += rp; }
-          });
-          var c = el('div', 'p-sess');
+          var sets = day.sets || [], isPR = !!pr[String(day.date).slice(0, 10)];
+          var c = el('div', 'p-sess' + (isPR ? ' pr' : ''));
           var head = el('div', 'p-sess-h');
-          head.appendChild(el('span', 'p-sess-d', fmtHistDate(day.date)));
+          var dcell = el('span', 'p-sess-d', (isPR ? '⭐ ' : '') + fmtHistDate(day.date));
+          head.appendChild(dcell);
           var st = el('span', 'p-sess-s');
-          if (oneRM != null) st.appendChild(el('span', 'p-sess-1rm', (loaded ? oneRM + ' lb' : oneRM + ' reps') + ' 1RM'));
-          st.appendChild(el('span', 'p-sess-vol', 'Vol ' + Math.round(vol) + (loaded ? ' lb' : ' reps')));
+          if (isPR) st.appendChild(el('span', 'p-sess-1rm', (loaded ? pr[String(day.date).slice(0, 10)] + ' lb' : pr[String(day.date).slice(0, 10)] + ' reps') + ' best'));
+          st.appendChild(el('span', 'p-sess-vol', 'Vol ' + _sessVol(sets) + (loaded ? ' lb' : ' reps')));
           head.appendChild(st);
           c.appendChild(head);
-          // Set-by-set table like Everfit (SET · LB · REPS), cleaner than "lb x reps". A loaded lift
-          // shows the LB column; a bodyweight lift is SET · REPS. %1RM / PR stars / level tag dropped
-          // per Phil 2026-07-28.
+          // Set-by-set table (SET · LB · REPS for loaded; SET · REPS for bodyweight).
           var tbl = el('table', 'p-sess-tbl');
           var htr = el('tr', 'p-sess-thr');
           htr.appendChild(el('th', '', 'Set'));
@@ -2320,7 +2351,7 @@
 
   // A LARGER, labelled 1RM chart for the tap-open detail (Everfit-style): area fill, dots, the latest
   // value called out, and a date span + total gain caption. The point is progress you can't miss.
-  function bigChart(pts, unit) {
+  function bigChart(pts, unit, metric) {
     var isLb = !/rep/i.test(String(unit || 'lb'));
     var u = isLb ? ' lb' : ' reps';
     var vs = pts.map(function (p) { return p.v; });
@@ -2341,7 +2372,7 @@
     var wrap = el('div', 'bc-wrap'); wrap.appendChild(svg);
     var up = Math.round((vs[n - 1] - vs[0]) * 10) / 10;
     var cap = el('div', 'bc-cap');
-    cap.textContent = fmtHistDate(pts[0].date) + ' → ' + fmtHistDate(pts[n - 1].date) + (up > 0 ? '   ▲ up ' + up + u : '');
+    cap.textContent = (metric ? metric + ' · ' : '') + fmtHistDate(pts[0].date) + ' → ' + fmtHistDate(pts[n - 1].date) + (up > 0 ? '   ▲ up ' + up + u : '');
     wrap.appendChild(cap);
     return wrap;
   }
@@ -2408,7 +2439,8 @@
         card.appendChild(el('div', 'ldr-sets', who + ' sets this level'));
       }
     });
-    card.appendChild(el('div', 'ladder-cap', 'Each bar fills to your weakest lift in that quality — that’s the level. ' + OM + ' rungs: levels 1–' + (OM / 3) + ' × three steps each.'));
+    // No caption. Phil 2026-07-28: "it should show nothing... The better things need to be pictures.
+    // People know that further right is better." The bars are self-explanatory; words under them are noise.
     return card;
   }
 

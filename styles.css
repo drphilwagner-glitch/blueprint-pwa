@@ -381,7 +381,9 @@ span.ex-name.sub { text-decoration: none; display: block; }
 .move-opt { flex: 1 1 auto; min-height: 44px; padding: 0 10px; border: 1.5px solid var(--line);
   border-radius: var(--r-10); background: var(--white); font: inherit; font-weight: 600; color: var(--ink); }
 .move-any { display: flex; gap: var(--sp-6); align-items: center; }
-.move-any .move-date { flex: 1 1 auto; min-height: 44px; min-width: 0; border: 1.5px solid var(--line);
+/* flex-basis 0 + width 0, not auto: a date input's intrinsic width refuses to shrink, which pushed
+   the Move button 15px off a 390px screen (QA-NO-HSCROLL, 2026-07-30). */
+.move-any .move-date { flex: 1 1 0; width: 0; min-height: 44px; min-width: 0; border: 1.5px solid var(--line);
   border-radius: var(--r-10); padding: 0 8px; font: inherit; background: var(--white); }
 .move-any .move-go { flex: 0 0 auto; min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-10);
   background: var(--bp); color: var(--white); font: inherit; font-weight: 700; }

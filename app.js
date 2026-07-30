@@ -135,10 +135,12 @@
   // worse than none, because the one real crash arrives in a column he has learned to skip.
   var CRUMB_FRESH_S = 180;
   function crumbActionable(agoS) { return agoS != null && agoS >= 0 && agoS <= CRUMB_FRESH_S; }
+  var lastCrumb = null;   // what the app was doing before this load — the reload report needs it too
   try {
     var prev = localStorage.getItem(CRUMB);
     if (prev) {
       var p0 = {}; try { p0 = JSON.parse(prev); } catch (e) {}
+      lastCrumb = p0;
       var agoS = p0.t ? Math.round((Date.now() - p0.t) / 1000) : null;
       if (crumbActionable(agoS)) {
         reportError('unclean_exit', 'previous run ended without a clean exit while: ' + (p0.state || 'unknown'),
@@ -154,7 +156,13 @@
   var nav0 = null;
   try {
     nav0 = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
-    if (nav0 && nav0.type === 'reload') reportError('reload', 'app reloaded (possible iOS memory kill)', '', 'type=' + nav0.type);
+    // Include WHAT THE APP WAS DOING (the crash breadcrumb) — Phil's 07-29 pair of reloads arrived
+    // with no context ('type=reload' and nothing else), so a memory kill was a shrug instead of a
+    // diagnosis. With the crumb, the report reads 'while: opening a video', which is a lead.
+    if (nav0 && nav0.type === 'reload') {
+      var rCtx = lastCrumb ? (' while=' + (lastCrumb.state || 'unknown') + (lastCrumb.extra ? ' ' + lastCrumb.extra : '')) : '';
+      reportError('reload', 'app reloaded (possible iOS memory kill)', '', 'type=' + nav0.type + rCtx);
+    }
   } catch (e) {}
 
   // iOS evicts IndexedDB for sites it considers idle (roughly 7 days without a visit), and this

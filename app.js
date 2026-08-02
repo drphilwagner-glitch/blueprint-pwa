@@ -1479,6 +1479,11 @@
                               : ((m.reps != null ? m.reps : '?') + ' reps');
         var tail = m.leveled ? ' · leveled up 🎉'
           : (m.delta_pct != null && m.delta_pct > 0) ? ' · ▲ +' + m.delta_pct + '%' : '';
+        // HIT / SHORT vs today's prescription (Phil: the summary told him "nothing insightful" — this
+        // is the one feedback the rows already contain). Hit everything = a quiet check; short = the
+        // honest count, not a judgment.
+        if (m.of) tail += (m.hit === m.of) ? ' · target ' + m.hit + '/' + m.of + ' ✅'
+                                           : ' · short on ' + (m.of - m.hit) + ' of ' + m.of;
         app.appendChild(el('div', 'sum-row main', titleName(m.name || m.exercise) + ' — ' + result + tail));
       });
     }

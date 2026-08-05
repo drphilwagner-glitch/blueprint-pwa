@@ -898,12 +898,13 @@
         rest_s: oEx.rest_s, each_side: oEx.each_side,
         _alt_of: oEx, _alt_t: oT },
       t: { set_no: oT.set_no, kind: oT.kind,
-        // A `same` alternate keeps the reps & %s but NOT the original's weight — Back Squat -> Front
-        // Squat is the same prescription on a different bar, and Front Squat is the lighter lift. So the
-        // weight starts from the athlete's OWN best logged Front Squat + 5 (the #26 rule), or blank if
-        // he has never done it, for him to fill in (Phil 2026-07-24). It used to inherit oT.target_load
-        // (Back Squat's weight), which is what Phil reported.
-        target_load: same ? (Number(a.best_load) ? Number(a.best_load) + 5 : '')
+        // A `same` alternate serves the CURRENT RUNG'S DOSE VERBATIM — reps, %BW load, ramp — per set
+        // (design/EQUIPMENT-FLOOR.md, Phil 2026-08-05: "same = dose follows the athlete's current rung").
+        // oT is that rung's serve-time computation, so copying it per set IS the live rung read, warm-ups
+        // included. This SUPERSEDES the 2026-07-24 "own best + 5" rule that blanked the load: under the
+        // clearing law a same-swap (Back Squat for an SSB rung, Hex Bar for a barbell rung) must carry
+        // the rung's exact numbers — the sanctioned path clears with them, the mercy path just doses.
+        target_load: same ? oT.target_load
                           : (a.prefill_load != null ? a.prefill_load : ''),
         target_reps: altMax ? 'max' : (numReps == null ? oT.target_reps : numReps),
         duration_s: same ? oT.duration_s : (a.duration_s != null ? a.duration_s : null),
@@ -1713,7 +1714,88 @@
     });
   }
 
+  // ---- FIRST-TIME ESTIMATION INTAKE (design/EQUIPMENT-FLOOR.md; Phil 2026-08-05 #2) ---------------
+  // Phil, on seeing the attempt-by-attempt climb: "The individual knows already what they can do, so
+  // there shouldn't be a goal. It's like the opening screen, and that's it." So the baseline is ONE
+  // screen, once: for each zero-data ladder lift, "how many can you do?" at their floor variant — no
+  // goals shown, no attempt protocol, one Save. Each number is queued as a normal append-only log row
+  // with flag='climb|<variant>|<level>' — the same variant-attributed evidence channel the engine
+  // levels from — so the server needed no change when the screen did. One estimation clears at most
+  // the floor variant's rungs (+1 serve, or +2 on a 1.5x overshoot); the rungs above are earned by
+  // training. Reversal to the attempt-climb: restore this function from commit 0659006.
+  // DESIGN.md: rules 1-4 (one primary action = the single Save; reps is THE actual, touched before
+  // save — tapping the number asserts a real 0). Tokens vocabulary only.
+  function renderBaseline(s) {
+    clearTimerBar(s.session_id);
+    SESSION = s;
+    renderNav('wo');
+    meta.textContent = 'First time setup · ' + s.date;
+    app.innerHTML = '';
+    app.appendChild(el('div', 'ex-note', 'One-time setup — how many can you do?'));
+    var entries = [];
+    (s.climbs || []).forEach(function (c) {
+      var r = c.ladder[c.start_idx || 0] || c.ladder[0];
+      var card = el('section', 'slot open');
+      var head = el('div', 'slot-head');
+      head.appendChild(el('h2', 'slot-title', c.display_name || c.exercise));
+      card.appendChild(head);
+      var body = el('div', 'sets');
+      var row = el('div', 'ex-row');
+      row.appendChild(el('div', 'ex-name', r.variant));
+      if (r.video_url) {
+        var vid = el('a', 'ex-note', 'watch: ' + r.variant); vid.href = r.video_url; vid.target = '_blank';
+        row.appendChild(vid);
+      }
+      var lane = el('div', 'climb-lane');
+      var stepper = el('div', 'stepper');
+      var minus = el('button', 'step', '\u2212'); minus.type = 'button';
+      var count = el('span', 'val', '0');
+      var plus = el('button', 'step', '+'); plus.type = 'button';
+      stepper.appendChild(minus); stepper.appendChild(count); stepper.appendChild(plus);
+      var entry = { c: c, r: r, reps: 0, touched: false, stepper: stepper };
+      function bump(d) {
+        entry.reps = Math.max(0, entry.reps + d);
+        count.textContent = String(entry.reps);
+        entry.touched = true; stepper.classList.add('confirmed'); refresh();
+      }
+      minus.addEventListener('click', function () { bump(-1); });
+      plus.addEventListener('click', function () { bump(+1); });
+      count.addEventListener('click', function () { entry.touched = true; stepper.classList.add('confirmed'); refresh(); });   // a deliberate 0
+      lane.appendChild(stepper);
+      row.appendChild(lane);
+      body.appendChild(row);
+      card.appendChild(body);
+      app.appendChild(card);
+      entries.push(entry);
+    });
+    var save = el('button', 'roundlog', 'Save'); save.type = 'button';
+    save.disabled = true;
+    app.appendChild(save);
+    var hint = el('div', 'ex-note', 'Tap each number (0 is fine) to confirm.');
+    app.appendChild(hint);
+    function refresh() {
+      var ready = entries.length && entries.every(function (e) { return e.touched; });
+      save.disabled = !ready;
+      save.textContent = ready ? 'Save' : 'Save (' + entries.filter(function (e) { return e.touched; }).length + '/' + entries.length + ')';
+    }
+    refresh();
+    save.addEventListener('click', function () {
+      if (save.disabled) return;
+      logRows(entries.map(function (e) {
+        return { log_id: uuid(), session_id: s.session_id, complex_name: 'Baseline',
+          exercise: e.c.exercise, set_no: 1, side: '', target_load: '', target_reps: '',
+          actual_load: '', actual_reps: e.reps, flag: 'climb|' + e.r.variant + '|' + e.r.level };
+      }));
+      app.innerHTML = '';
+      app.appendChild(el('div', 'ex-note', '\u2713 All set \u2014 your program is built from these.'));
+      var back2 = el('button', 'back', '\u2190 Calendar'); back2.type = 'button';
+      back2.addEventListener('click', function () { loadHome(); });
+      app.appendChild(back2);
+    });
+  }
+
   function render(s) {
+    if (s && s.baseline) return renderBaseline(s);
     clearTimerBar(s && (s.session_id || s.date));   // same session re-rendering keeps its live timer
     SESSION = s;
     ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};   // fresh registries per session render

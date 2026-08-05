@@ -59,6 +59,22 @@
     offline: 'No connection — reconnect and try again.',
     bad_args: 'Something was missing. Try again.'
   };
+  // JSON fetch with RETRY + an honest failure class. A throttled Apps Script answers with an HTML
+  // error page; r.json() threw and every caller's catch said "Offline" — Phil and Grace force-closed
+  // the app for what was a server hiccup (2026-08-05). Retries ride out the hiccup; 'server' vs
+  // 'offline' is decided by whether the network answered at all.
+  function fetchJson(url, tries) {
+    tries = (tries == null) ? 2 : tries;
+    return fetch(url).then(function (r) {
+      return r.text().then(function (txt) {
+        try { return JSON.parse(txt); } catch (e) { var er = new Error('server'); er._server = true; throw er; }
+      });
+    }).catch(function (err) {
+      if (tries > 0) return new Promise(function (res) { setTimeout(res, 1200); }).then(function () { return fetchJson(url, tries - 1); });
+      return { ok: false, error: (err && err._server) ? 'server' : 'offline' };
+    });
+  }
+  var SERVER_HICCUP = 'The server hiccuped — it usually clears in a moment. Tap again.';
   // ---- S18 NERVES: the device reports its own failures ----
   // Phil: "Phil should never be the sensor for something a tool could sense." Three cycles were spent
   // on "Back squat still crashed" that I could not reproduce on any engine — because the only
@@ -190,6 +206,7 @@
   function qStore(mode) { return idb().then(function (db) { return db.transaction('queue', mode).objectStore('queue'); }); }
   function qAdd(row) { return qStore('readwrite').then(function (s) { return new Promise(function (res) { s.put(row); s.transaction.oncomplete = res; }); }); }
   function qAll() { return qStore('readonly').then(function (s) { return new Promise(function (res) { var rq = s.getAll(); rq.onsuccess = function () { res(rq.result || []); }; }); }); }
+  try { window.BP_qCount = function () { return qAll().then(function (r) { return r.length; }); }; } catch (e) {}   // j20 asserts a tap really queued
   function qDel(ids) { return qStore('readwrite').then(function (s) { ids.forEach(function (id) { s['delete'](id); }); return new Promise(function (res) { s.transaction.oncomplete = res; }); }); }
   function updateBadge() {
     return qAll().then(function (rows) {
@@ -258,6 +275,13 @@
     function beep() {
       try {
         primeAudio(); if (!_ac) return;
+        if (_ac.state === 'suspended') { try { _ac.resume().then(function () { _tone(); }); } catch (eR) { _tone(); } }
+        else _tone();
+      } catch (e) {}
+      if (navigator.vibrate) { try { navigator.vibrate([200, 80, 200]); } catch (e) {} }
+    }
+    function _tone() {
+      try {
         var o = _ac.createOscillator(), g = _ac.createGain();
         o.type = 'sine'; o.frequency.value = 880; o.connect(g); g.connect(_ac.destination);
         g.gain.setValueAtTime(0.0001, _ac.currentTime);
@@ -265,13 +289,24 @@
         g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + 0.45);
         o.start(); o.stop(_ac.currentTime + 0.45);
       } catch (e) {}
-      if (navigator.vibrate) { try { navigator.vibrate([200, 80, 200]); } catch (e) {} }
     }
     // Phase banner. `sticky` = stays until the athlete taps it (the ROBUST cue: on iOS the ringer
     // switch mutes WebAudio, so a gym phone on silent gets NO beep — Phil got exactly this). A
     // banner that vanishes in 1.7s is missed if you glanced away; a persistent one can't be. Auto
     // (non-sticky) is kept for fast conditioning WORK<->REST flips where a tap-to-clear would nag.
     var _talert = null;
+    // MINI TOAST — for cues the athlete is already looking at (the button re-armed, the field
+    // flashed). Phil 2026-08-05 on the banner version: "giant blocks that take up the whole
+    // screen... way too big." A pill near the top, gone in ~2s; the chime/vibrate still fires.
+    var _mini = null;
+    function miniToast(text) {
+      try {
+        if (_mini) _mini.remove();
+        _mini = el('div', 'mini-toast', text);
+        document.body.appendChild(_mini);
+        setTimeout(function () { if (_mini) { _mini.remove(); _mini = null; } }, 2000);
+      } catch (e) {}
+    }
     // Phil 2026-07-18, on a real phone: "I can't get rid of it. When I click on Go, tap to dismiss, or
     // go to the next step, or anywhere, it just stays frozen. Unless that goes, the app won't go away."
     //
@@ -503,6 +538,7 @@
     if (!eachSide) return [row];
     var R = {}; for (var k in row) if (Object.prototype.hasOwnProperty.call(row, k)) R[k] = row[k];
     row.side = 'L'; R.side = 'R';
+    if (row.duration_s2 != null) { R.duration_s = row.duration_s2; delete row.duration_s2; delete R.duration_s2; }
     // A SEPARATE log_id. Idempotency is keyed on log_id (HARD rule 4), so sharing one would make the
     // server ack the R row as a duplicate and drop it — a silent half-log with no error anywhere.
     R.log_id = uuid();
@@ -1224,6 +1260,7 @@
       var l = mkLog(slot, ex.exercise, t, { load: '', reps: doneReps });
       if (!l) return;                         // athlete left the workout mid-interval; nothing to log
       l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';
+      if (arguments.length > 1 && arguments[1] != null && arguments[1] > 0) l.duration_s2 = arguments[1];
       LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, ex.exercise, t.set_no)] = true;
       logRows(splitSides(l, ex.each_side)); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
       // COLLAPSE. refocus() is what recomputes a round and folds it away once every row in it is done,
@@ -1235,8 +1272,23 @@
     check.addEventListener('click', function () {
       if (check.classList.contains('done') || check.disabled) return;
       if (check.classList.contains('holding')) return;   // same orphan-timer guard as the lifting row
+      if (check._side2arm) return;                     // armed for side 2 (each-side carry)
       if (t.work_s) startIntervals(check, t.target_reps || 1, t.work_s, t.rest_s || 0, logIt);
-      else if (t.duration_s) startHold(check, t.duration_s, function () { logIt(t.duration_s); });
+      else if (t.duration_s) {
+        if (ex.each_side) {
+          startHold(check, t.duration_s, function (h1) {
+            miniToast('Side 1 done — ▶ other side');
+            check.textContent = '▶2'; check._side2arm = true;
+            var second = function (ev) {
+              ev.stopPropagation();
+              if (check.classList.contains('holding') || check.classList.contains('done')) return;
+              check._side2arm = false; check.removeEventListener('click', second);
+              startHold(check, t.duration_s, function (h2) { logIt(h1, h2); });
+            };
+            check.addEventListener('click', second);
+          });
+        } else startHold(check, t.duration_s, function (h1) { logIt(h1); });
+      }
       else logIt('');
     });
     l1.appendChild(check);   // same as a lifting row: the action rides with the name
@@ -1255,7 +1307,7 @@
     // follow the SWAP: swapping Bulgarian Split Squat for a two-legged alternate has to stop writing
     // L/R rows, and the swap handler already carries the flag onto the new `ex` (see the alternates
     // branch above). Rebuilt from `ex` on every render, so there is nothing to keep in sync by hand.
-    var cur = { exercise: ex.exercise, video: ex.video_url, each_side: ex.each_side };
+    var cur = { exercise: ex.exercise, video: ex.video_url, each_side: ex.each_side, per_hand: ex.per_hand };
 
     // --- line 1: name · level goal .......... ⇄ Swap ---
     var l1 = el('div', 'l1');
@@ -1374,7 +1426,8 @@
     if (weighted) {
       var wStep = stepper(state, 'load', 2.5, '', '', critical === 'load' ? confirmActual : null, null, true);   // editable: tap-to-type the weight (B2)
       if (needsConfirm && critical === 'load') wStep.classList.add('unconfirmed');
-      aLabel = 'lb'; aNode = wStep;
+      aLabel = (cur.per_hand || ex.per_hand) ? 'lb per hand' : 'lb';   // a DB pair logs ONE hand's weight (Phil 2026-08-05)
+      aNode = wStep;
       if (isDur) { bLabel = 'time'; bNode = el('span', 'cv', t.duration_s + 's'); }   // carry: time is secondary
       else if (hasReps) { bLabel = 'reps'; bNode = repsStepper(); }
     } else if (isDur) {
@@ -1394,6 +1447,7 @@
       if (!log) return;
       // Log what was actually HELD, not what was prescribed — a carry stopped at 40s is a 40s carry.
       if (isDur) log.duration_s = (heldS != null && heldS > 0) ? heldS : t.duration_s;
+      if (isDur && arguments.length > 1 && arguments[1] != null && arguments[1] > 0) log.duration_s2 = arguments[1];
       lastLogId = log.log_id;
       LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)] = true;
       logRows(splitSides(log, cur.each_side));
@@ -1427,9 +1481,40 @@
       // it off... then I get a timer that it's done later. That shouldn't come up."
       if (check.classList.contains('holding')) return;   // the hold's own handler owns this tap
       if (check.classList.contains('done')) { uncheck(); return; }   // tap a done set again to undo
-      if (isDur) startHold(check, t.duration_s, function (heldS) { commit(heldS); }); else commit();
+      // A LOCKED button must never be a DEAD tap (Phil 2026-08-05, right after a swap: "I couldn't
+      // log my first set"). A real weight on screen: this tap ACCEPTS it and proceeds — it is
+      // editable either way. Blank or zero: say what's needed and keep the 0-lb guard.
+      if (check.classList.contains('locked')) {
+        if (state.load != null && state.load !== '' && Number(state.load) > 0) confirmActual();
+        else {
+          miniToast('Enter the weight first');
+          var wf = row.querySelector('.stepper.editable');
+          if (wf) { wf.classList.add('flash'); setTimeout(function () { wf.classList.remove('flash'); }, 1200);
+            var wi = wf.querySelector('input'); if (wi) { try { wi.focus(); } catch (eF) {} } }
+          return;
+        }
+      }
+      if (check._side2arm) return;                     // armed for side 2: its own listener owns this tap
+      if (isDur) {
+        if (cur.each_side) {
+          // TIMER OPTION 1 (Phil 2026-08-05): each side gets its OWN timer — the chime fires, the
+          // SAME button re-arms for the other side, and the set logs once with each side's real
+          // held seconds. Rest stays at the round level, so each side keeps its full rest.
+          startHold(check, t.duration_s, function (h1) {
+            miniToast('Side 1 done — ▶ other side');
+            check.textContent = '▶2'; check._side2arm = true;
+            var second = function (ev) {
+              ev.stopPropagation();
+              if (check.classList.contains('holding') || check.classList.contains('done')) return;
+              check._side2arm = false; check.removeEventListener('click', second);
+              startHold(check, t.duration_s, function (h2) { commit(h1, h2); });
+            };
+            check.addEventListener('click', second);
+          });
+        } else startHold(check, t.duration_s, function (heldS) { commit(heldS); });
+      } else commit();
     });
-    if (needsConfirm && isDur) { check.disabled = true; check.classList.add('locked'); }
+    if (needsConfirm && isDur) { check.classList.add('locked'); }   // visual lock only — a tap now answers instead of dying
     // Phil: "4 tiles is too much per row (goal, actual, reps, and checkmark) so maybe move checkmark
     // to be same row as exercise name and swap icon". So line 1 carries name + swap + ✓, and the
     // value line is down to three lanes.
@@ -1448,6 +1533,9 @@
     // full-width navigation control at the top was the loudest thing on a page about achievement.
     app.appendChild(el('h2', 'sum-h', 'Workout complete 💪'));
     app.appendChild(el('p', 'sum-sub', n + ' set' + (n === 1 ? '' : 's') + ' logged'));
+    // Something is ALWAYS shown as the day's best (Phil 2026-08-05) — the server picks the first
+    // true thing: level-up > tonnage PR > best session > strongest set > session count.
+    if (d && d.highlight) app.appendChild(el('p', 'sum-highlight', d.highlight));
     function block(title, items, cls) {
       if (!items || !items.length) return;
       app.appendChild(el('h3', 'sum-t ' + cls, title));
@@ -1826,8 +1914,12 @@
     var cachedWk = null;
     try { var raw = localStorage.getItem('bp_week_' + CACHE_V + '_' + athlete); cachedWk = raw ? JSON.parse(raw).sessions : null; } catch (e) {}
     if (cachedWk && cachedWk.length) renderCalendar(cachedWk); else show('Loading your plan…');
-    fetch(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
-      .then(function (r) { return r.json(); }).then(function (data) {
+    fetchJson(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+      .then(function (data) {
+        if (data && (data.error === 'offline' || data.error === 'server')) {
+          if (!cachedWk && isCurrent(mine)) show(data.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to see your plan.', 'err');
+          return;
+        }
         // Cache the week regardless — it is good data. Only DRAW if the athlete is still here.
         if (data.ok && data.sessions && data.sessions.length) {
           try { localStorage.setItem('bp_week_' + CACHE_V + '_' + athlete, JSON.stringify({ at: Date.now(), sessions: data.sessions })); } catch (e) {}
@@ -1849,7 +1941,7 @@
           return;
         }
         renderCalendar(data.sessions);
-      }).catch(function () { if (!cachedWk && isCurrent(mine)) show('Offline — reconnect to see your plan.', 'err'); });
+      });
   }
   // Calendar = a CURRENT-WEEK strip + a day list. Phil, after using the month grid: "the list is
   // probably better than the calendar above. I don't know why we have the calendar above." He was
@@ -2596,8 +2688,12 @@
     try { sessionStorage.setItem('bp_open_session', sessionId); } catch (e) {}
     var cached = cachedSession(sessionId);
     if (cached) { render(cached); } else { show('Loading…'); }
-    fetch(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))
-      .then(function (r) { return r.json(); }).then(function (data) {
+    fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))
+      .then(function (data) {
+        if (data && (data.error === 'offline' || data.error === 'server')) {
+          if (!cached) show(data.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to open this workout.', 'err');
+          return;
+        }
         if (!data.ok || !data.session) { if (!cached) show('No workout that day.'); return; }
         cacheSession(sessionId, data.session);
         // Re-render unless the athlete is actively logging over a cached paint. BUT a reopened session
@@ -2608,7 +2704,7 @@
           return (sl.exercises || []).some(function (e) { return e.logged && Object.keys(e.logged).length; });
         });
         if (!cached || !screenTouched() || srvLogged) render(data.session);
-      }).catch(function () { if (!cached) show('Offline — reconnect to open this workout.', 'err'); });
+      });
   }
 
   load();

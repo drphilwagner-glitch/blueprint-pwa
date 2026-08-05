@@ -110,6 +110,11 @@ body {
 /* post-workout summary */
 .sum-h { text-align: center; margin: 24px 0 4px; }
 .sum-sub { text-align: center; color: var(--muted); margin: 0 0 16px; }
+.sum-highlight { text-align: center; font-size: var(--fs-17); font-weight: 700; color: var(--ok); margin: -8px 0 16px; }
+.mini-toast { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 60;
+  background: var(--ok); color: #fff; font-size: var(--fs-13); font-weight: 700;
+  padding: 6px 14px; border-radius: 999px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.stepper.flash { outline: 2px solid var(--ok); outline-offset: 1px; }
 .sum-t { margin: 16px 0 6px; font-size: var(--fs-14); }
 .sum-t.up { color: var(--ok); } .sum-t.down { color: var(--warn); }
 .sum-row { padding: 10px 12px; border-radius: var(--r-8); background: var(--white); border: 1px solid var(--line); margin-bottom: 6px; font-size: var(--fs-14); }

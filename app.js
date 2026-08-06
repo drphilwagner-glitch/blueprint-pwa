@@ -913,6 +913,7 @@
   }
   // QA-05: apply the choice to EVERY set of that exercise in the session.
   function applySwapAll(key, a) {
+    try { setTimeout(function () { document.querySelectorAll('.round').forEach(function (rb) { syncRound(rb); }); }, 400); } catch (eSR) {}
     var entries = (ROW_REG[key] || []).slice();
     ROW_REG[key] = [];                      // the rebuilt rows re-register themselves
     entries.forEach(function (en) {
@@ -1465,6 +1466,8 @@
     // What the collapsed one-line form of this row says (rule 1). Reads live state, so a correction
     // shows the corrected numbers without a re-render.
     row._commit = commit; row._isDur = isDur;   // the round-level Log button drives these (rule 2b)
+    row._critVal = function () { return critical === 'reps' ? state.reps : (critical === 'load' ? state.load : 1); };
+    row._confirmActual = confirmActual;         // round-level accept-on-tap (2026-08-06)
     row._sum = function () {
       var v = isDur ? (t.duration_s + 's')
         : (weighted ? (state.load + ' lb × ' + state.reps) : (state.reps + ' reps'));
@@ -1486,10 +1489,13 @@
       // log my first set"). A real weight on screen: this tap ACCEPTS it and proceeds — it is
       // editable either way. Blank or zero: say what's needed and keep the 0-lb guard.
       if (check.classList.contains('locked')) {
-        if (state.load != null && state.load !== '' && Number(state.load) > 0) confirmActual();
+        // the guard speaks the row's own critical value (2026-08-06: a searched BODYWEIGHT swap
+        // could never log — the guard demanded a weight the row doesn't have)
+        var critVal = critical === 'reps' ? state.reps : state.load;
+        if (critVal != null && critVal !== '' && Number(critVal) > 0) confirmActual();
         else {
-          miniToast('Enter the weight first');
-          var wf = row.querySelector('.stepper.editable');
+          miniToast(critical === 'reps' ? 'Enter your reps first' : 'Enter the weight first');
+          var wf = row.querySelector('.stepper.editable') || row.querySelector('.stepper');
           if (wf) { wf.classList.add('flash'); setTimeout(function () { wf.classList.remove('flash'); }, 1200);
             var wi = wf.querySelector('input'); if (wi) { try { wi.focus(); } catch (eF) {} } }
           return;
@@ -1649,9 +1655,10 @@
     // prompt and the log label lead with the set number ("Set 1"), dropping the "(warm-up)" clutter.
     var setLabel = String(title || 'set').replace(/\s*\(.*\)\s*$/, '');   // "Set 1 (warm-up)" -> "Set 1"
     if (unconfirmed.length) {
-      btn.disabled = true;
-      // Still say WHAT it wants (reps or weight) so the athlete knows the gate — but keyed to the set,
-      // not the exercise name. The amber-highlighted row already shows WHICH row needs it.
+      // NEVER a dead grey button (2026-08-06, the searched-swap round: Mason "couldn't log my first
+      // set", j6 red). The button stays TAPPABLE with its hint; the tap itself accepts any row whose
+      // number is really on screen and only blocks on a truly empty one — same law as the row-level ▶.
+      btn.disabled = false;
       btn.textContent = setLabel + ' · tap your ' + unconfirmed[0]._needs;
     } else {
       btn.disabled = false;
@@ -1907,8 +1914,12 @@
         // One Log button per round (rule 2). Rounds made entirely of timed holds don't get one — the
         // hold's own ▶ IS the action, and you can't log a 45s hold you haven't stood through.
         var loggable = [].slice.call(roundBox.querySelectorAll('.ex-row')).some(function (r) { return r._commit && !r._isDur; });
-        if (loggable) {
+        // ALWAYS create the button (2026-08-06, j6): a round born all-timed-holds rendered no Log
+        // control, so swapping a carry into a loggable lift left the round unloggable. The button
+        // now always exists — hidden until syncRound (which already manages visibility) needs it.
+        if (true) {
           var act = el('button', 'roundlog'); act.type = 'button'; act.disabled = true;
+          act.hidden = !loggable;
           // `var act` is FUNCTION-scoped, and this runs inside the round loop — so every round's
           // handler closed over the SAME variable, which by click time held the LAST round's button.
           // Later rounds are normally disabled (their actuals aren't confirmed yet), so every button
@@ -1920,6 +1931,21 @@
               if (btn.disabled) return;
               var all = [].slice.call(rb.querySelectorAll('.ex-row')).filter(function (r) { return r._commit && !r._isDur; });
               var pending = all.filter(function (r) { return !r.classList.contains('done'); });
+              // ACCEPT-ON-TAP (2026-08-06): a shown value IS the athlete's answer. Only a truly
+              // empty critical value blocks — with a toast naming it and a flash showing where.
+              var blocked = null;
+              (pending.length ? pending : all).forEach(function (r) {
+                if (r._confirmed || blocked) return;
+                var v = r._critVal ? r._critVal() : 1;
+                if (v != null && v !== '' && Number(v) > 0) { if (r._confirmActual) r._confirmActual(); else r._confirmed = true; }
+                else blocked = r;
+              });
+              if (blocked) {
+                miniToast('Enter your ' + (blocked._needs || 'number') + ' first');
+                var bf = blocked.querySelector('.stepper.editable') || blocked.querySelector('.stepper');
+                if (bf) { bf.classList.add('flash'); setTimeout(function () { bf.classList.remove('flash'); }, 1200); }
+                return;
+              }
               // UPDATE vs LOG. Skipping rows that are already `.done` made the "Update" button a
               // no-op: an already-logged round has no pending rows, so nothing was committed and the
               // correction never reached the server. Since the per-row checkmark is gone, that button

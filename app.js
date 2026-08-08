@@ -735,12 +735,15 @@
     if (!url) return;
     // Breadcrumb BEFORE the player exists. If the tab dies here, the next launch reports which clip
     // and which host was being opened — the only way to tell a crashing video from a working one.
-    var host = (String(url).match(/https?:\/\/([^\/]+)/) || [])[1] || 'unknown';
     closeVideo();                    // never stack players — this is the crash
+    var e = videoEmbed(url);
+    // CRUMB NAMES THE EMBED HOST, not the cell's (2026-08-08): "host=vimeo.com" in a crash row led a
+    // whole morning down a "the full site was embedded" theory, when the player was player.vimeo.com
+    // all along — the crumb was reporting the Workbook cell, not what the app actually loaded.
+    var host = (String((e && e.src) || url).match(/https?:\/\/([^\/]+)/) || [])[1] || 'unknown';
     // AFTER closeVideo, not before: closeVideo clears the crumb, so writing it first wiped the note
     // on every single open. Caught by j5 on its first run — the breadcrumb was silently never set.
-    crumb('opening a video', 'host=' + host + ' url=' + String(url).slice(0, 120));
-    var e = videoEmbed(url);
+    crumb('opening a video', 'host=' + host + ' cell=' + String(url).slice(0, 120));
     var ov = el('div', 'vov'), box = el('div', 'vbox');
     var close = el('button', 'vclose', '✕'); close.type = 'button';
     close.addEventListener('click', closeVideo);
@@ -1976,7 +1979,19 @@
       // should end if workout is ended". A rest timer counting down for a workout that is over is
       // just noise that follows you out of the gym.
       clearTimerBar();
-      sendComplete(SESSION.session_id);   // mark done → reopening advances to the next session
+      // Mark done → reopening advances to the next session. On the server's ACK, drop the locally
+      // cached week and silently re-warm it with post-complete truth — otherwise the calendar's
+      // instant-paint shows the workout un-done "for a while" (Phil 2026-08-08: same race as the
+      // drag-move; the cache repainted pre-complete state until a later fetch corrected it).
+      sendComplete(SESSION.session_id).then(function () {
+        try { localStorage.removeItem('bp_week_' + CACHE_V + '_' + athlete); } catch (e) {}
+        fetchJson(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+          .then(function (d) {
+            if (d && d.ok && d.sessions && d.sessions.length) {
+              try { localStorage.setItem('bp_week_' + CACHE_V + '_' + athlete, JSON.stringify({ at: Date.now(), sessions: d.sessions })); } catch (e) {}
+            }
+          });
+      });
       show('Workout complete — ' + n + ' logged. Loading summary…');
       var url = cfg.WEBAPP_URL + '?action=summary&athlete=' + encodeURIComponent(athlete) +
         '&session_id=' + encodeURIComponent(SESSION.session_id) + '&token=' + encodeURIComponent(token);
@@ -2201,8 +2216,15 @@
       if (to && to !== s.date) {
         e.preventDefault();
         show('Moving “' + (s.name || s.theme || 'workout') + '” to ' + dowLabel(to) + '…');
-        sendMove(s.session_id, to);
-        setTimeout(loadHome, 1300);
+        // Reload only once the server has ANSWERED — the fixed 1300ms timer raced an Apps Script
+        // cold start, re-fetched the PRE-move week and cached it, so the move "didn't show until
+        // reopen" (Phil 2026-08-08). The move panel got this fix earlier; the drag path kept the
+        // race. Same rule now: ack, then reload.
+        sendMove(s.session_id, to).then(function (res) {
+          if (res && res.ok) { loadHome(); return; }
+          show(MOVE_ERR[res && res.error] || 'Move failed — try again.', 'err');
+          setTimeout(loadHome, 1600);
+        });
       }
     });
     tile.addEventListener('pointercancel', cleanup);

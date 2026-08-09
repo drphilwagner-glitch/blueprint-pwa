@@ -909,7 +909,9 @@
         // the rung's exact numbers — the sanctioned path clears with them, the mercy path just doses.
         target_load: same ? oT.target_load
                           : (a.prefill_load != null ? a.prefill_load : ''),
-        target_reps: altMax ? 'max' : (numReps == null ? oT.target_reps : numReps),
+        // L39 (Phil 2026-08-08, Resisted Drag): a duration-prescribed alternate ('60s') must never
+        // fall back to the ORIGINAL exercise's reps — duration is the prescription.
+        target_reps: altMax ? 'max' : (a.duration_s != null ? '' : (numReps == null ? oT.target_reps : numReps)),
         duration_s: same ? oT.duration_s : (a.duration_s != null ? a.duration_s : null),
         rest_s: oT.rest_s }
     };

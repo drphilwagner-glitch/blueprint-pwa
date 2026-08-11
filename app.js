@@ -2061,6 +2061,11 @@
               var mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dd.getMonth()];
               var dow = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dd.getDay()];
               show('Your program starts ' + dow + ', ' + mon + ' ' + dd.getDate() + '. See you then! 💪');
+            } else if (data.round_pending) {
+              // L120 FAIL SOFT (Phil 2026-08-11): a round generation refused by the lawfulness gate
+              // must never read as "you have nothing". The kid did everything right — he finished his
+              // round. The refusal is ours and it pages the morning report, not him.
+              show('Nice work — you finished the round! 💪 Your next one is being built. Check back soon.');
             } else { show('No workouts scheduled yet.'); }
           }
           return;

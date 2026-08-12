@@ -1,7 +1,7 @@
 /* Service worker: caches the app shell for offline + installability.
  * Cross-origin API calls (the Apps Script Web App) are left to the app / offline queue (S10).
  */
-var CACHE = 'bp-shell-v90';   // v90: cache-version handshake build (P0 2026-08-12)
+var CACHE = 'bp-shell-v91';   // v91: day-grid calendar restore (Phil's ruling 2026-08-12)
 var SHELL = ['./', './index.html', './app.js', './config.js', './tokens.css', './styles.css',
   './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 

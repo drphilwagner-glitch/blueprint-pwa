@@ -22,13 +22,13 @@
   // reached nobody: the phone instant-paints the OLD session from localStorage and Phil sees the bug
   // he already reported, days after it was fixed. Bump this whenever the payload shape changes —
   // same discipline as sw.js's CACHE and the server's _PAYLOAD_SCHEMA_V.
-  var CACHE_V = 'c5';   // bumped: cache-version handshake build; old cached weeks predate pwa_ver
+  var CACHE_V = 'c6';   // day-grid build   // bumped: cache-version handshake build; old cached weeks predate pwa_ver
   // CACHE-VERSION HANDSHAKE (Phil P0 2026-08-12, the FOURTH stale-phone bite — permanent fix).
   // APP_BUILD is this bundle's stamp; the week payload carries the server's expected build
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260812-cachever-1';
+  var APP_BUILD = '20260812-daygrid-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2108,9 +2108,10 @@
     try { sessionStorage.removeItem('bp_open_session'); } catch (e) {}
     SESSION = null; app.innerHTML = ''; renderNav('cal');
     meta.textContent = athlete + ' · pick a workout';
-    var open = [], held = [], logged = [];
+    var open = [], nextOpen = [], held = [], logged = [];
     (sessions || []).forEach(function (s) {
       if (s.held || s.status === 'held') held.push(s);
+      else if (s.next_round && s.open_round && s.status !== 'done') nextOpen.push(s);   // rolling-law unlock: tappable, next-round section
       else if (s.open_round && s.status !== 'done') open.push(s);
       else if (s.status === 'done' || s.status === 'started') logged.push(s);
       // closed-round unlogged debris renders nowhere: not actionable, not logged (board items 9/11)
@@ -2123,20 +2124,69 @@
       if (s.top_ex && s.top_ex.length) bits.push(s.top_ex.map(titleName).join(' + '));
       if (s.est_min) bits.push('~' + s.est_min + ' min');
       if (s.status === 'started') bits.unshift('started');
-      if (!tappable) bits = ['unlocks after ' + titlePhrase(s.theme || 'its theme') + ' — this round'];
+      if (!tappable) bits = ['unlocks after ' + titlePhrase(s.name || s.theme || 'its theme') + ' — this round'];   // friendly name, never the theme code (leak fix)
       b.appendChild(el('div', 'wo-sub', bits.join(' · ')));
       if (tappable) b.addEventListener('click', function () { openSession(s.session_id); });
       return b;
     }
-    var menu = el('div', 'open-round');
-    menu.appendChild(el('div', 'day-dow', 'OPEN — THIS ROUND'));
-    open.forEach(function (s) { menu.appendChild(tile(s, true)); });
-    held.forEach(function (s) { menu.appendChild(tile(s, false)); });
-    if (!open.length && !held.length) {
-      menu.appendChild(el('div', 'wo-sub', roundPending
-        ? 'Your next round is being built — check back soon 💪'
-        : 'Nothing open right now.'));
+    // DAY-GRID (Phil's calendar ruling 2026-08-12, restoring the original presentation): workouts
+    // render ON their assigned dates — the engine dates them at mint (ECC -> UE -> TOTAL spacing)
+    // and rolls any unlogged current-round session forward to today server-side, so nothing
+    // strands, nothing reads "missed", and today is never empty mid-round. Hold-drag moves a
+    // workout to another day (the athlete's right, as the old calendar allowed). History scrolls
+    // back above; the view anchors with today at the top; next round renders below.
+    function dayRowFor(ds, grid, rowsByDate) {
+      if (rowsByDate[ds]) return rowsByDate[ds];
+      var row = el('div', 'day-row'); row.dataset.date = ds;
+      var g = el('div', 'day-g');
+      var d = null; try { var pp = String(ds).split('-'); d = new Date(+pp[0], +pp[1] - 1, +pp[2]); } catch (e) {}
+      g.appendChild(el('div', 'day-dow', d ? dowName(d) : ''));
+      g.appendChild(el('div', 'day-date', d ? ((d.getMonth() + 1) + '/' + d.getDate()) : String(ds)));
+      row.appendChild(g);
+      var slot = el('div', 'day-wos'); row.appendChild(slot);
+      row._slot = slot; rowsByDate[ds] = row; grid.appendChild(row);
+      return row;
     }
+    var grid = el('div', 'days'), rowsByDate = {}, todayStr = ymd(new Date()), todayRow = null;
+    var dated = logged.concat(open).filter(function (s) { return s.date; });
+    dated.sort(function (a, b) { return String(a.date) < String(b.date) ? -1 : 1; });   // oldest first: history above, today at anchor
+    var allDates = [];
+    dated.forEach(function (s) { if (allDates.indexOf(s.date) < 0) allDates.push(s.date); });
+    // slim rest rows only inside the round's future span (bounded — no desert, no phantom weeks)
+    var lastOpenDate = open.length ? open.map(function (s) { return s.date; }).sort().pop() : null;
+    if (lastOpenDate && todayStr < lastOpenDate) {
+      var cur = new Date(); cur.setHours(0, 0, 0, 0);
+      for (var gi = 0; gi < 14; gi++) {
+        var dsG = ymd(cur);
+        if (dsG > lastOpenDate) break;
+        if (allDates.indexOf(dsG) < 0) allDates.push(dsG);
+        cur.setDate(cur.getDate() + 1);
+      }
+      allDates.sort();
+    }
+    allDates.forEach(function (ds) {
+      var row = dayRowFor(ds, grid, rowsByDate);
+      if (ds === todayStr) { row.classList.add('today'); todayRow = row; }
+    });
+    dated.forEach(function (s) {
+      var row = rowsByDate[s.date];
+      var t = tile(s, true);
+      if (s.open_round && s.status !== 'done') attachDrag(t, s);   // move/swap: the athlete's right
+      row._slot.appendChild(t);
+    });
+    Object.keys(rowsByDate).forEach(function (ds) {
+      if (!rowsByDate[ds]._slot.childNodes.length) rowsByDate[ds]._slot.appendChild(el('div', 'wo-sub', 'rest'));
+    });
+    if (!dated.length) {
+      grid.appendChild(el('div', 'wo-sub', roundPending
+        ? 'Your next round is being built — check back soon 💪'
+        : 'Nothing scheduled right now.'));
+    }
+    app.appendChild(grid);
+    var menu = el('div', 'open-round');
+    if (nextOpen.length || held.length) menu.appendChild(el('div', 'day-dow', 'NEXT ROUND'));
+    nextOpen.forEach(function (s) { menu.appendChild(tile(s, true)); });   // unlocked per the rolling law: tappable
+    held.forEach(function (s) { menu.appendChild(tile(s, false)); });
     if (held.length) {
       var go = el('button', 'wo st-pull', 'Start next round early'); go.type = 'button';
       go.addEventListener('click', function () {
@@ -2151,24 +2201,9 @@
       menu.appendChild(go);
     }
     app.appendChild(menu);
-
-    var hist = el('div', 'days');
-    hist.appendChild(el('div', 'day-dow', 'LOGGED'));
-    logged.sort(function (a, b) { return String(a.date) < String(b.date) ? 1 : -1; });   // newest first
-    logged.forEach(function (s) {
-      var row = el('div', 'day-row'); row.dataset.date = s.date;
-      var g = el('div', 'day-g');
-      var d = null; try { var pp = String(s.date).split('-'); d = new Date(+pp[0], +pp[1] - 1, +pp[2]); } catch (e) {}
-      g.appendChild(el('div', 'day-dow', d ? dowName(d) : ''));
-      g.appendChild(el('div', 'day-date', d ? ((d.getMonth() + 1) + '/' + d.getDate()) : String(s.date)));
-      row.appendChild(g);
-      var slot = el('div', 'day-wos');
-      slot.appendChild(tile(s, true));
-      row.appendChild(slot);
-      hist.appendChild(row);
-    });
-    if (!logged.length) hist.appendChild(el('div', 'wo-sub', 'No logged workouts yet.'));
-    app.appendChild(hist);
+    // ANCHOR (the ruling's clause): open at the current week, today visible at top, history
+    // reachable by scrolling back above. requestAnimationFrame so layout exists before the scroll.
+    if (todayRow) requestAnimationFrame(function () { try { todayRow.scrollIntoView({ block: 'start' }); } catch (e) {} });
   }
   function attachDrag(tile, s) {
     var HOLD = 350, MOVE_CANCEL = 10;   // ms to arm; px of finger travel that counts as a scroll, not a hold

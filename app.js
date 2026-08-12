@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260812-daygrid-1';
+  var APP_BUILD = '20260812-daygrid-2';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2173,6 +2173,17 @@
       var t = tile(s, true);
       if (s.open_round && s.status !== 'done') attachDrag(t, s);   // move/swap: the athlete's right
       row._slot.appendChild(t);
+      // STARTED-RESUME ON TODAY (Phil's ruling 2026-08-12, his 8/4 Full Body as acceptance): a
+      // started-unfinished session ALSO surfaces on today's row marked "started · resume"; the
+      // historical row keeps its logged date (L123 — dates are for logged work).
+      if (s.status === 'started' && s.date !== todayStr) {
+        var rowT = dayRowFor(todayStr, grid, rowsByDate);
+        if (!todayRow) { rowT.classList.add('today'); todayRow = rowT; }
+        var t2 = tile(s, true);
+        var sub2 = t2.querySelector('.wo-sub');
+        if (sub2) sub2.textContent = 'started · resume — ' + sub2.textContent.replace(/^started · /, '');
+        rowT._slot.appendChild(t2);
+      }
     });
     Object.keys(rowsByDate).forEach(function (ds) {
       if (!rowsByDate[ds]._slot.childNodes.length) rowsByDate[ds]._slot.appendChild(el('div', 'wo-sub', 'rest'));

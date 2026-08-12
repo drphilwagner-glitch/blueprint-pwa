@@ -2106,7 +2106,12 @@
     // --- day list: every day from the first session to the last, workouts or not ---
     var ds = sessions.map(function (s) { return s.date; }).sort();
     var list = el('div', 'days');
+    // CALENDAR ANCHOR (Phil 2026-08-12): the list must always REACH today — it used to end at the
+    // last session's date, so once a round's dates passed, today never rendered at all (Phil's board
+    // ended 08-10 on 08-12: "if I want to do a workout, there are no options"). Range = first session
+    // through max(last session, today); the anchor below opens the view AT today, history above.
     var cur = mondayOf(ds[0] || today), last = ds[ds.length - 1] || today, guard = 0;
+    if (last < today) last = today;
     while (ymd(cur) <= last && guard++ < 70) {
       var k = ymd(cur);
       var row = el('div', 'day-row'); row.dataset.date = k; if (k === today) row.classList.add('today');   // dataset.date: drop target
@@ -2151,6 +2156,16 @@
       cur.setDate(cur.getDate() + 1);
     }
     app.appendChild(list);
+    // OPEN AT TODAY, NEVER BELOW THE FOLD (Phil 2026-08-12): the calendar anchors at the current
+    // week — today's row at the top of the view, history scrollable ABOVE, the future below. Without
+    // this it opened at the oldest week (07-27) and today sat past the fold or off the list entirely.
+    requestAnimationFrame(function () {
+      var tr = list.querySelector('.day-row.today');
+      if (tr) {
+        var y = tr.getBoundingClientRect().top + (window.pageYOffset || 0) - 96;   // clear the week strip
+        window.scrollTo(0, Math.max(0, y));
+      }
+    });
     // OPEN ON TODAY, not the oldest day. The list runs chronologically so past days stay scrollable
     // ABOVE, but the default view should start at today (Phil, 2026-07-28: "first date shows 7/20;
     // default at top should be 7/26"). Scroll today's row to the top; if today has no row (gap day),

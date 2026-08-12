@@ -2085,13 +2085,17 @@
     SESSION = null; app.innerHTML = ''; renderNav('cal');
     meta.textContent = athlete + ' · pick a workout';
     var today = todayISO();
-    // ANY ORDER, NO CHAINS (Phil 2026-08-12): every unlogged session of the OPEN ROUND renders on
-    // TODAY's row, all selectable — the round is the athlete's to walk in any order, and a label
-    // date is not a prerequisite. Done sessions keep their dates: that is history.
-    var byDate = {}; sessions.forEach(function (s) {
-      var key = (s.open_round && s.status !== 'done') ? today : s.date;
-      (byDate[key] = byDate[key] || []).push(s);
+    // DATES ARE FOR LOGGED WORK ONLY (Phil 2026-08-12, rejecting the stacked-tiles render): open
+    // sessions live in the OPEN — THIS ROUND menu, not on date rows. A session acquires today's
+    // date when it is LOGGED; three tiles on one date exists only if the athlete actually logs
+    // three that day. Held next-round sessions render locked until their theme completes.
+    var menuOpen = [], menuHeld = [], dated = [];
+    sessions.forEach(function (s) {
+      if (s.held || s.status === 'held') menuHeld.push(s);
+      else if (s.open_round && s.status !== 'done') menuOpen.push(s);
+      else dated.push(s);
     });
+    var byDate = {}; dated.forEach(function (s) { (byDate[s.date] = byDate[s.date] || []).push(s); });
 
     // --- current week strip (this week only) ---
     var strip = el('div', 'wk');
@@ -2108,6 +2112,46 @@
       strip.appendChild(c);
     }
     app.appendChild(strip);
+
+    // --- OPEN — THIS ROUND: the athlete's whole available set, any order, zero chains ---
+    if (menuOpen.length || menuHeld.length || roundPending) {
+      var menu = el('div', 'open-round');
+      menu.appendChild(el('div', 'day-dow', 'OPEN — THIS ROUND'));
+      menuOpen.forEach(function (s) {
+        var b = el('button', 'wo st-' + (s.status === 'missed' ? 'planned' : s.status)); b.type = 'button';
+        b.dataset.session = s.session_id;
+        b.appendChild(el('div', 'wo-name', titlePhrase(s.name || s.theme || 'session')));
+        var bits = [];
+        if (s.top_ex && s.top_ex.length) bits.push(s.top_ex.map(titleName).join(' + '));
+        if (s.est_min) bits.push('~' + s.est_min + ' min');
+        if (s.status === 'started') bits.unshift('started');
+        b.appendChild(el('div', 'wo-sub', bits.join(' · ')));
+        b.addEventListener('click', function () { openSession(s.session_id); });
+        menu.appendChild(b);
+      });
+      menuHeld.forEach(function (s) {
+        var card = el('div', 'wo st-held');
+        card.appendChild(el('div', 'wo-name', titlePhrase(s.name || s.theme || 'session')));
+        card.appendChild(el('div', 'wo-sub', 'unlocks after ' + titlePhrase(s.theme || 'its theme') + ' — this round'));
+        menu.appendChild(card);
+      });
+      if (roundPending && !menuHeld.length) {
+        menu.appendChild(el('div', 'wo-sub', 'Your next round is being built — check back soon 💪'));
+      } else if (menuHeld.length) {
+        var go = el('button', 'wo st-pull', 'Start next round early'); go.type = 'button';
+        go.addEventListener('click', function () {
+          go.disabled = true; go.textContent = 'Unlocking your next round…';
+          fetchJson(cfg.WEBAPP_URL + '?action=pullforward&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+            .then(function (r) {
+              if (r && (r.minted || r.unlocked)) { location.reload(); }
+              else { go.textContent = 'Next round is being built — check back soon 💪'; }
+            })
+            .catch(function () { go.disabled = false; go.textContent = 'Start next round early'; });
+        });
+        menu.appendChild(go);
+      }
+      app.appendChild(menu);
+    }
 
     // --- day list: every day from the first session to the last, workouts or not ---
     var ds = sessions.map(function (s) { return s.date; }).sort();
@@ -2162,46 +2206,8 @@
       cur.setDate(cur.getDate() + 1);
     }
     app.appendChild(list);
-    // READ-AHEAD PREVIEW (Phil's design (b), 2026-08-12): the NEXT round as an obviously-not-real
-    // projection — theme names only, read-only — so the calendar never goes empty when a round's
-    // last session logs. The press runs the GATED mint (pullforward -> _reallocateAthlete_): refused
-    // rounds write nothing and the athlete sees a building state, never an error.
-    if (nextPreview && nextPreview.length) {
-      var pv = el('div', 'next-preview');
-      pv.appendChild(el('div', 'day-dow', 'NEXT ROUND — preview'));
-      nextPreview.forEach(function (t) {
-        var card = el('div', 'wo st-preview');
-        card.appendChild(el('div', 'wo-name', titlePhrase(t)));
-        card.appendChild(el('div', 'wo-sub', 'builds when this round completes'));
-        pv.appendChild(card);
-      });
-      if (roundPending) {
-        pv.appendChild(el('div', 'wo-sub', 'Your next round is being built — check back soon 💪'));
-      } else {
-        var go = el('button', 'wo st-pull', 'Start next round early'); go.type = 'button';
-        go.addEventListener('click', function () {
-          go.disabled = true; go.textContent = 'Building your next round…';
-          fetchJson(cfg.WEBAPP_URL + '?action=pullforward&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
-            .then(function (r) {
-              if (r && r.minted) { location.reload(); }
-              else { go.textContent = 'Next round is being built — check back soon 💪'; }
-            })
-            .catch(function () { go.disabled = false; go.textContent = 'Start next round early'; });
-        });
-        pv.appendChild(go);
-      }
-      app.appendChild(pv);
-    }
-    // OPEN AT TODAY, NEVER BELOW THE FOLD (Phil 2026-08-12): the calendar anchors at the current
-    // week — today's row at the top of the view, history scrollable ABOVE, the future below. Without
-    // this it opened at the oldest week (07-27) and today sat past the fold or off the list entirely.
-    requestAnimationFrame(function () {
-      var tr = list.querySelector('.day-row.today');
-      if (tr) {
-        var y = tr.getBoundingClientRect().top + (window.pageYOffset || 0) - 96;   // clear the week strip
-        window.scrollTo(0, Math.max(0, y));
-      }
-    });
+    // (The OPEN — THIS ROUND menu renders at the top, so the page opens on today's available
+    // set without a scroll anchor; date rows below are logged history in chronological order.)
     // OPEN ON TODAY, not the oldest day. The list runs chronologically so past days stay scrollable
     // ABOVE, but the default view should start at today (Phil, 2026-07-28: "first date shows 7/20;
     // default at top should be 7/26"). Scroll today's row to the top; if today has no row (gap day),

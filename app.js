@@ -22,7 +22,25 @@
   // reached nobody: the phone instant-paints the OLD session from localStorage and Phil sees the bug
   // he already reported, days after it was fixed. Bump this whenever the payload shape changes —
   // same discipline as sw.js's CACHE and the server's _PAYLOAD_SCHEMA_V.
-  var CACHE_V = 'c4';   // bumped: old cached sessions predate swap-logged matching; force a clean re-fetch
+  var CACHE_V = 'c5';   // bumped: cache-version handshake build; old cached weeks predate pwa_ver
+  // CACHE-VERSION HANDSHAKE (Phil P0 2026-08-12, the FOURTH stale-phone bite — permanent fix).
+  // APP_BUILD is this bundle's stamp; the week payload carries the server's expected build
+  // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
+  // The payload fetch fires at every open — the one channel that reaches a warm-recalled
+  // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
+  var APP_BUILD = '20260812-cachever-1';
+  function versionHandshake(pwaVer) {
+    try {
+      if (!pwaVer || String(pwaVer) === APP_BUILD) return;
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration().then(function (r) { if (r) r.update(); }).catch(function () {});
+      }
+      var mark = 'bp_reloaded_' + pwaVer;
+      if (sessionStorage.getItem(mark)) return;      // one reload per version: no loops, ever
+      sessionStorage.setItem(mark, '1');
+      setTimeout(function () { location.reload(); }, 400);   // let the SW update kick off first
+    } catch (e) {}
+  }
   var SESSION = null;
 
   function todayISO() { return new Date().toLocaleDateString('en-CA'); }
@@ -2041,6 +2059,7 @@
     if (cachedWk && cachedWk.length) renderCalendar(cachedWk); else show('Loading your plan…');
     fetchJson(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (data) {
+        if (data && data.pwa_ver) versionHandshake(data.pwa_ver);   // stale-client self-heal (P0 2026-08-12)
         if (data && (data.error === 'offline' || data.error === 'server')) {
           if (!cachedWk && isCurrent(mine)) show(data.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to see your plan.', 'err');
           return;

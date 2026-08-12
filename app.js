@@ -2070,7 +2070,7 @@
           }
           return;
         }
-        renderCalendar(data.sessions);
+        renderCalendar(data.sessions, data.next_round_preview, data.round_pending);
       });
   }
   // Calendar = a CURRENT-WEEK strip + a day list. Phil, after using the month grid: "the list is
@@ -2080,12 +2080,18 @@
   //
   // The DATE is its own column, not part of the tile: "some days might be zero workouts and some
   // days might have 2". A tile-per-day can't express either.
-  function renderCalendar(sessions) {
+  function renderCalendar(sessions, nextPreview, roundPending) {
     try { sessionStorage.removeItem('bp_open_session'); } catch (e) {}   // back on the calendar: forget it
     SESSION = null; app.innerHTML = ''; renderNav('cal');
     meta.textContent = athlete + ' · pick a workout';
-    var byDate = {}; sessions.forEach(function (s) { (byDate[s.date] = byDate[s.date] || []).push(s); });
     var today = todayISO();
+    // ANY ORDER, NO CHAINS (Phil 2026-08-12): every unlogged session of the OPEN ROUND renders on
+    // TODAY's row, all selectable — the round is the athlete's to walk in any order, and a label
+    // date is not a prerequisite. Done sessions keep their dates: that is history.
+    var byDate = {}; sessions.forEach(function (s) {
+      var key = (s.open_round && s.status !== 'done') ? today : s.date;
+      (byDate[key] = byDate[key] || []).push(s);
+    });
 
     // --- current week strip (this week only) ---
     var strip = el('div', 'wk');
@@ -2156,6 +2162,36 @@
       cur.setDate(cur.getDate() + 1);
     }
     app.appendChild(list);
+    // READ-AHEAD PREVIEW (Phil's design (b), 2026-08-12): the NEXT round as an obviously-not-real
+    // projection — theme names only, read-only — so the calendar never goes empty when a round's
+    // last session logs. The press runs the GATED mint (pullforward -> _reallocateAthlete_): refused
+    // rounds write nothing and the athlete sees a building state, never an error.
+    if (nextPreview && nextPreview.length) {
+      var pv = el('div', 'next-preview');
+      pv.appendChild(el('div', 'day-dow', 'NEXT ROUND — preview'));
+      nextPreview.forEach(function (t) {
+        var card = el('div', 'wo st-preview');
+        card.appendChild(el('div', 'wo-name', titlePhrase(t)));
+        card.appendChild(el('div', 'wo-sub', 'builds when this round completes'));
+        pv.appendChild(card);
+      });
+      if (roundPending) {
+        pv.appendChild(el('div', 'wo-sub', 'Your next round is being built — check back soon 💪'));
+      } else {
+        var go = el('button', 'wo st-pull', 'Start next round early'); go.type = 'button';
+        go.addEventListener('click', function () {
+          go.disabled = true; go.textContent = 'Building your next round…';
+          fetchJson(cfg.WEBAPP_URL + '?action=pullforward&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+            .then(function (r) {
+              if (r && r.minted) { location.reload(); }
+              else { go.textContent = 'Next round is being built — check back soon 💪'; }
+            })
+            .catch(function () { go.disabled = false; go.textContent = 'Start next round early'; });
+        });
+        pv.appendChild(go);
+      }
+      app.appendChild(pv);
+    }
     // OPEN AT TODAY, NEVER BELOW THE FOLD (Phil 2026-08-12): the calendar anchors at the current
     // week — today's row at the top of the view, history scrollable ABOVE, the future below. Without
     // this it opened at the oldest week (07-27) and today sat past the fold or off the list entirely.

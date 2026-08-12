@@ -2081,148 +2081,76 @@
   // The DATE is its own column, not part of the tile: "some days might be zero workouts and some
   // days might have 2". A tile-per-day can't express either.
   function renderCalendar(sessions, nextPreview, roundPending) {
-    try { sessionStorage.removeItem('bp_open_session'); } catch (e) {}   // back on the calendar: forget it
+    // DUMB CALENDAR (Phil 2026-08-12, the mandated fallback): one screen, page too short to hide the
+    // truth. Top: OPEN sessions, flat list, tap to start. Below: LOGGED history, newest first. No
+    // date grid, no empty future rows, no scroll anchor — the clever version rendered a desert of
+    // empty day rows and loaded scrolled into it, so the phone read as an empty app while the menu
+    // sat 1000px above the fold. Boring and true beats clever and empty.
+    try { sessionStorage.removeItem('bp_open_session'); } catch (e) {}
     SESSION = null; app.innerHTML = ''; renderNav('cal');
     meta.textContent = athlete + ' · pick a workout';
-    var today = todayISO();
-    // DATES ARE FOR LOGGED WORK ONLY (Phil 2026-08-12, rejecting the stacked-tiles render): open
-    // sessions live in the OPEN — THIS ROUND menu, not on date rows. A session acquires today's
-    // date when it is LOGGED; three tiles on one date exists only if the athlete actually logs
-    // three that day. Held next-round sessions render locked until their theme completes.
-    var menuOpen = [], menuHeld = [], dated = [];
-    sessions.forEach(function (s) {
-      if (s.held || s.status === 'held') menuHeld.push(s);
-      else if (s.open_round && s.status !== 'done') menuOpen.push(s);
-      else dated.push(s);
+    var open = [], held = [], logged = [];
+    (sessions || []).forEach(function (s) {
+      if (s.held || s.status === 'held') held.push(s);
+      else if (s.open_round && s.status !== 'done') open.push(s);
+      else if (s.status === 'done' || s.status === 'started') logged.push(s);
+      // closed-round unlogged debris renders nowhere: not actionable, not logged (board items 9/11)
     });
-    var byDate = {}; dated.forEach(function (s) { (byDate[s.date] = byDate[s.date] || []).push(s); });
-
-    // --- current week strip (this week only) ---
-    var strip = el('div', 'wk');
-    var mon = mondayOf(today);
-    for (var i = 0; i < 7; i++) {
-      var d = new Date(mon); d.setDate(d.getDate() + i);
-      var key = ymd(d);
-      var c = el('div', 'wk-d');
-      c.appendChild(el('div', 'wk-dow', ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]));
-      var num = el('div', 'wk-n', String(d.getDate()));
-      if (key === today) num.classList.add('is-today');
-      if ((byDate[key] || []).length) num.classList.add('has-wo');
-      c.appendChild(num);
-      strip.appendChild(c);
+    function tile(s, tappable) {
+      var b = el(tappable ? 'button' : 'div', 'wo st-' + (tappable ? (s.status === 'missed' ? 'planned' : s.status) : 'held'));
+      if (tappable) { b.type = 'button'; b.dataset.session = s.session_id; }
+      b.appendChild(el('div', 'wo-name', titlePhrase(s.name || s.theme || 'session')));
+      var bits = [];
+      if (s.top_ex && s.top_ex.length) bits.push(s.top_ex.map(titleName).join(' + '));
+      if (s.est_min) bits.push('~' + s.est_min + ' min');
+      if (s.status === 'started') bits.unshift('started');
+      if (!tappable) bits = ['unlocks after ' + titlePhrase(s.theme || 'its theme') + ' — this round'];
+      b.appendChild(el('div', 'wo-sub', bits.join(' · ')));
+      if (tappable) b.addEventListener('click', function () { openSession(s.session_id); });
+      return b;
     }
-    app.appendChild(strip);
-
-    // --- OPEN — THIS ROUND: the athlete's whole available set, any order, zero chains ---
-    if (menuOpen.length || menuHeld.length || roundPending) {
-      var menu = el('div', 'open-round');
-      menu.appendChild(el('div', 'day-dow', 'OPEN — THIS ROUND'));
-      menuOpen.forEach(function (s) {
-        var b = el('button', 'wo st-' + (s.status === 'missed' ? 'planned' : s.status)); b.type = 'button';
-        b.dataset.session = s.session_id;
-        b.appendChild(el('div', 'wo-name', titlePhrase(s.name || s.theme || 'session')));
-        var bits = [];
-        if (s.top_ex && s.top_ex.length) bits.push(s.top_ex.map(titleName).join(' + '));
-        if (s.est_min) bits.push('~' + s.est_min + ' min');
-        if (s.status === 'started') bits.unshift('started');
-        b.appendChild(el('div', 'wo-sub', bits.join(' · ')));
-        b.addEventListener('click', function () { openSession(s.session_id); });
-        menu.appendChild(b);
-      });
-      menuHeld.forEach(function (s) {
-        var card = el('div', 'wo st-held');
-        card.appendChild(el('div', 'wo-name', titlePhrase(s.name || s.theme || 'session')));
-        card.appendChild(el('div', 'wo-sub', 'unlocks after ' + titlePhrase(s.theme || 'its theme') + ' — this round'));
-        menu.appendChild(card);
-      });
-      if (roundPending && !menuHeld.length) {
-        menu.appendChild(el('div', 'wo-sub', 'Your next round is being built — check back soon 💪'));
-      } else if (menuHeld.length) {
-        var go = el('button', 'wo st-pull', 'Start next round early'); go.type = 'button';
-        go.addEventListener('click', function () {
-          go.disabled = true; go.textContent = 'Unlocking your next round…';
-          fetchJson(cfg.WEBAPP_URL + '?action=pullforward&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
-            .then(function (r) {
-              if (r && (r.minted || r.unlocked)) { location.reload(); }
-              else { go.textContent = 'Next round is being built — check back soon 💪'; }
-            })
-            .catch(function () { go.disabled = false; go.textContent = 'Start next round early'; });
-        });
-        menu.appendChild(go);
-      }
-      app.appendChild(menu);
+    var menu = el('div', 'open-round');
+    menu.appendChild(el('div', 'day-dow', 'OPEN — THIS ROUND'));
+    open.forEach(function (s) { menu.appendChild(tile(s, true)); });
+    held.forEach(function (s) { menu.appendChild(tile(s, false)); });
+    if (!open.length && !held.length) {
+      menu.appendChild(el('div', 'wo-sub', roundPending
+        ? 'Your next round is being built — check back soon 💪'
+        : 'Nothing open right now.'));
     }
+    if (held.length) {
+      var go = el('button', 'wo st-pull', 'Start next round early'); go.type = 'button';
+      go.addEventListener('click', function () {
+        go.disabled = true; go.textContent = 'Unlocking your next round…';
+        fetchJson(cfg.WEBAPP_URL + '?action=pullforward&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+          .then(function (r) {
+            if (r && (r.minted || r.unlocked)) { location.reload(); }
+            else { go.textContent = 'Next round is being built — check back soon 💪'; }
+          })
+          .catch(function () { go.disabled = false; go.textContent = 'Start next round early'; });
+      });
+      menu.appendChild(go);
+    }
+    app.appendChild(menu);
 
-    // --- day list: every day from the first session to the last, workouts or not ---
-    var ds = sessions.map(function (s) { return s.date; }).sort();
-    var list = el('div', 'days');
-    // CALENDAR ANCHOR (Phil 2026-08-12): the list must always REACH today — it used to end at the
-    // last session's date, so once a round's dates passed, today never rendered at all (Phil's board
-    // ended 08-10 on 08-12: "if I want to do a workout, there are no options"). Range = first session
-    // through max(last session, today); the anchor below opens the view AT today, history above.
-    var cur = mondayOf(ds[0] || today), last = ds[ds.length - 1] || today, guard = 0;
-    if (last < today) last = today;
-    while (ymd(cur) <= last && guard++ < 70) {
-      var k = ymd(cur);
-      var row = el('div', 'day-row'); row.dataset.date = k; if (k === today) row.classList.add('today');   // dataset.date: drop target
+    var hist = el('div', 'days');
+    hist.appendChild(el('div', 'day-dow', 'LOGGED'));
+    logged.sort(function (a, b) { return String(a.date) < String(b.date) ? 1 : -1; });   // newest first
+    logged.forEach(function (s) {
+      var row = el('div', 'day-row'); row.dataset.date = s.date;
       var g = el('div', 'day-g');
-      g.appendChild(el('div', 'day-dow', dowName(cur)));
-      g.appendChild(el('div', 'day-date', (cur.getMonth() + 1) + '/' + cur.getDate()));   // "7/14", not "14"
+      var d = null; try { var pp = String(s.date).split('-'); d = new Date(+pp[0], +pp[1] - 1, +pp[2]); } catch (e) {}
+      g.appendChild(el('div', 'day-dow', d ? dowName(d) : ''));
+      g.appendChild(el('div', 'day-date', d ? ((d.getMonth() + 1) + '/' + d.getDate()) : String(s.date)));
       row.appendChild(g);
       var slot = el('div', 'day-wos');
-      (byDate[k] || []).forEach(function (s) {
-        var wrap = el('div', 'wo-wrap');
-        var line = el('div', 'wo-line');
-        var b = el('button', 'wo st-' + s.status); b.type = 'button';
-        // The session id on the tile. Without it the journeys could only pick a workout by INDEX into
-        // a list the calendar rebuilds on every navigation — j7 and j8 both fell back to "whatever is
-        // first" and passed by accident, and j9 could not find a conditioning session at all.
-        b.dataset.session = s.session_id;
-        b.appendChild(el('div', 'wo-name', titlePhrase(s.name || s.theme || 'session')));
-        // Phil 2026-07-18: "add workout duration and top 2 exercises in workout name in calendar like
-        // workout header has, no need for # of exercises". The exercise COUNT told the athlete
-        // nothing they could act on; the two main lifts and the time commitment do.
-        var bits = [];
-        if (s.top_ex && s.top_ex.length) bits.push(s.top_ex.map(titleName).join(' + '));
-        if (s.est_min) bits.push('~' + s.est_min + ' min');
-        var sub = bits.join(' · ');
-        if (s.status === 'done') sub = '✓ done' + (sub ? ' · ' + sub : '');
-        else if (s.status === 'missed') sub = 'missed' + (sub ? ' · ' + sub : '');
-        else if (s.status === 'started') sub = 'started' + (sub ? ' · ' + sub : '');
-        b.appendChild(el('div', 'wo-sub', sub));
-        b.addEventListener('click', function () { openSession(s.session_id); });
-        line.appendChild(b);
-        if (s.status === 'planned' || s.status === 'missed') {   // S16: move, from the calendar
-          var mv = el('button', 'ag-move', '⇄'); mv.type = 'button'; mv.title = 'Move to another day';
-          mv.addEventListener('click', function (ev) { ev.stopPropagation(); toggleMove(wrap, s); });
-          line.appendChild(mv);
-          attachDrag(b, s);   // long-press to drag onto another day (the ⇄ button stays for tap users)
-        }
-        wrap.appendChild(line);       // the panel is appended to `wrap`, BELOW this line, full width
-        slot.appendChild(wrap);
-      });
+      slot.appendChild(tile(s, true));
       row.appendChild(slot);
-      list.appendChild(row);
-      cur.setDate(cur.getDate() + 1);
-    }
-    app.appendChild(list);
-    // (The OPEN — THIS ROUND menu renders at the top, so the page opens on today's available
-    // set without a scroll anchor; date rows below are logged history in chronological order.)
-    // OPEN ON TODAY, not the oldest day. The list runs chronologically so past days stay scrollable
-    // ABOVE, but the default view should start at today (Phil, 2026-07-28: "first date shows 7/20;
-    // default at top should be 7/26"). Scroll today's row to the top; if today has no row (gap day),
-    // the first day on/after today.
-    try {
-      var todayRow = list.querySelector('.day-row.today') ||
-        Array.prototype.filter.call(list.querySelectorAll('.day-row'), function (r) { return r.dataset.date >= today; })[0];
-      if (todayRow) setTimeout(function () { todayRow.scrollIntoView({ block: 'start' }); }, 0);
-    } catch (e) {}
+      hist.appendChild(row);
+    });
+    if (!logged.length) hist.appendChild(el('div', 'wo-sub', 'No logged workouts yet.'));
+    app.appendChild(hist);
   }
-  // Long-press to pick up a workout, drag over a day, release to move it there (S22). Phil asked if
-  // moving days could be "hold it down, ideally, and move the date". Pointer Events cover touch AND
-  // mouse in one path. The ⇄ button stays for anyone who'd rather tap. Only planned/missed tiles are
-  // draggable — the server freezes anything with logged sets, and sendMove is a no-cors POST we can't
-  // read, so an un-honourable drag would fail silently.
   function attachDrag(tile, s) {
     var HOLD = 350, MOVE_CANCEL = 10;   // ms to arm; px of finger travel that counts as a scroll, not a hold
     var timer = null, armed = false, ghost = null, startX = 0, startY = 0, lastRow = null;

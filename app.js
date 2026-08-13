@@ -2594,10 +2594,20 @@
   }
   function loadProfileDetail(x, panel) {
     panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Loading…'));
-    fetch(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
+    // HISTORY P0 (Phil 2026-08-14, display lane item 0): this was a RAW single-attempt fetch — one
+    // Apps Script hiccup and the panel read "Could not load history" with no retry, which is the
+    // failure Phil and Grace both hit. fetchJson retries twice and classes server vs offline; the
+    // load-time stamp feeds the 2-second budget check (measured, never guessed).
+    var tH0 = Date.now();
+    fetchJson(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
           '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(x.exercise))
-      .then(function (r) { return r.json(); })
       .then(function (d) {
+        try { window.BP_lastHistMs = Date.now() - tH0; } catch (eT) {}
+        if (d && (d.error === 'server' || d.error === 'offline')) {
+          panel.innerHTML = '';
+          panel.appendChild(el('div', 'p-detail-note', d.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to see history.'));
+          return;
+        }
         panel.innerHTML = '';
         var all = (d && d.ok && d.days) || [];   // newest-first; server already dropped flagged outliers
         // F-E (Phil 2026-08-12): ZERO-REP rows are not history — a tapped-but-untrained set (Grace's

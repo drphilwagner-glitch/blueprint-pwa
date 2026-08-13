@@ -28,10 +28,17 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260812-daygrid-2';
+  var APP_BUILD = '20260813-f1ack-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
+      // L132 NO RELOAD MID-WORKOUT (Phil 2026-08-13, born with the F1 fix). The one-shot reload
+      // tearing down a LIVE workout is how Grace's 8/12 ECC lost 28 sets: everything confirmed but
+      // not yet queued died with the page, and the null-SESSION guard discarded the rest in silence.
+      // A reload defers while any session is active and fires at the next calendar open instead.
+      var inWorkout = false;
+      try { inWorkout = !!(SESSION || sessionStorage.getItem('bp_open_session')); } catch (eW) {}
+      if (inWorkout) { try { sessionStorage.setItem('bp_pending_reload', String(pwaVer)); } catch (eP) {} return; }
       if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
         navigator.serviceWorker.getRegistration().then(function (r) { if (r) r.update(); }).catch(function () {});
       }
@@ -41,6 +48,8 @@
       setTimeout(function () { location.reload(); }, 400);   // let the SW update kick off first
     } catch (e) {}
   }
+  try { window.BP_handshake = versionHandshake; } catch (e) {}   // j25 drives the defer law (BP_qCount precedent)
+  try { window.BP_killSession = function () { SESSION = null; }; } catch (e) {}   // j25 simulates the torn-down-SESSION path (L131 red-proof)
   var SESSION = null;
 
   function todayISO() { return new Date().toLocaleDateString('en-CA'); }
@@ -55,10 +64,46 @@
       body: JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: rows }) });
   }
   // Mark this session done on Finish so reopening advances to the next planned session.
+  //
+  // COMPLETES RIDE AN ACK'D QUEUE (F1 root A, Phil 2026-08-13). The old form was ONE opaque no-cors
+  // POST with an empty catch — no queue, no ack, no retry. Phil finished his 8/10 Full Body and that
+  // single fragile write died silently: no done, round never closed, no next-round mint. Logs have
+  // survived every network hiccup since the IndexedDB queue landed; completes now get the same
+  // discipline — a GET the client can READ (the move lesson: an opaque write is indistinguishable
+  // from a broken app), retried from a pending list until the server actually says ok.
   function sendComplete(sessionId) {
-    return fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'complete', athlete: athlete, token: token, session_id: sessionId }) }).catch(function () {});
+    try {
+      var pend = JSON.parse(localStorage.getItem('bp_pending_completes') || '[]');
+      if (pend.indexOf(sessionId) < 0) { pend.push(sessionId); localStorage.setItem('bp_pending_completes', JSON.stringify(pend)); }
+    } catch (e) {}
+    return drainCompletes();
   }
+  var drainingC = false;
+  function drainCompletes() {
+    if (drainingC || !navigator.onLine) return Promise.resolve();
+    var pend = [];
+    try { pend = JSON.parse(localStorage.getItem('bp_pending_completes') || '[]'); } catch (e) {}
+    if (!pend.length) return Promise.resolve();
+    drainingC = true;
+    var sid = pend[0];
+    var url = cfg.WEBAPP_URL + '?action=complete&athlete=' + encodeURIComponent(athlete) +
+      '&token=' + encodeURIComponent(token) + '&session_id=' + encodeURIComponent(sid);
+    return fetchJson(url).then(function (d) {
+      drainingC = false;
+      if (d && d.ok) {
+        try {
+          var p2 = JSON.parse(localStorage.getItem('bp_pending_completes') || '[]');
+          localStorage.setItem('bp_pending_completes', JSON.stringify(p2.filter(function (x) { return x !== sid; })));
+        } catch (e) {}
+        return drainCompletes();               // clear any others waiting
+      }
+      // Not ok: stays pending; the drain ticks below retry it. The athlete is told ONCE per attempt
+      // wave, not spammed — the badge machinery already shows pending state for logs.
+      return null;
+    }).catch(function () { drainingC = false; });
+  }
+  window.addEventListener('online', drainCompletes);
+  setInterval(function () { if (navigator.onLine) drainCompletes(); }, 20000);
   // Move an unlogged session to another day (reschedule). GET, not the no-cors POST the rest of the
   // writes use: a no-cors response is opaque, so the old version could not tell success from failure
   // and just reloaded on a timer. A move that silently does nothing is indistinguishable from a
@@ -538,7 +583,33 @@
     // A hold that finishes AFTER the athlete has left the workout used to crash here with
     // "null is not an object (evaluating 'SESSION.session_id')", and the throw took the whole log
     // batch with it - the sets never reached the Workbook. Caught by j1 + the device error reporter.
-    if (!SESSION) return null;
+    //
+    // L131 NO SILENT DISCARDS (Phil 2026-08-13, born with the F1 fix). The null-guard above's old
+    // form returned null in SILENCE — and silence is how Grace's 8/12 squat sets vanished: a torn-
+    // down SESSION made every subsequent set a discarded null while the app looked fine. A set the
+    // athlete performed is EVIDENCE (rule 40): recover the session id from the open-session crumb
+    // and queue it anyway; only when even the crumb is gone does it park in a local orphan store —
+    // and either way the athlete SEES it and the coach gets an ErrorLog row.
+    if (!SESSION) {
+      var sid = ''; try { sid = sessionStorage.getItem('bp_open_session') || ''; } catch (e) {}
+      var row = { log_id: uuid(), session_id: sid, complex_name: slot.complex_name, exercise: exName,
+        set_no: t.set_no, side: '', target_load: t.target_load, target_reps: t.target_reps,
+        actual_load: state.load, actual_reps: state.reps, flag: 'recovered' };
+      if (sid) {
+        miniToast('Connection to this workout hiccuped — your set was saved.');
+        reportError('discard_averted', 'set logged with no live SESSION — queued via crumb', '',
+          'ex=' + exName + ' set=' + t.set_no + ' sid=' + sid);
+        return row;   // queueable: rides the normal IndexedDB queue like any set
+      }
+      try {
+        var orph = JSON.parse(localStorage.getItem('bp_orphan_sets') || '[]');
+        orph.push(row); localStorage.setItem('bp_orphan_sets', JSON.stringify(orph));
+      } catch (e2) {}
+      miniToast('This set could not be attached to a workout — it is saved on this phone. Tell your coach.');
+      reportError('orphan_set', 'set performed with no session and no crumb — parked locally', '',
+        'ex=' + exName + ' set=' + t.set_no);
+      return null;
+    }
     return { log_id: uuid(), session_id: SESSION.session_id, complex_name: slot.complex_name, exercise: exName,
       set_no: t.set_no, side: '', target_load: t.target_load, target_reps: t.target_reps,
       actual_load: state.load, actual_reps: state.reps, flag: '' };
@@ -2107,6 +2178,10 @@
     // sat 1000px above the fold. Boring and true beats clever and empty.
     try { sessionStorage.removeItem('bp_open_session'); } catch (e) {}
     SESSION = null; app.innerHTML = ''; renderNav('cal');
+    // L132: a reload deferred mid-workout (versionHandshake) fires HERE — the calendar, with no live
+    // session, is the safe point. The mark machinery below it still guarantees once-per-version.
+    var pendR = null; try { pendR = sessionStorage.getItem('bp_pending_reload'); } catch (e) {}
+    if (pendR) { try { sessionStorage.removeItem('bp_pending_reload'); } catch (e) {} versionHandshake(pendR); }
     meta.textContent = athlete + ' · pick a workout';
     var open = [], nextOpen = [], held = [], logged = [];
     (sessions || []).forEach(function (s) {
@@ -2525,6 +2600,13 @@
       .then(function (d) {
         panel.innerHTML = '';
         var all = (d && d.ok && d.days) || [];   // newest-first; server already dropped flagged outliers
+        // F-E (Phil 2026-08-12): ZERO-REP rows are not history — a tapped-but-untrained set (Grace's
+        // OHP 42.5x0 pair) is noise in the athlete's own trajectory. The serve/evidence side already
+        // excludes them (@193-195); the VIEW now matches. A day left with no real sets drops entirely.
+        all = all.map(function (day) {
+          var sets = (day.sets || []).filter(function (s) { return Number(s.reps) > 0; });
+          return Object.assign({}, day, { sets: sets });
+        }).filter(function (day) { return (day.sets || []).length > 0; });
         if (!all.length) { panel.appendChild(el('div', 'p-detail-note', 'No history yet.')); return; }
         // WINDOW: last 2 months if the lift was trained recently (Phil: "the last two months is fine"),
         // otherwise fall back to the most recent sessions — a lift not done in months (Bent Row) must

@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260813-f1ack-1';
+  var APP_BUILD = '20260814-openflow-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2291,7 +2291,11 @@
     app.appendChild(menu);
     // ANCHOR (the ruling's clause): open at the current week, today visible at top, history
     // reachable by scrolling back above. requestAnimationFrame so layout exists before the scroll.
-    if (todayRow) requestAnimationFrame(function () { try { todayRow.scrollIntoView({ block: 'start' }); } catch (e) {} });
+    // HARDENED (Phil 2026-08-14, Mason opening at 7/27): when every dated row is history — no today
+    // row, no future row — the anchor previously never fired and the view sat at the OLDEST row.
+    // The anchor law has no exception: with nothing current, anchor at the newest content instead.
+    var anchorEl = todayRow || (menu.childNodes.length ? menu : grid.lastElementChild);
+    if (anchorEl) requestAnimationFrame(function () { try { anchorEl.scrollIntoView({ block: 'start' }); } catch (e) {} });
   }
   function attachDrag(tile, s) {
     var HOLD = 350, MOVE_CANCEL = 10;   // ms to arm; px of finger travel that counts as a scroll, not a hold

@@ -858,6 +858,18 @@ body.has-tbar #app { padding-bottom: 128px; }
 .p-pt-v { display: block; font-size: var(--fs-16); font-weight: 700; line-height: 1.25; }
 .p-pt-n { display: block; font-size: var(--fs-12); color: var(--muted); }
 
+/* L137 leveling clock — one line per side, the coach's own English on the athlete's screen. Sits
+   between the summary and the ladder; quieter than the summary card (no accent bar), louder than
+   the quality rows, matching its place in the reading order. */
+.p-clk { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-14);
+  padding: 12px 14px; margin-bottom: var(--sp-12); }
+.p-clk-h { font-size: var(--fs-11); font-weight: 800; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--muted); margin-bottom: 8px; }
+.p-clk-r { padding: 6px 0; border-top: 1px solid var(--line); }
+.p-clk-r:first-of-type { border-top: 0; padding-top: 0; }
+.p-clk-v { font-size: var(--fs-15); font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.p-clk-n { font-size: var(--fs-12); line-height: 1.35; color: var(--muted); margin-top: 2px; }
+
 .p-cats { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-14);
   padding: 12px 14px; margin-bottom: var(--sp-12); }
 .p-cats-h { font-size: var(--fs-11); font-weight: 800; text-transform: uppercase; letter-spacing: .8px;

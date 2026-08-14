@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260814-chime-1';
+  var APP_BUILD = '20260814-profile2-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1000,6 +1000,43 @@
     if (e) { var esc = el('a', 'vopen', "Video won't play? Open it ↗"); esc.href = url; esc.target = '_blank'; esc.rel = 'noopener'; box.appendChild(esc); }
     ov.appendChild(box); document.body.appendChild(ov);
   }
+  // ---- SKIP (L162, Phil's L149b ruling): a skipped exercise/complex writes a MARKER row — flag
+  // skip:coach / skip:mine / skip:pain, blank load and reps, NEVER a zero-rep row. Markers ride the
+  // same IndexedDB queue as sets (durable), are excluded from evidence server-side by construction,
+  // and pain skips surface to the coach's FLAGGED list. The rows grey out and stop prompting. ----
+  function markRowsSkipped(exName, reason) {
+    (ROW_REG[exName] || []).forEach(function (en) {
+      en.row.classList.add('skipped');
+      if (!en.row.querySelector('.skiplab')) {
+        en.row.appendChild(el('div', 'skiplab', 'skipped — ' + (reason === 'coach' ? 'coach said to' : reason === 'pain' ? 'pain' : 'your choice')));
+      }
+    });
+  }
+  function postSkip(slot, exName, reason) {
+    var marker = { log_id: uuid(), session_id: SESSION ? SESSION.session_id : '', complex_name: slot.complex_name,
+      exercise: exName, set_no: '', side: '', target_load: '', target_reps: '',
+      actual_load: '', actual_reps: '', flag: 'skip:' + reason };
+    qAdd(marker).then(function () { drain(); }).catch(function () {});
+    markRowsSkipped(exName, reason);
+  }
+  function toggleSkip(row, ex, slot) {
+    var old = row.querySelector('.skip-panel');
+    if (old) { old.remove(); return; }
+    var p = el('div', 'skip-panel');
+    p.appendChild(el('div', 'skip-h', 'Skip — why?'));
+    [['coach', 'Coach said to'], ['mine', 'My choice'], ['pain', 'Pain 🚩']].forEach(function (o) {
+      var b = el('button', 'skip-opt' + (o[0] === 'pain' ? ' pain' : '')); b.type = 'button'; b.textContent = o[1];
+      b.addEventListener('click', function () { p.remove(); postSkip(slot, ex.exercise, o[0]); });
+      p.appendChild(b);
+    });
+    var all = el('button', 'skip-opt whole'); all.type = 'button'; all.textContent = 'Skip the whole complex (coach said to)';
+    all.addEventListener('click', function () {
+      p.remove();
+      (slot.exercises || []).forEach(function (e2) { postSkip(slot, e2.exercise, 'coach'); });
+    });
+    p.appendChild(all);
+    row.appendChild(p);
+  }
   // Registry of rendered rows, keyed by the ORIGINAL exercise, so a swap can reach every set of that
   // exercise (QA-05), not just the row it was tapped from. Reset per render(); rebuilt rows re-register.
   var ROW_REG = {};
@@ -1529,7 +1566,13 @@
     hb.title = 'History — what you did last time';
     hb.addEventListener('click', function () { toggleHistory(row, ex); });
     l1.appendChild(hb);
+    // SKIP (L162) — beside history, same idiom as swap: acts on the exercise, lives with its name.
+    var skb = el('button', 'skipbtn'); skb.type = 'button'; skb.innerHTML = '⏭';
+    skb.title = 'Skip this exercise';
+    skb.addEventListener('click', function () { toggleSkip(row, ex, slot); });
+    l1.appendChild(skb);
     row.appendChild(l1);   // the ✓ is appended to l1 further down, once it exists
+    if (ex.skipped) { row.classList.add('skipped'); row.appendChild(el('div', 'skiplab', 'skipped — ' + ex.skipped)); }
     noteUnder(row, ex, isMaxVal(t.target_reps));
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;
@@ -2587,7 +2630,7 @@
     var cached = cachedProfile();
     var painted = false;
     if (cached && cached.exercises) {
-      renderProfile(cached.exercises || [], cached.summary || '', cached.categories || [], cached.clocks || []);
+      renderProfile(cached.exercises || [], cached.summary || '', cached.categories || [], cached.clocks || [], cached);
       painted = true;
     } else {
       show('Loading your progress…');
@@ -2597,7 +2640,7 @@
         if (!isCurrent(mine)) return;                 // the athlete has moved on; do not yank them back
         if (!data.ok) { if (!painted) show('Access denied — check your link.', 'err'); return; }
         try { localStorage.setItem(profCacheKey(), JSON.stringify({ at: Date.now(), data: data })); } catch (e) {}
-        renderProfile(data.exercises || [], data.summary || '', data.categories || [], data.clocks || []);
+        renderProfile(data.exercises || [], data.summary || '', data.categories || [], data.clocks || [], data);
       }).catch(function () { if (!painted && isCurrent(mine)) show('Offline — reconnect to see your progress.', 'err'); });
   }
   // S21 profile (Phil): the two things that matter per exercise are "is my best one-set up or down"
@@ -2898,9 +2941,18 @@
     (cats || []).forEach(function (c) { if (c && c.orderMax) OM = Math.max(OM, Number(c.orderMax)); });
     OM = Math.max(3, Math.round(OM / 3) * 3);
     var card = el('div', 'ladder');
-    card.appendChild(el('div', 'ladder-h', 'By quality — tap a bar for the lifts'));
+    card.appendChild(el('div', 'ladder-h', 'Where you stand — worst first · tap a bar for the lifts'));
     var panels = [];
-    LADDER_ORDER.forEach(function (q) {
+    // WORST FIRST (B7, approved mock): iterate qualities by their level ascending — the weakest
+    // quality is the headline. LADDER_ORDER was a fixed display order; it survives only as the
+    // tie-break and the no-data tail.
+    var ORD = LADDER_ORDER.slice().sort(function (qa, qb) {
+      var ca = byKey[qa.key], cb = byKey[qb.key];
+      var la = ca ? parseFloat(ca.low != null ? ca.low : ca.span) : NaN, lb = cb ? parseFloat(cb.low != null ? cb.low : cb.span) : NaN;
+      if (isNaN(la) && isNaN(lb)) return 0; if (isNaN(la)) return 1; if (isNaN(lb)) return -1;
+      return la - lb;
+    });
+    ORD.forEach(function (q) {
       var c = byKey[q.key];
       var lifts = (byQuality && byQuality[q.key]) || [];
       var tappable = lifts.length > 0;
@@ -2964,7 +3016,14 @@
     card.appendChild(el('div', 'p-clk-h', 'Leveling clock'));
     rows.forEach(function (c) {
       var r = el('div', 'p-clk-r');
-      r.appendChild(el('div', 'p-clk-v', c.english));
+      // RULING 3b (Phil 2026-08-14): FULL WORDS on the athlete card — a kid has no glossary for
+      // "LE"/"UE". Coach View keeps the shorthand; the payload's `side` code maps here, and the
+      // server's english line is the fallback for a payload without one.
+      var side = c.side === 'LE' ? 'Lower body' : c.side === 'UE' ? 'Upper body' : c.side;
+      var line = (side && c.round != null && c.of != null && c.level != null)
+        ? side + ': Round ' + c.round + ' of ' + c.of + ' at ' + c.level
+        : c.english;
+      r.appendChild(el('div', 'p-clk-v', line));
       // The minus is a marker, not a demotion: the athlete moved up on the clock without clearing the
       // standard, and NOTHING in the program changes until they do. Unexplained, a trailing "-" on a
       // kid's level reads as a punishment.
@@ -2974,30 +3033,95 @@
     return card;
   }
 
-  function renderProfile(list, summary, categories, clocks) {
+  // PROFILE V2 CARDS (the mock Phil approved 2026-08-14 — B7 + S20 + D-P2 + ruling 4). Each card
+  // fail-softs to nothing when its payload block is absent (an old cached payload must still render).
+  function volumeCard(wksIn) {
+    var wks = (wksIn || []).filter(function (w) { return w && w.wk; });
+    if (!wks.length || !wks.some(function (w) { return w.lb > 0; })) return null;
+    var c = el('div', 'p-ai');
+    c.appendChild(el('div', 'p-ai-h', 'Weekly volume — last 12 weeks'));
+    var W = 360, H = 120, PAD = 10;
+    var max = Math.max.apply(null, wks.map(function (w) { return w.lb; })), min = 0;
+    var bestI = 0; wks.forEach(function (w, i) { if (w.lb > wks[bestI].lb) bestI = i; });
+    function xy(i, lb) { var x = PAD + i * ((W - 2 * PAD) / Math.max(1, wks.length - 1));
+      var y = H - 14 - (max > min ? ((lb - min) / (max - min)) * (H - 34) : 0); return [Math.round(x), Math.round(y)]; }
+    var pts = wks.map(function (w, i) { return xy(i, w.lb).join(','); }).join(' ');
+    var bp = xy(bestI, wks[bestI].lb);
+    var svgNS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', '100%'); svg.setAttribute('height', H);
+    function sEl(tag, at, txt) { var n = document.createElementNS(svgNS, tag); Object.keys(at).forEach(function (k) { n.setAttribute(k, at[k]); }); if (txt) n.textContent = txt; return n; }
+    svg.appendChild(sEl('polyline', { points: pts, fill: 'none', stroke: '#2e6bd6', 'stroke-width': 2.2 }));
+    svg.appendChild(sEl('circle', { cx: bp[0], cy: bp[1], r: 4.5, fill: '#0a7d4f' }));
+    var bx = bp[0] > W - 46 ? { x: bp[0] - 8, 'text-anchor': 'end' } : { x: Math.max(4, bp[0] - 22) };
+    svg.appendChild(sEl('text', { x: bx.x, 'text-anchor': bx['text-anchor'] || 'start', y: Math.max(10, bp[1] - 8), 'font-size': 9, fill: '#0a7d4f' }, 'best week'));
+    svg.appendChild(sEl('text', { x: 2, y: 10, 'font-size': 9, fill: '#8ba0b6' }, Math.round(max / 1000) + 'k lb'));
+    c.appendChild(svg);
+    c.appendChild(el('div', 'p-vol-foot', 'Volume = every set’s load × reps, summed. Dumbbell (per-hand) lifts count ×2 — both hands work.'));
+    c.appendChild(el('div', 'p-milo', 'Add a little every time — Milo carried the calf every day, and one day it was a bull.'));
+    return c;
+  }
+  function topCards(list) {
+    var lev = list.filter(function (x) { return x.level != null; });
+    if (!lev.length) return [];
+    var best = lev.slice().sort(function (a, b) {
+      if (!!b.maxed !== !!a.maxed) return b.maxed ? 1 : -1;
+      var d = (parseFloat(b.level) || 0) - (parseFloat(a.level) || 0); if (d) return d;
+      return (b.progress || 0) - (a.progress || 0); }).slice(0, 3);
+    var needs = lev.filter(function (x) { return !x.maxed; }).sort(function (a, b) {
+      var d = (parseFloat(a.level) || 9) - (parseFloat(b.level) || 9); if (d) return d;
+      return (a.progress || 0) - (b.progress || 0); }).slice(0, 3);
+    function row(x, right) { var r = el('div', 'p-pt'); r.appendChild(el('span', 'p-pt-k', x.name + (x.variant ? ' · ' + x.variant : '')));
+      var b = el('span', 'p-pt-b'); b.appendChild(el('span', 'p-pt-v', right)); r.appendChild(b); return r; }
+    var out = [];
+    var cB = el('div', 'p-ai'); cB.appendChild(el('div', 'p-ai-h', 'Strongest right now'));
+    best.forEach(function (x) { cB.appendChild(row(x, x.maxed ? 'top of its ladder' : 'L' + x.level)); });
+    out.push(cB);
+    if (needs.length) {
+      var cN = el('div', 'p-ai'); cN.appendChild(el('div', 'p-ai-h', 'Biggest needs'));
+      needs.forEach(function (x) {
+        var gap = (x.to_go != null && x.goal) ? (x.goal.load != null ? x.to_go + ' lb to ' + nextOf(x.level) : x.to_go + (x.to_go === 1 ? ' rep to ' : ' reps to ') + nextOf(x.level)) : 'L' + x.level;
+        cN.appendChild(row(x, gap)); });
+      var up = lev.filter(function (x) { return !x.maxed && x.to_go > 0; }).sort(function (a, b) { return (b.progress || 0) - (a.progress || 0); })[0];
+      if (up && up.goal) cN.appendChild(row(up, 'next level up: ' + (up.goal.load != null ? up.goal.load + '×' + up.goal.reps + ' needed' : up.goal.reps + ' reps needed')));
+      out.push(cN);
+    }
+    return out;
+  }
+  function nextOf(level) { var n = parseFloat(level); return isNaN(n) ? 'next' : (Math.round((n + 0.1) * 10) / 10).toFixed(1); }
+  function winsCard(v2) {
+    var wins = (v2 && v2.wins) || [], bc = v2 && v2.best_complex;
+    if (!wins.length && !bc) return null;
+    var c = el('div', 'p-ai');
+    c.appendChild(el('div', 'p-ai-h', 'Recent wins'));
+    if (bc) {
+      var hl = el('div', 'p-win-hl');
+      hl.appendChild(el('b', '', '🏆 Best volume — whole complex'));
+      hl.appendChild(el('div', '', bc.complex + ' · ' + (bc.lifts || '') + ': ' + Number(bc.lb).toLocaleString() + ' lb across ' + bc.sets + ' sets — your biggest complex in 90 days.'));
+      c.appendChild(hl);
+    }
+    wins.slice(0, 10).forEach(function (w) {
+      var r = el('div', 'p-win');
+      r.appendChild(el('span', 'p-win-tag ' + (w.t === 'set' ? 'p-t-set' : 'p-t-vol'), w.t === 'set' ? 'SET PR' : 'VOLUME'));
+      r.appendChild(el('span', '', w.ex + ' ' + w.txt + ' · ' + w.date));
+      c.appendChild(r);
+    });
+    return c;
+  }
+  function renderProfile(list, summary, categories, clocks, payload) {
     SESSION = null; app.innerHTML = '';
     meta.textContent = athlete + ' · your progress';
     if (!list.length) { app.appendChild(el('p', 'empty', 'No exercises yet.')); return; }
 
-    // Phil: "longer and main event so font bigger". The summary is the reason to open this screen —
-    // it's the coaching read the athlete can't get by eyeballing numbers. It leads, and it's large.
-    // Phil: "it's really dense, with long sentences... it's hard to read because it's white on blue...
-    // I don't know if we make bullet points." So: scannable rows on a light card, one claim each.
-    var pts = (summary && summary.points) || [];
-    if (pts.length) {
-      var ai = el('div', 'p-ai');
-      ai.appendChild(el('div', 'p-ai-h', 'Where you stand'));
-      pts.forEach(function (pt) {
-        var r = el('div', 'p-pt');
-        r.appendChild(el('span', 'p-pt-k', pt.k));
-        var b = el('span', 'p-pt-b');
-        b.appendChild(el('span', 'p-pt-v', pt.v));
-        if (pt.note) b.appendChild(el('span', 'p-pt-n', pt.note));
-        r.appendChild(b);
-        ai.appendChild(r);
-      });
-      app.appendChild(ai);
-    } else if (summary && summary.text) {
+    // V2 ORDER (the approved mock): tonnage graph LEADS (ruling 4), then top-3 best / top-3 needs
+    // (B7 — the tiles and the AI-summary lead are superseded by these), then the clock, then the
+    // ladders worst-first, then wins. The summary points card is retired from the lead position.
+    var vc = volumeCard(payload && payload.volume_weeks);
+    if (vc) app.appendChild(vc);
+    topCards(list).forEach(function (c) { app.appendChild(c); });
+
+    // V2 (approved mock): the AI-summary points card no longer leads — "Strongest right now" +
+    // "Biggest needs" above ARE the summary, per B7. Only the honest EMPTY state survives here.
+    if (!((summary && summary.points) || []).length && summary && summary.text) {
       // NOTHING LOGGED YET. Phil saw "Log a few sessions and a read on your progress shows up here"
       // sitting above a populated "by quality" card — two contradictory statements on one screen.
       // If there is no read to give, that is the whole screen; the breakdown means nothing without it.
@@ -3033,8 +3157,19 @@
     };
     Object.keys(byQuality).forEach(function (k) { byQuality[k].sort(byLevel); });
 
+    // WORST FIRST (B7): the ladder orders by the quality's level ascending — the weakest quality is
+    // the headline, exactly as the approved mock reads ("Where you stand — worst first").
+    if (categories && categories.length) {
+      categories = categories.slice().sort(function (a, b) {
+        var la = parseFloat(a.low != null ? a.low : (a.span || '')), lb = parseFloat(b.low != null ? b.low : (b.span || ''));
+        if (isNaN(la) && isNaN(lb)) return 0; if (isNaN(la)) return 1; if (isNaN(lb)) return -1;
+        return la - lb;
+      });
+    }
     if (categories && categories.length >= 3) {
       app.appendChild(ladderCard(categories, byQuality));
+      var wc = winsCard(payload);
+      if (wc) app.appendChild(wc);
     } else if (categories && categories.length) {
       var cw = el('div', 'p-cats');
       cw.appendChild(el('div', 'p-cats-h', 'By quality'));

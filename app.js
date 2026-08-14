@@ -332,16 +332,85 @@
   // ---- one ROLLING timer per complex: starts on the first A-side set, auto-restarts each round
   //      (rolls through all sets in succession), until the athlete pauses. ----
   function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
-    // --- rest-timer alert: a beep + vibrate + a half-screen banner when the interval rolls over ---
-    var _ac = null;
-    function primeAudio() { try { _ac = _ac || new (window.AudioContext || window.webkitAudioContext)(); if (_ac.state === 'suspended') _ac.resume(); } catch (e) {} }
-    function beep() {
+    // --- rest-timer alert: a chime + vibrate + a half-screen banner when the interval rolls over ---
+    //
+    // THE CUE IS A MEDIA ELEMENT FIRST, WEBAUDIO ONLY AS A FALLBACK (Phil, raised repeatedly; Mason
+    // runs Apple's stopwatch beside the app, which is the product failing). A bare WebAudio oscillator
+    // is silenced by the iOS ringer switch — a gym phone lives on silent, so the athlete heard
+    // NOTHING and the app's timer became decorative. Two things fix that, both needed:
+    //   1. `navigator.audioSession.type = 'playback'` (Safari 16.4+) — declares this page's audio as
+    //      playback rather than ambient, so it sounds with the ringer off.
+    //   2. an <audio> element carrying a real clip — media playback, not synthesis, is what the audio
+    //      session category applies to.
+    // The clip is generated here as a WAV rather than shipped as a file: no second upload to forget
+    // (rule 11), and nothing to 404 on a phone that cached an older build.
+    var _ac = null, _cueEl = null, _cueUrl = null, _cuePrimed = false;
+    function _cueWavUrl() {
+      // three rising notes, ~0.48s total — under the 700ms repeat below, so pulses never overlap
+      var sr = 22050, notes = [[880, 0.13], [1174.7, 0.13], [1568, 0.22]], total = 0, i;
+      for (i = 0; i < notes.length; i++) total += Math.round(notes[i][1] * sr);
+      var buf = new ArrayBuffer(44 + total * 2), v = new DataView(buf), o = 0;
+      function s(str) { for (var k = 0; k < str.length; k++) v.setUint8(o++, str.charCodeAt(k)); }
+      function u32(n) { v.setUint32(o, n, true); o += 4; }
+      function u16(n) { v.setUint16(o, n, true); o += 2; }
+      s('RIFF'); u32(36 + total * 2); s('WAVE'); s('fmt '); u32(16); u16(1); u16(1);
+      u32(sr); u32(sr * 2); u16(2); u16(16); s('data'); u32(total * 2);
+      var t = 0;
+      for (i = 0; i < notes.length; i++) {
+        var f = notes[i][0], n = Math.round(notes[i][1] * sr);
+        for (var j = 0; j < n; j++) {
+          var env = Math.min(1, j / 200) * Math.pow(1 - j / n, 1.6);   // fast attack, decaying tail
+          var samp = Math.sin(2 * Math.PI * f * (j / sr)) * env * 0.9;
+          v.setInt16(44 + (t++) * 2, Math.max(-1, Math.min(1, samp)) * 32767, true);
+        }
+      }
+      return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    }
+    // Called from the taps that begin work — opening the session, starting a timer, starting a hold.
+    // iOS only unlocks audio inside a gesture, and the interval that needs the cue expires minutes
+    // later with no gesture anywhere near it.
+    function primeAudio() {
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+      try { _ac = _ac || new (window.AudioContext || window.webkitAudioContext)(); if (_ac.state === 'suspended') _ac.resume(); } catch (e) {}
       try {
-        primeAudio(); if (!_ac) return;
+        if (!_cueEl) {
+          _cueEl = document.createElement('audio');
+          _cueEl.preload = 'auto';
+          _cueEl.setAttribute('playsinline', '');
+          _cueEl.src = _cueUrl || (_cueUrl = _cueWavUrl());
+          _cueEl.load();
+        }
+        if (!_cuePrimed) {                     // unlock it under the gesture: play muted, then rewind
+          _cueEl.muted = true;
+          var pr = _cueEl.play();
+          var settle = function () { try { _cueEl.pause(); _cueEl.currentTime = 0; } catch (e2) {} _cueEl.muted = false; _cuePrimed = true; };
+          if (pr && pr.then) pr.then(settle, function () { _cueEl.muted = false; });
+          else settle();
+        }
+      } catch (e) {}
+    }
+    function beep() {
+      var fired = false;
+      try {
+        if (!_cueEl) primeAudio();
+        if (_cueEl) {
+          try { _cueEl.currentTime = 0; } catch (eT) {}
+          _cueEl.muted = false;
+          var pr = _cueEl.play();
+          fired = true;
+          if (pr && pr.catch) pr.catch(function () { _waBeep(); });   // blocked -> synth, never silence
+        }
+      } catch (e) {}
+      if (!fired) _waBeep();
+      if (navigator.vibrate) { try { navigator.vibrate([200, 80, 200]); } catch (e) {} }
+    }
+    function _waBeep() {
+      try {
+        if (!_ac) primeAudio();
+        if (!_ac) return;
         if (_ac.state === 'suspended') { try { _ac.resume().then(function () { _tone(); }); } catch (eR) { _tone(); } }
         else _tone();
       } catch (e) {}
-      if (navigator.vibrate) { try { navigator.vibrate([200, 80, 200]); } catch (e) {} }
     }
     function _tone() {
       try {
@@ -353,8 +422,8 @@
         o.start(); o.stop(_ac.currentTime + 0.45);
       } catch (e) {}
     }
-    // Phase banner. `sticky` = stays until the athlete taps it (the ROBUST cue: on iOS the ringer
-    // switch mutes WebAudio, so a gym phone on silent gets NO beep — Phil got exactly this). A
+    // Phase banner. `sticky` = stays until the athlete taps it (the cue of last resort: the chime
+    // above now survives the iOS ringer switch, but nothing survives a phone in a pocket). A
     // banner that vanishes in 1.7s is missed if you glanced away; a persistent one can't be. Auto
     // (non-sticky) is kept for fast conditioning WORK<->REST flips where a tap-to-clear would nag.
     var _talert = null;
@@ -722,8 +791,34 @@
         state[key] = raw === '' ? '' : (Math.round(Number(raw) * 10) / 10);
         touched();
       });
-      val.addEventListener('focus', function () { try { val.select(); } catch (e) {} });
-      val.addEventListener('blur', draw);
+      // TAP-TO-TYPE MUST REPLACE, NOT INSERT (Phil: he corrected a set to 185, the field showed 811,
+      // and nothing was written). `select()` on focus is not enough on a phone: the tap that focused
+      // the field then places its own caret, collapsing the selection, so each digit is INSERTED at
+      // the caret. On a field showing 182, typing 1-8-5 walks 1182 -> 11882 -> 118582 — j24 reproduces
+      // exactly that, and it is where the six-digit loads on the QA clone came from.
+      // `beforeinput` fires BEFORE the text lands, and the first insertion of a fresh edit is TAKEN
+      // OVER rather than nudged: cancel it and set the field to exactly what was typed. Two weaker
+      // versions were measured against j24 first — blanking `.value` there cancels the browser's
+      // pending insertion outright (WebKit dropped the seeding step), and re-selecting the value
+      // does not divert a real keystroke (the caret insert came straight back as 118582). Owning the
+      // insertion is the only form that holds for BOTH a thumb and a programmatic one.
+      // Armed by the TAP, not only by focus: tapping a field that already holds focus fires no focus
+      // event, it just moves the caret — which is how the concatenation survived a `select()` on
+      // focus and how j24 reproduced it (seed focuses, thumb taps again, digits insert).
+      var freshEdit = false;
+      function armEdit() { freshEdit = true; try { val.select(); } catch (e) {} }
+      val.addEventListener('focus', armEdit);
+      val.addEventListener('click', armEdit);
+      val.addEventListener('beforeinput', function (ev) {
+        if (!freshEdit) return;
+        if (!ev || typeof ev.inputType !== 'string' || ev.inputType.indexOf('insert') !== 0) { freshEdit = false; return; }  // a delete edits what's there
+        if (ev.data == null) return;                       // composition/dictation — leave it to the browser
+        freshEdit = false;
+        ev.preventDefault();
+        val.value = ev.data;
+        val.dispatchEvent(new Event('input', { bubbles: true }));   // keeps state[key] and `touched` honest
+      });
+      val.addEventListener('blur', function () { freshEdit = false; draw(); });
     } else {
       val.addEventListener('click', touched);
     }
@@ -3001,6 +3096,7 @@
 
   function openSession(sessionId) {
     var _screen = newScreen();   // claims the screen: a pending calendar/profile draw must not win
+    primeAudio();                // the session-start TAP is the gesture iOS unlocks audio on (L124)
     try { sessionStorage.setItem('bp_open_session', sessionId); } catch (e) {}
     var cached = cachedSession(sessionId);
     if (cached) { render(cached); } else { show('Loading…'); }

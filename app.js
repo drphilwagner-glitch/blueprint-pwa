@@ -2274,7 +2274,9 @@
     nextOpen.forEach(function (s) { menu.appendChild(tile(s, true)); });   // unlocked per the rolling law: tappable
     held.forEach(function (s) { menu.appendChild(tile(s, false)); });
     if (held.length) {
-      var go = el('button', 'wo st-pull', 'Start next round early'); go.type = 'button';
+      // F6 (Phil 2026-08-14, with L154): the press exists ONLY for a genuinely mid-round early
+      // start — at round close the next round opens itself, no press. "early" read as a warning.
+      var go = el('button', 'wo st-pull', 'Start next round'); go.type = 'button';
       go.addEventListener('click', function () {
         go.disabled = true; go.textContent = 'Unlocking your next round…';
         fetchJson(cfg.WEBAPP_URL + '?action=pullforward&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
@@ -2282,7 +2284,7 @@
             if (r && (r.minted || r.unlocked)) { location.reload(); }
             else { go.textContent = 'Next round is being built — check back soon 💪'; }
           })
-          .catch(function () { go.disabled = false; go.textContent = 'Start next round early'; });
+          .catch(function () { go.disabled = false; go.textContent = 'Start next round'; });
       });
       menu.appendChild(go);
     }
@@ -2486,7 +2488,7 @@
     var cached = cachedProfile();
     var painted = false;
     if (cached && cached.exercises) {
-      renderProfile(cached.exercises || [], cached.summary || '', cached.categories || []);
+      renderProfile(cached.exercises || [], cached.summary || '', cached.categories || [], cached.clocks || []);
       painted = true;
     } else {
       show('Loading your progress…');
@@ -2496,7 +2498,7 @@
         if (!isCurrent(mine)) return;                 // the athlete has moved on; do not yank them back
         if (!data.ok) { if (!painted) show('Access denied — check your link.', 'err'); return; }
         try { localStorage.setItem(profCacheKey(), JSON.stringify({ at: Date.now(), data: data })); } catch (e) {}
-        renderProfile(data.exercises || [], data.summary || '', data.categories || []);
+        renderProfile(data.exercises || [], data.summary || '', data.categories || [], data.clocks || []);
       }).catch(function () { if (!painted && isCurrent(mine)) show('Offline — reconnect to see your progress.', 'err'); });
   }
   // S21 profile (Phil): the two things that matter per exercise are "is my best one-set up or down"
@@ -2849,7 +2851,31 @@
     return card;
   }
 
-  function renderProfile(list, summary, categories) {
+  // L137 LEVELING CLOCK, athlete side. Two derived clocks — one per side (LE/UE) — printed in the
+  // SAME English the coach reads in Coach View, verbatim from the server's `english` field. Nothing
+  // here is served: the clock is a read on where the athlete sits in the promotion cycle, and the
+  // lifetime round_id that drives it internally NEVER reaches this screen (board D1: `Mason-R4`
+  // leaking into a coach surface was the defect this law closes — the same leak on the kid's screen
+  // would be worse). A side with no closed round prints its own sentence from the server, so the
+  // card never invents a state. Empty payload -> no card at all, not an empty shell.
+  function clockCard(clocks) {
+    var rows = (clocks || []).filter(function (c) { return c && c.english; });
+    if (!rows.length) return null;
+    var card = el('div', 'p-clk');
+    card.appendChild(el('div', 'p-clk-h', 'Leveling clock'));
+    rows.forEach(function (c) {
+      var r = el('div', 'p-clk-r');
+      r.appendChild(el('div', 'p-clk-v', c.english));
+      // The minus is a marker, not a demotion: the athlete moved up on the clock without clearing the
+      // standard, and NOTHING in the program changes until they do. Unexplained, a trailing "-" on a
+      // kid's level reads as a punishment.
+      if (c.minus) r.appendChild(el('div', 'p-clk-n', 'the “−” means the clock moved you up before you cleared it — nothing in your program changes'));
+      card.appendChild(r);
+    });
+    return card;
+  }
+
+  function renderProfile(list, summary, categories, clocks) {
     SESSION = null; app.innerHTML = '';
     meta.textContent = athlete + ' · your progress';
     if (!list.length) { app.appendChild(el('p', 'empty', 'No exercises yet.')); return; }
@@ -2882,6 +2908,13 @@
       app.appendChild(ai2);
       categories = [];
     }
+
+    // PLACEMENT (proposed DESIGN rule 10, awaiting Phil — DESIGN.md rule 9): the clock sits directly
+    // under "Where you stand" and above the ladder, because it answers the same question at a coarser
+    // resolution — where you stand in the promotion cycle, before where each lift stands. It is not
+    // coach-only data (rule 8): it is the athlete's own clock.
+    var clkCard = clockCard(clocks);
+    if (clkCard) app.appendChild(clkCard);
 
     // BY QUALITY, as the LADDER — and now the navigation. Group every lift under its rolled-up quality
     // (server sends x.quality) so tapping a bar opens that quality's lifts, weakest first. This REPLACES

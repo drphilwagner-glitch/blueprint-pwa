@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260814-onecard-1';
+  var APP_BUILD = '20260815-quiet-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -640,15 +640,17 @@
       btn.removeEventListener('click', stopEarly);
       // Only announce a COMPLETED hold. Stopping early is a deliberate act — the athlete already knows
       // they stopped, and "Done" for a hold they cut short reads as the timer firing on its own.
-      beep();
-      if (held >= secs) timerAlert('Done', 'hold complete');
+      // U6/L171 (Mason 2026-08-15, "spurious beep"): the beep used to sit OUTSIDE this guard, so the
+      // banner obeyed the rule above and the SOUND did not — an early stop chimed on the athlete's own
+      // tap. Sound and banner now answer to the same condition.
+      if (held >= secs) { beep(); timerAlert('Done', 'hold complete'); }
       done(held);
     }
     function stopEarly(ev) { ev.stopPropagation(); finish(); }
     btn.addEventListener('click', stopEarly);
   }
 
-  function mkLog(slot, exName, t, state) {   // exName may be a swapped-in alternate
+  function mkLog(slot, exName, t, state, variant) {   // exName may be a swapped-in alternate; variant = the SERVED variant (blank for swaps — D-P3 stamp)
     // A hold that finishes AFTER the athlete has left the workout used to crash here with
     // "null is not an object (evaluating 'SESSION.session_id')", and the throw took the whole log
     // batch with it - the sets never reached the Workbook. Caught by j1 + the device error reporter.
@@ -663,7 +665,7 @@
       var sid = ''; try { sid = sessionStorage.getItem('bp_open_session') || ''; } catch (e) {}
       var row = { log_id: uuid(), session_id: sid, complex_name: slot.complex_name, exercise: exName,
         set_no: t.set_no, side: '', target_load: t.target_load, target_reps: t.target_reps,
-        actual_load: state.load, actual_reps: state.reps, flag: 'recovered' };
+        actual_load: state.load, actual_reps: state.reps, flag: 'recovered', variant_name: variant || '' };
       if (sid) {
         miniToast('Connection to this workout hiccuped — your set was saved.');
         reportError('discard_averted', 'set logged with no live SESSION — queued via crumb', '',
@@ -681,7 +683,7 @@
     }
     return { log_id: uuid(), session_id: SESSION.session_id, complex_name: slot.complex_name, exercise: exName,
       set_no: t.set_no, side: '', target_load: t.target_load, target_reps: t.target_reps,
-      actual_load: state.load, actual_reps: state.reps, flag: '' };
+      actual_load: state.load, actual_reps: state.reps, flag: '', variant_name: variant || '' };
   }
   // EACH-SIDE: one tile, two rows. Phil 2026-07-22: "single input logging two rows (L and R) meaning
   // log reps and or weight in 1 tile rather than separating them for L versus R logging of the same
@@ -1363,8 +1365,10 @@
   // Conditioning: rolling work/rest timer runs all reps hands-free, then log distance.
   // This is the one place where TIME IS THE EXERCISE (30s on / 60s off), so every phase change
   // gets a sound + vibration + banner — you can't be expected to watch a button in the gym.
-  function cuePhase(p) {
-    beep();
+  // `silent` = this phase begins on the athlete's own tap, so the tap IS the cue (U6/L171). Every
+  // LATER phase flip is a real expiry and still sounds — that is the half you cannot watch a button for.
+  function cuePhase(p, silent) {
+    if (!silent) beep();
     if (p === 'WORK') timerAlert('GO', 'work');
     else timerAlert('REST', 'recover', 'rest');
   }
@@ -1375,7 +1379,7 @@
     for (var i = 0; i < reps; i++) { seq.push({ p: 'WORK', s: work || 0 }); if (i < reps - 1 && rest > 0) seq.push({ p: 'REST', s: rest }); }
     if (!seq.length) { btn.disabled = false; btn.classList.remove('holding'); done(0); return; }
     var idx = 0, rem = seq[0].s, totalWork = 0;
-    cuePhase(seq[0].p);                                    // cue the first phase immediately
+    cuePhase(seq[0].p, true);                              // banner only — the starting tap already told them (L171)
     var iv = setInterval(function () {
       var cur = seq[idx];
       btn.textContent = cur.p + ' ' + Math.max(0, rem) + 's';
@@ -1485,7 +1489,7 @@
       // Never log the word. An untouched "max" means the athlete did not tell us the count, so the
       // reps go blank rather than as a string no report can read.
       var doneReps = isMaxVal(rawReps) ? '' : Number(rawReps);
-      var l = mkLog(slot, ex.exercise, t, { load: '', reps: doneReps });
+      var l = mkLog(slot, ex.exercise, t, { load: '', reps: doneReps }, ex.variant_name);
       if (!l) return;                         // athlete left the workout mid-interval; nothing to log
       l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';
       if (arguments.length > 1 && arguments[1] != null && arguments[1] > 0) l.duration_s2 = arguments[1];
@@ -1673,8 +1677,17 @@
     l2.appendChild(lane('c-second', bLabel, bNode));
 
     var lastLogId = null;
+    var lastSig = null;   // L167 writer guard: what this row last appended, so an identical re-fire is a no-op
     function commit(heldS) {   // checking = "already did it" — the timer is its own Start button, not tied to this
-      var log = mkLog(slot, cur.exercise, t, state);
+      // L167 — NO PHANTOM APPENDS (Phil 2026-08-15, rider 2). The round Log button re-commits EVERY
+      // row when none are pending (:2192) so an "Update" can correct a mis-entered set — legitimate.
+      // But nothing stopped a re-fire that changes NOTHING from appending another row, and each one
+      // carries a fresh log_id so idempotency (hard rule 4) cannot collapse it. Mason's 08-13 session
+      // took 48 rows for 26 sets that way, and a burst inside ONE second wrote 55x10 then 55x0 twice
+      // for a set he had performed. A correction still appends — an identical re-commit does not.
+      var sig = String(state.load) + '|' + String(state.reps) + '|' + (isDur ? String(heldS == null ? '' : heldS) : '');
+      if (lastSig !== null && sig === lastSig) { row.classList.add('done'); check.classList.add('done'); check.textContent = '✓'; return; }
+      var log = mkLog(slot, cur.exercise, t, state, (cur.exercise === ex.exercise ? ex.variant_name : ''));
       // mkLog returns null once the athlete has left the workout (SESSION is gone). A timed hold can
       // finish AFTER that — the whole reason the guard exists — so every caller has to check, not just
       // logRows. Dereferencing it threw here and took the rest of the commit with it.
@@ -1683,6 +1696,7 @@
       if (isDur) log.duration_s = (heldS != null && heldS > 0) ? heldS : t.duration_s;
       if (isDur && arguments.length > 1 && arguments[1] != null && arguments[1] > 0) log.duration_s2 = arguments[1];
       lastLogId = log.log_id;
+      lastSig = sig;
       LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)] = true;
       logRows(splitSides(log, cur.each_side));
       row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
@@ -1691,7 +1705,8 @@
     function uncheck() {   // undo an accidental check (pulls the log back if not yet sent)
       if (lastLogId) qDel([lastLogId]).then(updateBadge).catch(function () {});
       delete LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)];
-      lastLogId = null; row.classList.remove('done'); check.classList.remove('done');
+      lastLogId = null; lastSig = null;   // L167: undo re-arms the row, so a genuine re-log still appends
+      row.classList.remove('done'); check.classList.remove('done');
       check.textContent = isDur ? '▶' : '✓';
       refocus();
     }
@@ -1765,6 +1780,11 @@
   }
 
   function renderSummary(n, d) {
+    // D-P1 (measured 2026-08-14: profile warm 2.1s, cold 13.2s — and finishing is what makes it
+    // cold, because the Finish bumps the plan version that keys the profile cache). Pre-warm it in
+    // the background while the athlete reads this screen: by the time they tap Profile, the server
+    // has rebuilt and cached it. Fire-and-forget — a failure costs nothing but the old cold path.
+    try { fetch(cfg.WEBAPP_URL + '?action=profile&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token)).catch(function () {}); } catch (eW) {}
     app.innerHTML = '';
     // Phil: "You've got a massive 'Back to Calendar' button. You can take out that button. Make it
     // really small. Put that at the bottom. At the top should be the AI summary, and then any sort of

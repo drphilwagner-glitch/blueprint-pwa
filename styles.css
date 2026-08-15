@@ -1059,3 +1059,7 @@ body #app { padding-bottom: 108px; }
 .skip-opt { border: 1px solid var(--line-1); background: #fff; border-radius: 6px; padding: 6px 8px; font-size: 13px; text-align: left; }
 .skip-opt.pain { border-color: #e5b8a5; }
 .skip-opt.whole { font-size: 12px; color: var(--ink-3); }
+
+/* profile polish (Phil 2026-08-14 idea drop): info toggle */
+.p-vol-inforow { text-align: right; margin-top: 2px; }
+.p-info { background: none; border: 0; color: var(--ink-3); font-size: 14px; padding: 2px 4px; }

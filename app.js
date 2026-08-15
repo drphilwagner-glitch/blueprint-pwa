@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260814-profile2-1';
+  var APP_BUILD = '20260814-onecard-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2363,8 +2363,14 @@
     var grid = el('div', 'days'), rowsByDate = {}, todayStr = ymd(new Date()), todayRow = null;
     var dated = logged.concat(open).filter(function (s) { return s.date; });
     dated.sort(function (a, b) { return String(a.date) < String(b.date) ? -1 : 1; });   // oldest first: history above, today at anchor
+    // F2 (Phil 2026-08-13): ONE workout is ONE card. A started-unfinished session renders on TODAY and
+    // nowhere else — the 2026-08-12 ruling put it on today's row *as well as* its own date, which gave
+    // one workout two tiles, two places to look and two things to tap. The card carries its resume
+    // label below. DONE rows never move: their date is the record (L123, dates are for logged work).
+    function effDate(s) { return (s.status === 'started' && s.date !== todayStr) ? todayStr : s.date; }
     var allDates = [];
-    dated.forEach(function (s) { if (allDates.indexOf(s.date) < 0) allDates.push(s.date); });
+    dated.forEach(function (s) { var ed = effDate(s); if (allDates.indexOf(ed) < 0) allDates.push(ed); });
+    allDates.sort();   // a resumed session lands today, which may be later than every logged date
     // slim rest rows only inside the round's future span (bounded — no desert, no phantom weeks)
     var lastOpenDate = open.length ? open.map(function (s) { return s.date; }).sort().pop() : null;
     if (lastOpenDate && todayStr < lastOpenDate) {
@@ -2382,21 +2388,17 @@
       if (ds === todayStr) { row.classList.add('today'); todayRow = row; }
     });
     dated.forEach(function (s) {
-      var row = rowsByDate[s.date];
+      var ed = effDate(s), resumed = (ed !== s.date);
+      var row = rowsByDate[ed] || dayRowFor(ed, grid, rowsByDate);
+      if (resumed && !todayRow) { row.classList.add('today'); todayRow = row; }
       var t = tile(s, true);
+      // the ONE card says what it is: picked up where it was left, not a fresh workout to redo
+      if (resumed) {
+        var sub2 = t.querySelector('.wo-sub');
+        if (sub2) sub2.textContent = 'started · resume — ' + sub2.textContent.replace(/^started · /, '');
+      }
       if (s.open_round && s.status !== 'done') attachDrag(t, s);   // move/swap: the athlete's right
       row._slot.appendChild(t);
-      // STARTED-RESUME ON TODAY (Phil's ruling 2026-08-12, his 8/4 Full Body as acceptance): a
-      // started-unfinished session ALSO surfaces on today's row marked "started · resume"; the
-      // historical row keeps its logged date (L123 — dates are for logged work).
-      if (s.status === 'started' && s.date !== todayStr) {
-        var rowT = dayRowFor(todayStr, grid, rowsByDate);
-        if (!todayRow) { rowT.classList.add('today'); todayRow = rowT; }
-        var t2 = tile(s, true);
-        var sub2 = t2.querySelector('.wo-sub');
-        if (sub2) sub2.textContent = 'started · resume — ' + sub2.textContent.replace(/^started · /, '');
-        rowT._slot.appendChild(t2);
-      }
     });
     Object.keys(rowsByDate).forEach(function (ds) {
       if (!rowsByDate[ds]._slot.childNodes.length) rowsByDate[ds]._slot.appendChild(el('div', 'wo-sub', 'rest'));
@@ -2436,6 +2438,7 @@
     if (anchorEl) requestAnimationFrame(function () { try { anchorEl.scrollIntoView({ block: 'start' }); } catch (e) {} });
   }
   function attachDrag(tile, s) {
+    tile.classList.add('can-move');   // invisible contract marker: the harness asserts move-ability without faking a 350ms hold
     var HOLD = 350, MOVE_CANCEL = 10;   // ms to arm; px of finger travel that counts as a scroll, not a hold
     var timer = null, armed = false, ghost = null, startX = 0, startY = 0, lastRow = null;
 
@@ -3037,9 +3040,13 @@
   // fail-softs to nothing when its payload block is absent (an old cached payload must still render).
   function volumeCard(wksIn) {
     var wks = (wksIn || []).filter(function (w) { return w && w.wk; });
+    // AXIS = THE DATA'S OWN SPAN (Phil 2026-08-14): 12 weeks only when 12 weeks exist — a 3-week
+    // athlete gets a 3-week axis starting at their first data, not 9 weeks of flatline preamble.
+    var first = -1; wks.forEach(function (w, i) { if (first < 0 && w.lb > 0) first = i; });
+    if (first > 0) wks = wks.slice(first);
     if (!wks.length || !wks.some(function (w) { return w.lb > 0; })) return null;
     var c = el('div', 'p-ai');
-    c.appendChild(el('div', 'p-ai-h', 'Weekly volume — last 12 weeks'));
+    c.appendChild(el('div', 'p-ai-h', 'Weekly volume — last ' + wks.length + ' week' + (wks.length === 1 ? '' : 's')));
     var W = 360, H = 120, PAD = 10;
     var max = Math.max.apply(null, wks.map(function (w) { return w.lb; })), min = 0;
     var bestI = 0; wks.forEach(function (w, i) { if (w.lb > wks[bestI].lb) bestI = i; });
@@ -3056,8 +3063,21 @@
     svg.appendChild(sEl('text', { x: bx.x, 'text-anchor': bx['text-anchor'] || 'start', y: Math.max(10, bp[1] - 8), 'font-size': 9, fill: '#0a7d4f' }, 'best week'));
     svg.appendChild(sEl('text', { x: 2, y: 10, 'font-size': 9, fill: '#8ba0b6' }, Math.round(max / 1000) + 'k lb'));
     c.appendChild(svg);
-    c.appendChild(el('div', 'p-vol-foot', 'Volume = every set’s load × reps, summed. Dumbbell (per-hand) lifts count ×2 — both hands work.'));
-    c.appendChild(el('div', 'p-milo', 'Add a little every time — Milo carried the calf every day, and one day it was a bull.'));
+    // The formula hides behind an ⓘ (Phil 2026-08-14: "shouldn't be written out — an information
+    // icon you click if you want to see it").
+    var infoRow = el('div', 'p-vol-inforow');
+    var ib = el('button', 'p-info'); ib.type = 'button'; ib.textContent = 'ⓘ'; ib.title = 'How volume is counted';
+    var foot = el('div', 'p-vol-foot', 'Volume = every set’s load × reps, summed. Dumbbell (per-hand) lifts count ×2 — both hands work.');
+    foot.hidden = true;
+    ib.addEventListener('click', function () { foot.hidden = !foot.hidden; });
+    infoRow.appendChild(ib);
+    c.appendChild(infoRow);
+    c.appendChild(foot);
+    // Milo on two lines, Phil's phrasing (2026-08-14).
+    var milo = el('div', 'p-milo');
+    milo.appendChild(el('div', '', 'Add a little every week.'));
+    milo.appendChild(el('div', '', 'Milo carried the calf every day — one day it was a bull.'));
+    c.appendChild(milo);
     return c;
   }
   function topCards(list) {
@@ -3074,20 +3094,28 @@
       var b = el('span', 'p-pt-b'); b.appendChild(el('span', 'p-pt-v', right)); r.appendChild(b); return r; }
     var out = [];
     var cB = el('div', 'p-ai'); cB.appendChild(el('div', 'p-ai-h', 'Strongest right now'));
-    best.forEach(function (x) { cB.appendChild(row(x, x.maxed ? 'top of its ladder' : 'L' + x.level)); });
+    // Levels are new vocabulary — each level carries the REAL set that earned it (Phil 2026-08-14).
+    best.forEach(function (x) {
+      var did = x.best_pair ? (x.best_pair.load != null ? ' · ' + x.best_pair.load + ' lb × ' + x.best_pair.reps : ' · ' + x.best_pair.reps + ' reps') : '';
+      cB.appendChild(row(x, (x.maxed ? 'top of its ladder' : 'L' + x.level) + did));
+    });
     out.push(cB);
     if (needs.length) {
       var cN = el('div', 'p-ai'); cN.appendChild(el('div', 'p-ai-h', 'Biggest needs'));
+      // THE PASS STANDARD, NEVER AN INVENTED RUNG (Phil 2026-08-14: "Cossack 1 lb to 1.4 — there is
+      // no 1.4"). The old text computed next-level by +0.1 arithmetic, which fabricates rungs the
+      // ladder doesn't have (x.3 + 0.1 = x.4 instead of the next whole level). The line now states
+      // the CURRENT rung's own pass requirement — weight × reps out of the level — read from goal,
+      // which came from the Level Standards cell. No arithmetic, no invented labels.
       needs.forEach(function (x) {
-        var gap = (x.to_go != null && x.goal) ? (x.goal.load != null ? x.to_go + ' lb to ' + nextOf(x.level) : x.to_go + (x.to_go === 1 ? ' rep to ' : ' reps to ') + nextOf(x.level)) : 'L' + x.level;
+        var gap = (x.goal) ? ('pass ' + x.level + ': ' + (x.goal.load != null ? x.goal.load + ' lb × ' + x.goal.reps : x.goal.reps + ' reps')) : 'L' + x.level;
         cN.appendChild(row(x, gap)); });
       var up = lev.filter(function (x) { return !x.maxed && x.to_go > 0; }).sort(function (a, b) { return (b.progress || 0) - (a.progress || 0); })[0];
-      if (up && up.goal) cN.appendChild(row(up, 'next level up: ' + (up.goal.load != null ? up.goal.load + '×' + up.goal.reps + ' needed' : up.goal.reps + ' reps needed')));
+      if (up && up.goal) cN.appendChild(row(up, 'next level up: ' + (up.goal.load != null ? up.goal.load + ' lb × ' + up.goal.reps + ' needed' : up.goal.reps + ' reps needed')));
       out.push(cN);
     }
     return out;
   }
-  function nextOf(level) { var n = parseFloat(level); return isNaN(n) ? 'next' : (Math.round((n + 0.1) * 10) / 10).toFixed(1); }
   function winsCard(v2) {
     var wins = (v2 && v2.wins) || [], bc = v2 && v2.best_complex;
     if (!wins.length && !bc) return null;

@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260815-quiet-1';
+  var APP_BUILD = '20260815-loglaw-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1635,6 +1635,17 @@
     var needsConfirm = !!critical && t.kind !== 'warmup' && !wasLogged;
     row._confirmed = !needsConfirm;
     row._needs = critical === 'load' ? 'weight' : 'reps';
+    // L181 — A WEIGHT FIELD CAN NEVER BLOCK LOGGING (Phil 2026-08-15, mid-workout).
+    // "90-90 Switch Weighted" serves wants_load:true with NO prescribed load and NO prefill, so it
+    // rendered an empty weight field; the round button then refused the whole round (:2193) and its
+    // Comp3 partner Roller Leg Curl — an unweighted lift, `weighted` cell AY22 correctly BLANK —
+    // could not be logged either. Phil read the demand as coming from the lift he was trying to log,
+    // because the button names the first unconfirmed row's need (:1914).
+    // The law: zero or blank load is a REAL answer (an unweighted movement, or a set carrying no
+    // added weight). Only REPS may ever block — a set of zero reps is not evidence (rule 40), while
+    // a set at zero load is an ordinary bodyweight set. "A kid unable to log is the worst class we
+    // have." Guarded by j28.
+    row._blocks = (critical === 'reps');
     // A timed row logs through its own ▶, which the round button deliberately doesn't drive — so the
     // gate has to be applied to the ▶ as well, or a loaded carry records at 0 lb and the allocator
     // believes it.
@@ -1739,9 +1750,11 @@
         // the guard speaks the row's own critical value (2026-08-06: a searched BODYWEIGHT swap
         // could never log — the guard demanded a weight the row doesn't have)
         var critVal = critical === 'reps' ? state.reps : state.load;
-        if (critVal != null && critVal !== '' && Number(critVal) > 0) confirmActual();
+        // L181: a weight never blocks here either — a loaded carry with no prescribed load is the
+        // same trap one level down. Only reps can hold a tap.
+        if (critical !== 'reps' || (critVal != null && critVal !== '' && Number(critVal) > 0)) confirmActual();
         else {
-          miniToast(critical === 'reps' ? 'Enter your reps first' : 'Enter the weight first');
+          miniToast('Enter your reps first');
           var wf = row.querySelector('.stepper.editable') || row.querySelector('.stepper');
           if (wf) { wf.classList.add('flash'); setTimeout(function () { wf.classList.remove('flash'); }, 1200);
             var wi = wf.querySelector('input'); if (wi) { try { wi.focus(); } catch (eF) {} } }
@@ -1911,7 +1924,10 @@
       // set", j6 red). The button stays TAPPABLE with its hint; the tap itself accepts any row whose
       // number is really on screen and only blocks on a truly empty one — same law as the row-level ▶.
       btn.disabled = false;
-      btn.textContent = setLabel + ' · tap your ' + unconfirmed[0]._needs;
+      // L181: name a row that can actually hold the log (only reps block), so the hint never points
+      // at a weight the athlete has no way to supply — the misread that cost Phil his 08-15 round.
+      var hint = unconfirmed.filter(function (r) { return r._blocks !== false; })[0] || unconfirmed[0];
+      btn.textContent = setLabel + ' · tap your ' + hint._needs;
     } else {
       btn.disabled = false;
       btn.textContent = 'Log ' + setLabel;
@@ -2189,7 +2205,9 @@
               (pending.length ? pending : all).forEach(function (r) {
                 if (r._confirmed || blocked) return;
                 var v = r._critVal ? r._critVal() : 1;
-                if (v != null && v !== '' && Number(v) > 0) { if (r._confirmActual) r._confirmActual(); else r._confirmed = true; }
+                // L181: only a REPS row may block. A weight row's blank/0 is a real answer and logs
+                // as it stands — one unweighted lift must never strand its partners in the round.
+                if (r._blocks === false || (v != null && v !== '' && Number(v) > 0)) { if (r._confirmActual) r._confirmActual(); else r._confirmed = true; }
                 else blocked = r;
               });
               if (blocked) {
@@ -3047,10 +3065,27 @@
         ? side + ': Round ' + c.round + ' of ' + c.of + ' at ' + c.level
         : c.english;
       r.appendChild(el('div', 'p-clk-v', line));
-      // The minus is a marker, not a demotion: the athlete moved up on the clock without clearing the
-      // standard, and NOTHING in the program changes until they do. Unexplained, a trailing "-" on a
-      // kid's level reads as a punishment.
-      if (c.minus) r.appendChild(el('div', 'p-clk-n', 'the “−” means the clock moved you up before you cleared it — nothing in your program changes'));
+      // THE MINUS COPY WAS FALSE AS OF L172 (Phil 2026-08-15: "the profile's minus tooltip says
+      // 'nothing in your program changes' — WRONG since L172: the minus serves the next rung's
+      // schemes"). It was true under L137, which L172 overturned: a promote-with-minus IS a real
+      // served level and the whole hinge group serves the next sub-level's schemes AND loads.
+      // A copy line that contradicts the law is worse than no line — it teaches the athlete to
+      // distrust the number. Behind an icon, per Phil's 2026-08-14 ruling for the volume formula
+      // ("an information icon you click if you want to see it") — same `p-info` control, no new
+      // vocabulary — with the eye glyph he named for this education layer.
+      // REVERSING LINE: swap '👁' for 'ⓘ' to keep a single icon vocabulary.
+      if (c.minus) {
+        var mrow = el('div', 'p-clk-inforow');
+        var mb = el('button', 'p-info'); mb.type = 'button'; mb.textContent = '👁';
+        mb.title = 'What the “−” means';
+        var mnote = el('div', 'p-clk-n', 'the “−” means the clock moved you up before you cleared it — ' +
+          'your program does move: this region now serves the next sub-level’s schemes and loads.');
+        mnote.hidden = true;
+        mb.addEventListener('click', function () { mnote.hidden = !mnote.hidden; });
+        mrow.appendChild(mb);
+        r.appendChild(mrow);
+        r.appendChild(mnote);
+      }
       card.appendChild(r);
     });
     return card;

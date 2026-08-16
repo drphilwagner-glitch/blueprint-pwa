@@ -1062,4 +1062,7 @@ body #app { padding-bottom: 108px; }
 
 /* profile polish (Phil 2026-08-14 idea drop): info toggle */
 .p-vol-inforow { text-align: right; margin-top: 2px; }
+/* The minus explainer's eye sits with the clock line it annotates, so it reads left like that line
+   (the volume row's eye is right-aligned under a chart). Same .p-info control, no new tokens. */
+.p-clk-inforow { text-align: left; margin-top: 2px; }
 .p-info { background: none; border: 0; color: var(--ink-3); font-size: 14px; padding: 2px 4px; }

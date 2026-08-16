@@ -585,6 +585,11 @@ button, input, select, .step, .check, .swapbtn, .ag-move, .wo, .nav-b, .tstart, 
   border: 1px solid var(--line); border-radius: var(--r-9); background: var(--surface-2); padding: 8px; }
 .hist-h { font-size: var(--fs-10); text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
 .hist-note { font-size: var(--fs-12); color: var(--muted); padding: 2px 0; }
+/* F1(a) — the retry an athlete can actually tap when history fails. Quiet by DESIGN.md rule 1's
+   reference-not-action reading of this panel: it is an escape hatch, never competing with the log. */
+.hist-retry { align-self: flex-start; margin-top: 4px; font-size: var(--fs-12); font-weight: 600;
+  color: var(--ink); background: var(--control); border: 1px solid var(--line);
+  border-radius: var(--r-9); padding: 4px 10px; }
 /* BY DATE — a row per day: the date, then that day's sets in order. Nothing here is emphasised —
    history is reference; the only bold on screen is what the athlete is logging today (Phil, 2026-07-25). */
 .hist-row { display: flex; align-items: baseline; gap: var(--sp-6); padding: 4px 0; }

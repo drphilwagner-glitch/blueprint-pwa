@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260815-loglaw-1';
+  var APP_BUILD = '20260815-histlocal-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1195,30 +1195,52 @@
     // exercise; `ex._alt_of` is the thing it replaced (used by the swap panel, NOT here).
     var panel = el('div', 'hist-panel');
     panel.appendChild(el('div', 'hist-h', 'History · ' + exLabel(ex)));
-    var body = el('div', 'hist-body'); body.appendChild(el('div', 'hist-note', 'Loading…'));
+    var body = el('div', 'hist-body');
     panel.appendChild(body);
     row.appendChild(panel);
-    fetch(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
-          '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(ex.exercise))
-      .then(function (r) { return r.json(); })
+    // BY DATE (Phil, 2026-07-25): a row per day — the date on the left, then that day's sets in
+    // order. No source tag; the date carries recency. Set counts vary because his Everfit logging
+    // did (some days he did not log every set) — Phil accepts that; Blueprint days are consistent.
+    // Nothing here is bold — history is reference; the only bold on screen is what he logs today.
+    function paint(days) {
+      body.innerHTML = '';
+      if (!days.length) { body.appendChild(el('div', 'hist-note', 'No history yet — first time.')); return; }
+      days.forEach(function (day) {
+        var line = el('div', 'hist-row');
+        line.appendChild(el('span', 'hist-date', fmtHistDate(day.date)));
+        var sets = el('div', 'hist-sets');
+        (day.sets || []).forEach(function (s) { sets.appendChild(el('span', 'hist-set', fmtHistSet(s))); });
+        line.appendChild(sets);
+        body.appendChild(line);
+      });
+    }
+    // U4(a) — THE PANEL OPENS FROM LOCAL STATE, AT 0s (Phil 2026-08-15 ruling). The session payload
+    // now carries `history` keyed by exercise (server-side L186), so the most-used feature in the app
+    // costs no round trip at all mid-set. The fetch below is the FALLBACK, not the path: it runs for a
+    // swapped-in alternate, for a bundle the server time-boxed, and for an older build's payload.
+    var local = SESSION && SESSION.history && SESSION.history[ex.exercise];
+    if (local) { paint(local); return; }
+    body.appendChild(el('div', 'hist-note', 'Loading…'));
+    // F1(a) — RETRY, AND AN HONEST FAILURE THE ATHLETE CAN ACT ON. This was a bare `fetch` whose only
+    // catch said "Could not load history." — no retry, no distinction between a throttled Apps Script
+    // (an HTML error page, which r.json() throws on) and being genuinely offline, and nothing to tap.
+    // Phil and Grace both hit it and force-closed the app for what was a hiccup. `fetchJson` already
+    // rides out the hiccup with two retries and classifies the failure; the panel now uses it and
+    // offers the tap, exactly as the profile detail panel has since 2026-08-05.
+    fetchJson(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
+              '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(ex.exercise))
       .then(function (d) {
+        if (d && d.ok && d.days) { paint(d.days); return; }
         body.innerHTML = '';
-        var days = (d && d.ok && d.days) || [];
-        if (!days.length) { body.appendChild(el('div', 'hist-note', 'No history yet — first time.')); return; }
-        // BY DATE (Phil, 2026-07-25): a row per day — the date on the left, then that day's sets in
-        // order. No source tag; the date carries recency. Set counts vary because his Everfit logging
-        // did (some days he did not log every set) — Phil accepts that; Blueprint days are consistent.
-        // Nothing here is bold — history is reference; the only bold on screen is what he logs today.
-        days.forEach(function (day) {
-          var line = el('div', 'hist-row');
-          line.appendChild(el('span', 'hist-date', fmtHistDate(day.date)));
-          var sets = el('div', 'hist-sets');
-          (day.sets || []).forEach(function (s) { sets.appendChild(el('span', 'hist-set', fmtHistSet(s))); });
-          line.appendChild(sets);
-          body.appendChild(line);
+        body.appendChild(el('div', 'hist-note', (d && d.error === 'server') ? SERVER_HICCUP : 'Offline — reconnect to see history.'));
+        var again = el('button', 'hist-retry', 'Try again'); again.type = 'button';
+        again.addEventListener('click', function (evt) {
+          evt.stopPropagation();
+          panel.remove();            // toggleHistory rebuilds the panel from scratch — one code path, not two
+          toggleHistory(row, ex);
         });
-      })
-      .catch(function () { body.innerHTML = ''; body.appendChild(el('div', 'hist-note', 'Could not load history.')); });
+        body.appendChild(again);
+      });
   }
   // Swap panel: pick a reason-tagged alternate → every set of that exercise becomes it, with the
   // alternate's own dosing. "Keep original" reverts. Works from an alternate row too (_alt_of).
@@ -1921,13 +1943,17 @@
     var setLabel = String(title || 'set').replace(/\s*\(.*\)\s*$/, '');   // "Set 1 (warm-up)" -> "Set 1"
     if (unconfirmed.length) {
       // NEVER a dead grey button (2026-08-06, the searched-swap round: Mason "couldn't log my first
-      // set", j6 red). The button stays TAPPABLE with its hint; the tap itself accepts any row whose
-      // number is really on screen and only blocks on a truly empty one — same law as the row-level ▶.
+      // set", j6 red). The button stays TAPPABLE; the tap itself accepts any row whose number is
+      // really on screen and only blocks on a truly empty one — same law as the row-level ▶.
+      // L185 (Phil 2026-08-15): THE LABEL NAMES THE SET AND NOTHING ELSE. It used to append
+      // "· tap your <need>", which named a NEED without naming the ROW — so a partner's weight demand
+      // read as the row he was logging, and that misattribution is what cost him the 08-15 round.
+      // The 07-27 ruling already settled what this button may say: "It should just say 'Log Set
+      // whatever number it is.'" Phil reaffirmed it 2026-08-15 when ruling this fix. The attribution
+      // now lives in the toast, which may name the row because it is answering "why did nothing
+      // happen?" rather than labelling a control.
       btn.disabled = false;
-      // L181: name a row that can actually hold the log (only reps block), so the hint never points
-      // at a weight the athlete has no way to supply — the misread that cost Phil his 08-15 round.
-      var hint = unconfirmed.filter(function (r) { return r._blocks !== false; })[0] || unconfirmed[0];
-      btn.textContent = setLabel + ' · tap your ' + hint._needs;
+      btn.textContent = 'Log ' + setLabel;
     } else {
       btn.disabled = false;
       btn.textContent = 'Log ' + setLabel;
@@ -2211,9 +2237,20 @@
                 else blocked = r;
               });
               if (blocked) {
-                miniToast('Enter your ' + (blocked._needs || 'number') + ' first');
+                // L185 — THE TOAST NAMES THE ROW THAT IS ACTUALLY DEMANDING (Phil 2026-08-15):
+                // "90-90 Switch Weighted needs a weight", not a bare "Enter your weight first" that
+                // the athlete attributes to whichever row they were looking at. Naming the exercise
+                // here does NOT breach the 07-27 button ruling — that governs the control's LABEL;
+                // this is the answer to "why did nothing happen?", and it is useless without the name.
+                var bn = ((blocked.querySelector('.ex-name') || {}).textContent || '').trim();
+                var need = blocked._needs || 'number';
+                miniToast(bn ? (bn + ' needs ' + (need === 'weight' ? 'a weight' : 'its reps'))
+                             : ('Enter your ' + need + ' first'));
                 var bf = blocked.querySelector('.stepper.editable') || blocked.querySelector('.stepper');
                 if (bf) { bf.classList.add('flash'); setTimeout(function () { bf.classList.remove('flash'); }, 1200); }
+                // AND SCROLL IT INTO VIEW (his (a) half). A flash on a row below the fold is a flash
+                // nobody sees — which is the same failure as not naming it.
+                try { blocked.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (eS) {}
                 return;
               }
               // UPDATE vs LOG. Skipping rows that are already `.done` made the "Update" button a

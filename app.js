@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260815-histlocal-1';
+  var APP_BUILD = '20260816-quietprime-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -381,10 +381,18 @@
           _cueEl.load();
         }
         if (!_cuePrimed) {                     // unlock it under the gesture: play muted, then rewind
+          // L194 — PRIMING MUST NEVER BE AUDIBLE (Phil 2026-08-16: "It did a beep when I choose the
+          // workout. Thought we got rid of that. The audio was only for the timer.").
+          // primeAudio runs on the tap that OPENS A SESSION, and this block used to UNMUTE the element
+          // as part of settling — `_cueEl.muted = false` after an ASYNC pause, and on the failure path
+          // it unmuted without pausing at all. Either way there is a window where an unmuted cue is
+          // still playing, and a slow cold open (his was 30s+) is exactly when that window is widest.
+          // The element STAYS MUTED here forever; `beep()` sets `muted = false` itself at the moment a
+          // real cue fires, so nothing is lost — the unlock gesture is what priming is for, not sound.
           _cueEl.muted = true;
           var pr = _cueEl.play();
-          var settle = function () { try { _cueEl.pause(); _cueEl.currentTime = 0; } catch (e2) {} _cueEl.muted = false; _cuePrimed = true; };
-          if (pr && pr.then) pr.then(settle, function () { _cueEl.muted = false; });
+          var settle = function () { try { _cueEl.pause(); _cueEl.currentTime = 0; } catch (e2) {} _cuePrimed = true; };
+          if (pr && pr.then) pr.then(settle, function () { _cuePrimed = true; });
           else settle();
         }
       } catch (e) {}

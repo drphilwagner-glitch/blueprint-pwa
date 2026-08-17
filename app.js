@@ -3180,13 +3180,22 @@
     c.appendChild(milo);
     return c;
   }
+  // ONE LAW, ONE PREDICATE (L207) — "which lift is strongest" is answered HERE and nowhere else.
+  // The server asked the same question with a DIFFERENT rule (level alone) until 2026-08-17, and the
+  // two agreed on every athlete we happened to look at, which is why it survived. They part company
+  // the instant a non-maxed 3.3 meets a maxed 3.1. Phil's rule for a conflict: the newer one is
+  // right — this one, from Profile V2 (2026-08-14) — and it is also the correct reading, since top
+  // of the ladder beats a higher unfinished rung. `apps-script/LoggerApi.gs` declares this function
+  // byte-identically; `qa/harness/bestlift-parity.mjs` extracts BOTH and reds if they ever differ.
+  function _bestLiftCmp_(a, b) {
+    if (!!b.maxed !== !!a.maxed) return b.maxed ? 1 : -1;
+    var d = (parseFloat(b.level) || 0) - (parseFloat(a.level) || 0); if (d) return d;
+    return (b.progress || 0) - (a.progress || 0);
+  }
   function topCards(list) {
     var lev = list.filter(function (x) { return x.level != null; });
     if (!lev.length) return [];
-    var best = lev.slice().sort(function (a, b) {
-      if (!!b.maxed !== !!a.maxed) return b.maxed ? 1 : -1;
-      var d = (parseFloat(b.level) || 0) - (parseFloat(a.level) || 0); if (d) return d;
-      return (b.progress || 0) - (a.progress || 0); }).slice(0, 3);
+    var best = lev.slice().sort(_bestLiftCmp_).slice(0, 3);
     var needs = lev.filter(function (x) { return !x.maxed; }).sort(function (a, b) {
       var d = (parseFloat(a.level) || 9) - (parseFloat(b.level) || 9); if (d) return d;
       return (a.progress || 0) - (b.progress || 0); }).slice(0, 3);

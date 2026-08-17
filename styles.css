@@ -736,6 +736,13 @@ body.has-tbar #app { padding-bottom: 128px; }
 /* NOW = one primary action: the per-row ✓ steps aside for the round button. A timed hold keeps its
    ▶, because starting the hold is a different act from recording the round. */
 .ex-row .check:not(.dur) { display: none; }
+/* DESIGN.md two-mode law (S-round modes): "An opened past round shows the per-row ✓ ... so a single
+   set can be unchecked and corrected." The rule was written and this second mode never implemented —
+   R016 (uncheck an accidental check) is that gap. A DONE row's green ✓ shows wherever the row itself
+   is visible (opened past rounds, and done rows of the NOW round); tap = undo (app.js uncheck()).
+   Deviation, flagged not silently taken: the law also says the opened round hides the Log button —
+   Update stays, because the j12/j24 correction flow logs through it. */
+.ex-row.done .check:not(.dur) { display: inline-block; }
 /* Editing a past round is the other mode: per-row ✓ so a single set can be unchecked and corrected. */
 /* ONE control per round, in every state — Phil: "some of them have checkboxes, and some of them have
    logs... it's totally unpredictable how you log workouts." The per-row check is gone for good;

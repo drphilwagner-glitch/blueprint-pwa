@@ -1078,8 +1078,8 @@
   }
   // ONE-LINE COACH NOTE (#35), under the exercise name and only on its FIRST row (SHOWN_NOTE guards
   // it, since an exercise repeats across set-rounds). Phil types it in the Exercise Videos `note`
-  // column; CSS clamps it to a single line with an ellipsis so length can never push it to two lines.
-  // Empty note or already-shown -> nothing rendered.
+  // column; it WRAPS and never clips (L40 / PRINCIPLES #3 — the ellipsis clamp this comment used to
+  // describe was removed, and j29 reds if it ever returns). Empty note or already-shown -> nothing.
   function noteUnder(row, ex, isMax) {
     // A max-reps movement (Accordion Squat, any 'max' alternate) has no rep target — it reads "0" until
     // the athlete fills it in, which alone looks broken. Show the instruction so it's obvious what to do.
@@ -1743,8 +1743,25 @@
       row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
       refocus();   // rule 1: finishing a set advances what's in focus
     }
-    function uncheck() {   // undo an accidental check (pulls the log back if not yet sent)
+    function uncheck() {   // undo an accidental check — and the undo must REACH THE SHEET (R016, j30)
       if (lastLogId) qDel([lastLogId]).then(updateBadge).catch(function () {});
+      // Sessions is append-only (hard rule 1): once the row has drained, pulling it back is
+      // impossible — the undo is a CORRECTION APPEND. A marker row (flag 'uncheck', same set, blank
+      // actuals) voids the set at every server intake, newest-wins, so a genuine re-log wins the set
+      // back. Before this, the undo only ever emptied the local queue: any set that had already
+      // drained stayed on the sheet, fed the engine, and re-marked itself done on the next reload.
+      // Sent whenever the sheet may know the set — it was server-logged at render (wasLogged), or
+      // this pageload logged it and the queue may have drained already. A marker for a set the sheet
+      // never received is a harmless record: it voids nothing.
+      if (wasLogged || lastLogId) {
+        var uSid = SESSION ? SESSION.session_id : '';
+        if (!uSid) { try { uSid = sessionStorage.getItem('bp_open_session') || ''; } catch (eU) {} }
+        if (uSid) {
+          logRows(splitSides({ log_id: uuid(), session_id: uSid, complex_name: slot.complex_name,
+            exercise: cur.exercise, set_no: t.set_no, side: '', target_load: '', target_reps: '',
+            actual_load: '', actual_reps: '', flag: 'uncheck', variant_name: '' }, cur.each_side));
+        }
+      }
       delete LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)];
       lastLogId = null; lastSig = null;   // L167: undo re-arms the row, so a genuine re-log still appends
       row.classList.remove('done'); check.classList.remove('done');

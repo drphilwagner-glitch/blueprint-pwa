@@ -2888,10 +2888,27 @@
         // Loaded or bodyweight? Infer from the DATA (Dips is reps-only — never show it in lb).
         var loaded = days.some(function (day) { return (day.sets || []).some(function (s) { return Number(s.load) > 0; }); });
         var vunit = loaded ? 'lb' : 'reps';
-        // the improvement line is VOLUME per session, oldest -> newest
+        // BY COMPLETED ROUND when the data can (R327, Phil 2026-08-17 — "this goes the same for the
+        // progress graph"): a round groups its days; the CURRENT round (highest round_n) stays off
+        // the graph until training moves past it (unless the whole window is stale — then every
+        // round shown is closed by definition). Legacy Everfit days carry no round_n, and fewer
+        // than two closed rounds means per-session, exactly as before — fail-soft, never a gap.
+        var maxRn = 0; days.forEach(function (day) { if (Number(day.round_n) > maxRn) maxRn = Number(day.round_n); });
+        var byRn = {};
+        days.forEach(function (day) {
+          var rn = Number(day.round_n);
+          if (!rn || (!stale && rn >= maxRn)) return;
+          var b = byRn[rn] = byRn[rn] || { date: day.date, v: 0 };
+          b.v += _sessVol(day.sets);
+          if (String(day.date) > String(b.date)) b.date = day.date;
+        });
+        var rpts = Object.keys(byRn).map(function (n) { return { n: Number(n), date: byRn[n].date, v: byRn[n].v }; })
+          .filter(function (p) { return p.v > 0; }).sort(function (a, b) { return a.n - b.n; });
+        // the improvement line: VOLUME per completed round when >=2 exist, else per session
         var pts = days.map(function (day) { return { date: day.date, v: _sessVol(day.sets) }; })
           .filter(function (p) { return p.v > 0; }).reverse();
-        if (pts.length >= 2) panel.appendChild(bigChart(pts, vunit, 'Volume'));
+        if (rpts.length >= 2) panel.appendChild(bigChart(rpts, vunit, 'Volume per round'));
+        else if (pts.length >= 2) panel.appendChild(bigChart(pts, vunit, 'Volume'));
         if (stale) panel.appendChild(el('div', 'p-detail-note', 'Not trained in the last two months — showing your most recent sessions.'));
         // Star ONLY the all-time best session — not every intermediate record. Phil 2026-07-28: "It's
         // only best if it's the all-time best 1RM, so it shouldn't be 99 and 66 for RDL. It should just

@@ -3134,11 +3134,11 @@
       // A copy line that contradicts the law is worse than no line — it teaches the athlete to
       // distrust the number. Behind an icon, per Phil's 2026-08-14 ruling for the volume formula
       // ("an information icon you click if you want to see it") — same `p-info` control, no new
-      // vocabulary — with the eye glyph he named for this education layer.
-      // REVERSING LINE: swap '👁' for 'ⓘ' to keep a single icon vocabulary.
+      // vocabulary. The eye glyph was his earlier pick; REVERSED by Phil 2026-08-17 ("I meant the
+      // letter I... just like we have on the weekly volume") — one icon vocabulary, the circled i.
       if (c.minus) {
         var mrow = el('div', 'p-clk-inforow');
-        var mb = el('button', 'p-info'); mb.type = 'button'; mb.textContent = '👁';
+        var mb = el('button', 'p-info'); mb.type = 'button'; mb.textContent = 'ⓘ';
         mb.title = 'What the “−” means';
         var mnote = el('div', 'p-clk-n', 'the “−” means the clock moved you up before you cleared it — ' +
           'your program does move: this region now serves the next sub-level’s schemes and loads.');
@@ -3155,15 +3155,27 @@
 
   // PROFILE V2 CARDS (the mock Phil approved 2026-08-14 — B7 + S20 + D-P2 + ruling 4). Each card
   // fail-softs to nothing when its payload block is absent (an old cached payload must still render).
-  function volumeCard(wksIn) {
-    var wks = (wksIn || []).filter(function (w) { return w && w.wk; });
-    // AXIS = THE DATA'S OWN SPAN (Phil 2026-08-14): 12 weeks only when 12 weeks exist — a 3-week
-    // athlete gets a 3-week axis starting at their first data, not 9 weeks of flatline preamble.
-    var first = -1; wks.forEach(function (w, i) { if (first < 0 && w.lb > 0) first = i; });
-    if (first > 0) wks = wks.slice(first);
+  function volumeCard(roundsIn, wksIn) {
+    // BY COMPLETED ROUND, NOT CALENDAR WEEK (Phil 2026-08-17: a week slices a round arbitrarily, so
+    // one round split across two weeks graphed as a collapse — "I have a hard time believing Mason's
+    // went down"). An unfinished round does not plot at all. Weeks remain ONLY as the fail-soft for
+    // a stale cached payload without volume_rounds.
+    var byRound = !!(roundsIn && roundsIn.length);
+    var wks;
+    if (byRound) {
+      wks = roundsIn.filter(function (w) { return w && w.lb != null; });
+    } else {
+      wks = (wksIn || []).filter(function (w) { return w && w.wk; });
+      // AXIS = THE DATA'S OWN SPAN (Phil 2026-08-14): 12 weeks only when 12 weeks exist — a 3-week
+      // athlete gets a 3-week axis starting at their first data, not 9 weeks of flatline preamble.
+      var first = -1; wks.forEach(function (w, i) { if (first < 0 && w.lb > 0) first = i; });
+      if (first > 0) wks = wks.slice(first);
+    }
     if (!wks.length || !wks.some(function (w) { return w.lb > 0; })) return null;
     var c = el('div', 'p-ai');
-    c.appendChild(el('div', 'p-ai-h', 'Weekly volume — last ' + wks.length + ' week' + (wks.length === 1 ? '' : 's')));
+    c.appendChild(el('div', 'p-ai-h', byRound
+      ? 'Volume — last ' + wks.length + ' completed round' + (wks.length === 1 ? '' : 's')
+      : 'Weekly volume — last ' + wks.length + ' week' + (wks.length === 1 ? '' : 's')));
     var W = 360, H = 120, PAD = 10;
     // Y AXIS = THE DATA'S OWN SPAN TOO (R021, Phil 08-16: "Y scale is wrong" — extends his own
     // 08-14 X-axis ruling above). Zero-anchored Y left the line floating over a dead zone (his data
@@ -3184,7 +3196,7 @@
     svg.appendChild(sEl('polyline', { points: pts, fill: 'none', stroke: '#2e6bd6', 'stroke-width': 2.2 }));
     svg.appendChild(sEl('circle', { cx: bp[0], cy: bp[1], r: 4.5, fill: '#0a7d4f' }));
     var bx = bp[0] > W - 46 ? { x: bp[0] - 8, 'text-anchor': 'end' } : { x: Math.max(4, bp[0] - 22) };
-    svg.appendChild(sEl('text', { x: bx.x, 'text-anchor': bx['text-anchor'] || 'start', y: Math.max(10, bp[1] - 8), 'font-size': 9, fill: '#0a7d4f' }, 'best week'));
+    svg.appendChild(sEl('text', { x: bx.x, 'text-anchor': bx['text-anchor'] || 'start', y: Math.max(10, bp[1] - 8), 'font-size': 9, fill: '#0a7d4f' }, byRound ? 'best round' : 'best week'));
     svg.appendChild(sEl('text', { x: 2, y: 10, 'font-size': 9, fill: '#8ba0b6' }, Math.round(max / 1000) + 'k lb'));
     svg.appendChild(sEl('text', { x: 2, y: H - 4, 'font-size': 9, fill: '#8ba0b6' }, Math.round(min / 1000) + 'k lb'));
     c.appendChild(svg);
@@ -3277,7 +3289,7 @@
     // V2 ORDER (the approved mock): tonnage graph LEADS (ruling 4), then top-3 best / top-3 needs
     // (B7 — the tiles and the AI-summary lead are superseded by these), then the clock, then the
     // ladders worst-first, then wins. The summary points card is retired from the lead position.
-    var vc = volumeCard(payload && payload.volume_weeks);
+    var vc = volumeCard(payload && payload.volume_rounds, payload && payload.volume_weeks);
     if (vc) app.appendChild(vc);
     topCards(list).forEach(function (c) { app.appendChild(c); });
 

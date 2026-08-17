@@ -3165,7 +3165,14 @@
     var c = el('div', 'p-ai');
     c.appendChild(el('div', 'p-ai-h', 'Weekly volume — last ' + wks.length + ' week' + (wks.length === 1 ? '' : 's')));
     var W = 360, H = 120, PAD = 10;
-    var max = Math.max.apply(null, wks.map(function (w) { return w.lb; })), min = 0;
+    // Y AXIS = THE DATA'S OWN SPAN TOO (R021, Phil 08-16: "Y scale is wrong" — extends his own
+    // 08-14 X-axis ruling above). Zero-anchored Y left the line floating over a dead zone (his data
+    // never dips below ~2/3 of max) with ONE unreadable label. Floor/ceil to whole thousands, label
+    // BOTH ends. A real zero week keeps the floor at 0 — low points are real feedback, never smoothed.
+    var dmax = Math.max.apply(null, wks.map(function (w) { return w.lb; }));
+    var dmin = Math.min.apply(null, wks.map(function (w) { return w.lb; }));
+    var min = Math.max(0, Math.floor(dmin / 1000) * 1000);
+    var max = Math.ceil(dmax / 1000) * 1000; if (max <= min) max = min + 1000;
     var bestI = 0; wks.forEach(function (w, i) { if (w.lb > wks[bestI].lb) bestI = i; });
     function xy(i, lb) { var x = PAD + i * ((W - 2 * PAD) / Math.max(1, wks.length - 1));
       var y = H - 14 - (max > min ? ((lb - min) / (max - min)) * (H - 34) : 0); return [Math.round(x), Math.round(y)]; }
@@ -3179,6 +3186,7 @@
     var bx = bp[0] > W - 46 ? { x: bp[0] - 8, 'text-anchor': 'end' } : { x: Math.max(4, bp[0] - 22) };
     svg.appendChild(sEl('text', { x: bx.x, 'text-anchor': bx['text-anchor'] || 'start', y: Math.max(10, bp[1] - 8), 'font-size': 9, fill: '#0a7d4f' }, 'best week'));
     svg.appendChild(sEl('text', { x: 2, y: 10, 'font-size': 9, fill: '#8ba0b6' }, Math.round(max / 1000) + 'k lb'));
+    svg.appendChild(sEl('text', { x: 2, y: H - 4, 'font-size': 9, fill: '#8ba0b6' }, Math.round(min / 1000) + 'k lb'));
     c.appendChild(svg);
     // The formula hides behind an ⓘ (Phil 2026-08-14: "shouldn't be written out — an information
     // icon you click if you want to see it").

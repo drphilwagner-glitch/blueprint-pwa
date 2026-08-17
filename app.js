@@ -1014,11 +1014,30 @@
   // skip:coach / skip:mine / skip:pain, blank load and reps, NEVER a zero-rep row. Markers ride the
   // same IndexedDB queue as sets (durable), are excluded from evidence server-side by construction,
   // and pain skips surface to the coach's FLAGGED list. The rows grey out and stop prompting. ----
-  function markRowsSkipped(exName, reason) {
+  function markRowsSkipped(exName, reason, slot) {
     (ROW_REG[exName] || []).forEach(function (en) {
       en.row.classList.add('skipped');
       if (!en.row.querySelector('.skiplab')) {
-        en.row.appendChild(el('div', 'skiplab', 'skipped — ' + (reason === 'coach' ? 'coach said to' : reason === 'pain' ? 'pain' : 'your choice')));
+        var lab = el('div', 'skiplab', 'skipped — ' + (reason === 'coach' ? 'coach said to' : reason === 'pain' ? 'pain' : 'your choice') + ' · tap to undo');
+        // UNSKIP (Phil 2026-08-17 URGENT: a stray skip killed his whole complex's logging with no way
+        // back — "could not unskip which is needed"). Tapping the label appends an uncheck marker at
+        // the skip's coordinates (set '', side '' — the R016 void, same law) and re-arms every row.
+        lab.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          var uSid2 = SESSION ? SESSION.session_id : '';
+          if (!uSid2) { try { uSid2 = sessionStorage.getItem('bp_open_session') || ''; } catch (eU2) {} }
+          if (uSid2) {
+            logRows([{ log_id: uuid(), session_id: uSid2, complex_name: (slot && slot.complex_name) || '',
+              exercise: exName, set_no: '', side: '', target_load: '', target_reps: '',
+              actual_load: '', actual_reps: '', flag: 'uncheck', variant_name: '' }]);
+          }
+          (ROW_REG[exName] || []).forEach(function (en2) {
+            en2.row.classList.remove('skipped');
+            var l2 = en2.row.querySelector('.skiplab'); if (l2) l2.remove();
+          });
+          refocus();
+        });
+        en.row.appendChild(lab);
       }
     });
   }
@@ -1027,7 +1046,7 @@
       exercise: exName, set_no: '', side: '', target_load: '', target_reps: '',
       actual_load: '', actual_reps: '', flag: 'skip:' + reason };
     qAdd(marker).then(function () { drain(); }).catch(function () {});
-    markRowsSkipped(exName, reason);
+    markRowsSkipped(exName, reason, slot);
   }
   function toggleSkip(row, ex, slot) {
     var old = row.querySelector('.skip-panel');
@@ -1039,12 +1058,9 @@
       b.addEventListener('click', function () { p.remove(); postSkip(slot, ex.exercise, o[0]); });
       p.appendChild(b);
     });
-    var all = el('button', 'skip-opt whole'); all.type = 'button'; all.textContent = 'Skip the whole complex (coach said to)';
-    all.addEventListener('click', function () {
-      p.remove();
-      (slot.exercises || []).forEach(function (e2) { postSkip(slot, e2.exercise, 'coach'); });
-    });
-    p.appendChild(all);
+    // The whole-complex skip button is GONE (Phil 2026-08-17 URGENT, after it ate his Bent Row +
+    // Front Press logging: "skip is by exercise, not by set and certainly not by whole complex").
+    // Skipping stays per-exercise; a whole complex is skipped one exercise at a time, deliberately.
     row.appendChild(p);
   }
   // Registry of rendered rows, keyed by the ORIGINAL exercise, so a swap can reach every set of that

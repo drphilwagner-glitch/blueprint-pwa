@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260818-l242disp-1';
+  var APP_BUILD = '20260818-l244-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3184,9 +3184,13 @@
       // "LE"/"UE". Coach View keeps the shorthand; the payload's `side` code maps here, and the
       // server's english line is the fallback for a payload without one.
       var side = c.side === 'LE' ? 'Lower body' : c.side === 'UE' ? 'Upper body' : c.side;
-      var line = (side && c.round != null && c.of != null && c.level != null)
+      // R360 (Phil 2026-08-18): this rebuild preferred round/of/level over the server's english, so
+      // a topped side printed "Round 4 of 3" — the tick lawfully outruns the window when no minus
+      // can fire at the ladder top. At a top (or any round>of state) the server's english IS the
+      // honest line ("top of the ladder (3.3)"); shorthand still maps to full words per ruling 3b.
+      var line = (!c.at_top && side && c.round != null && c.of != null && c.level != null && Number(c.round) <= Number(c.of))
         ? side + ': Round ' + c.round + ' of ' + c.of + ' at ' + c.level
-        : c.english;
+        : (c.english ? String(c.english).replace(/^LE:/, 'Lower body:').replace(/^UE:/, 'Upper body:') : c.english);
       r.appendChild(el('div', 'p-clk-v', line));
       // THE MINUS COPY WAS FALSE AS OF L172 (Phil 2026-08-15: "the profile's minus tooltip says
       // 'nothing in your program changes' — WRONG since L172: the minus serves the next rung's

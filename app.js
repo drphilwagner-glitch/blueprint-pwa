@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260818-sumedit-1';
+  var APP_BUILD = '20260818-dots-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3241,18 +3241,24 @@
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', '100%'); svg.setAttribute('height', H);
     function sEl(tag, at, txt) { var n = document.createElementNS(svgNS, tag); Object.keys(at).forEach(function (k) { n.setAttribute(k, at[k]); }); if (txt) n.textContent = txt; return n; }
     svg.appendChild(sEl('polyline', { points: pts, fill: 'none', stroke: '#2e6bd6', 'stroke-width': 2.2 }));
-    svg.appendChild(sEl('circle', { cx: bp[0], cy: bp[1], r: 4.5, fill: '#0a7d4f' }));
-    var bx = bp[0] > W - 46 ? { x: bp[0] - 8, 'text-anchor': 'end' } : { x: Math.max(4, bp[0] - 22) };
-    svg.appendChild(sEl('text', { x: bx.x, 'text-anchor': bx['text-anchor'] || 'start', y: Math.max(10, bp[1] - 8), 'font-size': 9, fill: '#0a7d4f' }, byRound ? 'best round' : 'best week'));
-    svg.appendChild(sEl('text', { x: 2, y: 10, 'font-size': 9, fill: '#8ba0b6' }, Math.round(max / 1000) + 'k lb'));
-    svg.appendChild(sEl('text', { x: 2, y: H - 4, 'font-size': 9, fill: '#8ba0b6' }, Math.round(min / 1000) + 'k lb'));
+    // R331 (Phil 2026-08-18): a DOT at every point with ITS OWN NUMBER — "I don't need a y-axis
+    // listing of the numbers. You can take those off for everybody. Just put what the number is."
+    // The best point keeps its green; the axis end-labels are gone.
+    wks.forEach(function (w, i) {
+      var p2 = xy(i, w.lb);
+      svg.appendChild(sEl('circle', { cx: p2[0], cy: p2[1], r: 3.5, fill: i === bestI ? '#0a7d4f' : '#2e6bd6' }));
+      var anch2 = p2[0] > W - 34 ? 'end' : (p2[0] < 34 ? 'start' : 'middle');
+      var lbl = w.lb >= 1000 ? (Math.round(w.lb / 100) / 10) + 'k' : String(Math.round(w.lb));
+      svg.appendChild(sEl('text', { x: p2[0], y: Math.max(10, p2[1] - 8), 'text-anchor': anch2, 'font-size': 9,
+        'font-weight': i === bestI ? 700 : 400, fill: i === bestI ? '#0a7d4f' : '#5b7290' }, lbl + ' lb'));
+    });
     // R022: a round that closed SHORT says so at its own point — "2 of 3" = sessions logged of
     // planned. Full rounds stay silent (#5); this is why a dip dips, not decoration.
     if (byRound) wks.forEach(function (w, i) {
       if (!(w.p > 0 && w.w < w.p)) return;
       var lp = xy(i, w.lb);
       var anch = lp[0] > W - 30 ? 'end' : (lp[0] < 30 ? 'start' : 'middle');
-      svg.appendChild(sEl('text', { x: lp[0], y: Math.min(H - 14, lp[1] + 14), 'text-anchor': anch, 'font-size': 9, fill: '#b0763a' }, w.w + ' of ' + w.p));
+      svg.appendChild(sEl('text', { x: lp[0], y: Math.min(H - 4, lp[1] + 16), 'text-anchor': anch, 'font-size': 9, fill: '#b0763a' }, w.w + ' of ' + w.p));
     });
     c.appendChild(svg);
     // The formula hides behind an ⓘ (Phil 2026-08-14: "shouldn't be written out — an information

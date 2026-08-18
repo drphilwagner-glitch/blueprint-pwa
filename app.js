@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260818-passline-1';
+  var APP_BUILD = '20260818-profile3-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3080,7 +3080,9 @@
     (cats || []).forEach(function (c) { if (c && c.orderMax) OM = Math.max(OM, Number(c.orderMax)); });
     OM = Math.max(3, Math.round(OM / 3) * 3);
     var card = el('div', 'ladder');
-    card.appendChild(el('div', 'ladder-h', 'Where you stand — worst first · tap a bar for the lifts'));
+    // R027/I3 (Phil 2026-08-16): title only — the worst-first explainer is dropped; the bars are
+    // already ordered worst-first and the ▾ chevron carries the tap affordance.
+    card.appendChild(el('div', 'ladder-h', 'Where you stand'));
     var panels = [];
     // WORST FIRST (B7, approved mock): iterate qualities by their level ascending — the weakest
     // quality is the headline. LADDER_ORDER was a fixed display order; it survives only as the
@@ -3235,6 +3237,14 @@
     svg.appendChild(sEl('text', { x: bx.x, 'text-anchor': bx['text-anchor'] || 'start', y: Math.max(10, bp[1] - 8), 'font-size': 9, fill: '#0a7d4f' }, byRound ? 'best round' : 'best week'));
     svg.appendChild(sEl('text', { x: 2, y: 10, 'font-size': 9, fill: '#8ba0b6' }, Math.round(max / 1000) + 'k lb'));
     svg.appendChild(sEl('text', { x: 2, y: H - 4, 'font-size': 9, fill: '#8ba0b6' }, Math.round(min / 1000) + 'k lb'));
+    // R022: a round that closed SHORT says so at its own point — "2 of 3" = sessions logged of
+    // planned. Full rounds stay silent (#5); this is why a dip dips, not decoration.
+    if (byRound) wks.forEach(function (w, i) {
+      if (!(w.p > 0 && w.w < w.p)) return;
+      var lp = xy(i, w.lb);
+      var anch = lp[0] > W - 30 ? 'end' : (lp[0] < 30 ? 'start' : 'middle');
+      svg.appendChild(sEl('text', { x: lp[0], y: Math.min(H - 14, lp[1] + 14), 'text-anchor': anch, 'font-size': 9, fill: '#b0763a' }, w.w + ' of ' + w.p));
+    });
     c.appendChild(svg);
     // The formula hides behind an ⓘ (Phil 2026-08-14: "shouldn't be written out — an information
     // icon you click if you want to see it").
@@ -3311,7 +3321,10 @@
     if (bc) {
       var hl = el('div', 'p-win-hl');
       hl.appendChild(el('b', '', '🏆 Best volume — whole complex'));
-      hl.appendChild(el('div', '', bc.complex + ' · ' + (bc.lifts || '') + ': ' + Number(bc.lb).toLocaleString() + ' lb across ' + bc.sets + ' sets — your biggest complex in 90 days.'));
+      // R024 + I5 (Phil 2026-08-16): the pairing IS the complex's full name to an athlete —
+      // "Deadlift + Step Down". "Comp1" is an internal slot token (#1: never show internal codes);
+      // it led the line and read as the name being cut off.
+      hl.appendChild(el('div', '', (bc.lifts || bc.complex) + ': ' + Number(bc.lb).toLocaleString() + ' lb across ' + bc.sets + ' sets — your biggest complex in 90 days.'));
       c.appendChild(hl);
     }
     wins.slice(0, 10).forEach(function (w) {
@@ -3327,19 +3340,17 @@
     meta.textContent = athlete + ' · your progress';
     if (!list.length) { app.appendChild(el('p', 'empty', 'No exercises yet.')); return; }
 
-    // V2 ORDER (the approved mock): tonnage graph LEADS (ruling 4), then top-3 best / top-3 needs
-    // (B7 — the tiles and the AI-summary lead are superseded by these), then the clock, then the
-    // ladders worst-first, then wins. The summary points card is retired from the lead position.
+    // R027/I3 ORDER (Phil 2026-08-16 ×2, amending the B7 mock): tonnage graph LEADS (ruling 4),
+    // then the LADDER — "Where you stand", title only — then "Strongest right now" + "Biggest
+    // needs" as tiles 3 and 4, then wins. The clock keeps its adjacency directly under the ladder
+    // (proposed DESIGN rule 10's rationale: the promotion cycle beside the standing it governs).
     var vc = volumeCard(payload && payload.volume_rounds, payload && payload.volume_weeks);
     if (vc) app.appendChild(vc);
-    topCards(list).forEach(function (c) { app.appendChild(c); });
 
-    // V2 (approved mock): the AI-summary points card no longer leads — "Strongest right now" +
-    // "Biggest needs" above ARE the summary, per B7. Only the honest EMPTY state survives here.
+    // The AI-summary points card no longer leads — the tiles ARE the summary, per B7. Only the
+    // honest EMPTY state survives here, and it must precede the ladder (nothing logged means this
+    // is the whole screen; the breakdown means nothing without it).
     if (!((summary && summary.points) || []).length && summary && summary.text) {
-      // NOTHING LOGGED YET. Phil saw "Log a few sessions and a read on your progress shows up here"
-      // sitting above a populated "by quality" card — two contradictory statements on one screen.
-      // If there is no read to give, that is the whole screen; the breakdown means nothing without it.
       var ai2 = el('div', 'p-ai');
       ai2.appendChild(el('div', 'p-ai-h', 'Where you stand'));
       ai2.appendChild(el('div', 'p-ai-b', summary.text));
@@ -3347,14 +3358,7 @@
       categories = [];
     }
 
-    // PLACEMENT (proposed DESIGN rule 10, awaiting Phil — DESIGN.md rule 9): the clock sits directly
-    // under "Where you stand" and above the ladder, because it answers the same question at a coarser
-    // resolution — where you stand in the promotion cycle, before where each lift stands. It is not
-    // coach-only data (rule 8): it is the athlete's own clock.
-    var clkCard = clockCard(clocks);
-    if (clkCard) app.appendChild(clkCard);
-
-    // BY QUALITY, as the LADDER — and now the navigation. Group every lift under its rolled-up quality
+    // BY QUALITY, as the LADDER — and the navigation. Group every lift under its rolled-up quality
     // (server sends x.quality) so tapping a bar opens that quality's lifts, weakest first. This REPLACES
     // the old flat "needs work / strongest / everything else" scroll (S20 spec, Phil 2026-07-28).
     var QKEYS = ['Upper Body Max', 'Lower Body Max', 'Upper Body Relative', 'Lower Body Relative',
@@ -3373,7 +3377,7 @@
     Object.keys(byQuality).forEach(function (k) { byQuality[k].sort(byLevel); });
 
     // WORST FIRST (B7): the ladder orders by the quality's level ascending — the weakest quality is
-    // the headline, exactly as the approved mock reads ("Where you stand — worst first").
+    // the headline.
     if (categories && categories.length) {
       categories = categories.slice().sort(function (a, b) {
         var la = parseFloat(a.low != null ? a.low : (a.span || '')), lb = parseFloat(b.low != null ? b.low : (b.span || ''));
@@ -3381,10 +3385,9 @@
         return la - lb;
       });
     }
-    if (categories && categories.length >= 3) {
+    var laddered = categories && categories.length >= 3;
+    if (laddered) {
       app.appendChild(ladderCard(categories, byQuality));
-      var wc = winsCard(payload);
-      if (wc) app.appendChild(wc);
     } else if (categories && categories.length) {
       var cw = el('div', 'p-cats');
       cw.appendChild(el('div', 'p-cats-h', 'By quality'));
@@ -3396,11 +3399,18 @@
       });
       app.appendChild(cw);
     }
+    var clkCard = clockCard(clocks);
+    if (clkCard) app.appendChild(clkCard);
+
+    // Tiles 3 + 4 (I3), then wins — wins now render for ladderless athletes too, instead of
+    // silently vanishing with the ladder as before.
+    topCards(list).forEach(function (c) { app.appendChild(c); });
+    var wc = winsCard(payload);
+    if (wc) app.appendChild(wc);
 
     // If the ladder can't render (fewer than 3 qualities), fall back to a flat list so lifts are never
     // stranded. Otherwise every quality lift lives under its bar; only the non-quality "other work"
     // (accessories, carries, stability) needs its own home so nothing disappears.
-    var laddered = categories && categories.length >= 3;
     if (!laddered) {
       list.slice().sort(byLevel).forEach(function (x) { app.appendChild(profileCard(x)); });
     } else if (other.length) {

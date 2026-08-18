@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260818-profile3-1';
+  var APP_BUILD = '20260818-sumedit-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1887,6 +1887,15 @@
       });
     }
     function backLink() {
+      // R112 (Phil 2026-07-24): a way BACK INTO the finished workout to edit — reopening serves the
+      // session with every logged set restored, and opened rounds offer the per-row ✓ undo (the
+      // R016 two-mode law). Same quiet styling as the calendar link; navigation stays at the bottom.
+      var sid = (SESSION && SESSION.session_id) || (function () { try { return sessionStorage.getItem('bp_open_session') || ''; } catch (e) { return ''; } })();
+      if (sid) {
+        var edit = el('button', 'sum-back', '← Back into workout to edit'); edit.type = 'button';
+        edit.addEventListener('click', function () { openSession(sid); });
+        app.appendChild(edit);
+      }
       var back = el('button', 'sum-back', '← Back to calendar'); back.type = 'button';
       back.addEventListener('click', function () { loadHome(); });
       app.appendChild(back);

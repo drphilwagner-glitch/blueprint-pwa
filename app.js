@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260816-quietprime-1';
+  var APP_BUILD = '20260818-passline-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2801,7 +2801,10 @@
 
     // Level: where you are on the climb and how far to go.
     if (x.level && !x.maxed && x.to_go != null) {
-      var toGoTxt = x.goal.load != null ? (x.to_go + ' lb to next level') : (x.to_go + (x.to_go === 1 ? ' rep to next level' : ' reps to next level'));
+      // R023: a variant-jump rung counts from zero on ITS OWN movement — say whose reps they are.
+      var toGoTxt = x.goal.load != null ? (x.to_go + ' lb to next level')
+        : (x.goal.variant ? (x.to_go + (x.to_go === 1 ? ' rep' : ' reps') + ' of ' + x.goal.variant + ' to next level')
+                          : (x.to_go + (x.to_go === 1 ? ' rep to next level' : ' reps to next level')));
       var lv = el('div', 'p-level');
       lv.appendChild(el('span', 'p-level-l', 'Level ' + x.level));
       lv.appendChild(el('span', 'p-level-g', x.to_go === 0 ? 'ready to level up' : toGoTxt));
@@ -3286,11 +3289,16 @@
       // ladder doesn't have (x.3 + 0.1 = x.4 instead of the next whole level). The line now states
       // the CURRENT rung's own pass requirement — weight × reps out of the level — read from goal,
       // which came from the Level Standards cell. No arithmetic, no invented labels.
+      // R023: a rung on a DIFFERENT variant names that variant (verbatim Level Standards col D) —
+      // "pass 2.1: 6 reps — Roller Leg Curl - 2 Leg up, 1 Leg back", never a bare rep count that
+      // reads as the variant the athlete already does. The server only sends goal.variant when it
+      // differs from the athlete's current one, so the common case stays one clean line (#5).
       needs.forEach(function (x) {
-        var gap = (x.goal) ? ('pass ' + x.level + ': ' + (x.goal.load != null ? x.goal.load + ' lb × ' + x.goal.reps : x.goal.reps + ' reps')) : 'L' + x.level;
+        var gv = (x.goal && x.goal.variant) ? ' — ' + x.goal.variant : '';
+        var gap = (x.goal) ? ('pass ' + x.level + ': ' + (x.goal.load != null ? x.goal.load + ' lb × ' + x.goal.reps : x.goal.reps + ' reps') + gv) : 'L' + x.level;
         cN.appendChild(row(x, gap)); });
       var up = lev.filter(function (x) { return !x.maxed && x.to_go > 0; }).sort(function (a, b) { return (b.progress || 0) - (a.progress || 0); })[0];
-      if (up && up.goal) cN.appendChild(row(up, 'next level up: ' + (up.goal.load != null ? up.goal.load + ' lb × ' + up.goal.reps + ' needed' : up.goal.reps + ' reps needed')));
+      if (up && up.goal) cN.appendChild(row(up, 'next level up: ' + (up.goal.load != null ? up.goal.load + ' lb × ' + up.goal.reps + ' needed' : up.goal.reps + ' reps needed') + (up.goal.variant ? ' — ' + up.goal.variant : '')));
       out.push(cN);
     }
     return out;

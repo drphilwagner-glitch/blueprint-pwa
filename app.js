@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260818-l244-1';
+  var APP_BUILD = '20260818-r347-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2467,7 +2467,10 @@
       if (s.top_ex && s.top_ex.length) bits.push(s.top_ex.map(titleName).join(' + '));
       if (s.est_min) bits.push('~' + s.est_min + ' min');
       if (s.status === 'started') bits.unshift('started');
-      if (!tappable) bits = ['unlocks after ' + titlePhrase(s.name || s.theme || 'its theme') + ' — this round'];   // friendly name, never the theme code (leak fix)
+      // R347 (Phil 2026-08-18): under the NEXT ROUND banner, a dangling "— this round" suffix read
+      // as a label ON the tile ("this round" on two of three sessions). The phrase belongs to the
+      // PREREQUISITE: it unlocks after the current round finishes that theme.
+      if (!tappable) bits = ['unlocks after this round’s ' + titlePhrase(s.name || s.theme || 'its theme')];   // friendly name, never the theme code (leak fix)
       b.appendChild(el('div', 'wo-sub', bits.join(' · ')));
       if (tappable) b.addEventListener('click', function () { openSession(s.session_id); });
       return b;

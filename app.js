@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260818-errhyg-1';
+  var APP_BUILD = '20260818-l242disp-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2813,19 +2813,28 @@
       card.appendChild(stats);
     }
 
-    // Level: where you are on the climb and how far to go.
+    // Level: where you are on the climb and how far to go. L242 (Phil 2026-08-18): a LEVEL is hinge
+    // vocabulary — non-hinge strength lifts rotate with the region and their cards show the current
+    // GOAL (scheme + load) only, never a level of their own. The progress bar stays: proximity to
+    // the goal is real information either way.
     if (x.level && !x.maxed && x.to_go != null) {
-      // R023: a variant-jump rung counts from zero on ITS OWN movement — say whose reps they are.
-      var toGoTxt = x.goal.load != null ? (x.to_go + ' lb to next level')
-        : (x.goal.variant ? (x.to_go + (x.to_go === 1 ? ' rep' : ' reps') + ' of ' + x.goal.variant + ' to next level')
-                          : (x.to_go + (x.to_go === 1 ? ' rep to next level' : ' reps to next level')));
       var lv = el('div', 'p-level');
-      lv.appendChild(el('span', 'p-level-l', 'Level ' + x.level));
-      lv.appendChild(el('span', 'p-level-g', x.to_go === 0 ? 'ready to level up' : toGoTxt));
+      if (x.hinge === false) {
+        lv.appendChild(el('span', 'p-level-l', 'Goal'));
+        lv.appendChild(el('span', 'p-level-g',
+          x.goal ? (x.goal.load != null ? x.goal.load + ' lb × ' + x.goal.reps : x.goal.reps + ' reps' + (x.goal.variant ? ' — ' + x.goal.variant : '')) : '—'));
+      } else {
+        // R023: a variant-jump rung counts from zero on ITS OWN movement — say whose reps they are.
+        var toGoTxt = x.goal.load != null ? (x.to_go + ' lb to next level')
+          : (x.goal.variant ? (x.to_go + (x.to_go === 1 ? ' rep' : ' reps') + ' of ' + x.goal.variant + ' to next level')
+                            : (x.to_go + (x.to_go === 1 ? ' rep to next level' : ' reps to next level')));
+        lv.appendChild(el('span', 'p-level-l', 'Level ' + x.level));
+        lv.appendChild(el('span', 'p-level-g', x.to_go === 0 ? 'ready to level up' : toGoTxt));
+      }
       card.appendChild(lv);
       var bar = el('div', 'p-bar'); var fill = el('div', 'p-fill');
       fill.style.width = Math.round((x.progress || 0) * 100) + '%'; bar.appendChild(fill); card.appendChild(bar);
-    } else if (x.maxed) {
+    } else if (x.maxed && x.hinge !== false) {
       card.appendChild(el('div', 'p-level', 'Top of the ladder 🏆'));
     }
 
@@ -3309,7 +3318,9 @@
     // Levels are new vocabulary — each level carries the REAL set that earned it (Phil 2026-08-14).
     best.forEach(function (x) {
       var did = x.best_pair ? (x.best_pair.load != null ? ' · ' + x.best_pair.load + ' lb × ' + x.best_pair.reps : ' · ' + x.best_pair.reps + ' reps') : '';
-      cB.appendChild(row(x, (x.maxed ? 'top of its ladder' : 'L' + x.level) + did));
+      // L242: non-hinge rows carry the real set only — the level is hinge vocabulary.
+      cB.appendChild(row(x, x.hinge === false ? (did ? did.slice(3) : '—')
+                                              : (x.maxed ? 'top of its ladder' : 'L' + x.level) + did));
     });
     out.push(cB);
     if (needs.length) {
@@ -3325,10 +3336,13 @@
       // differs from the athlete's current one, so the common case stays one clean line (#5).
       needs.forEach(function (x) {
         var gv = (x.goal && x.goal.variant) ? ' — ' + x.goal.variant : '';
-        var gap = (x.goal) ? ('pass ' + x.level + ': ' + (x.goal.load != null ? x.goal.load + ' lb × ' + x.goal.reps : x.goal.reps + ' reps') + gv) : 'L' + x.level;
+        // L242: a non-hinge need states its GOAL without a level label.
+        var lbl = (x.hinge === false) ? 'goal: ' : ('pass ' + x.level + ': ');
+        var gap = (x.goal) ? (lbl + (x.goal.load != null ? x.goal.load + ' lb × ' + x.goal.reps : x.goal.reps + ' reps') + gv)
+                           : (x.hinge === false ? '—' : 'L' + x.level);
         cN.appendChild(row(x, gap)); });
       var up = lev.filter(function (x) { return !x.maxed && x.to_go > 0; }).sort(function (a, b) { return (b.progress || 0) - (a.progress || 0); })[0];
-      if (up && up.goal) cN.appendChild(row(up, 'next level up: ' + (up.goal.load != null ? up.goal.load + ' lb × ' + up.goal.reps + ' needed' : up.goal.reps + ' reps needed') + (up.goal.variant ? ' — ' + up.goal.variant : '')));
+      if (up && up.goal) cN.appendChild(row(up, (up.hinge === false ? 'next goal: ' : 'next level up: ') + (up.goal.load != null ? up.goal.load + ' lb × ' + up.goal.reps + ' needed' : up.goal.reps + ' reps needed') + (up.goal.variant ? ' — ' + up.goal.variant : '')));
       out.push(cN);
     }
     return out;

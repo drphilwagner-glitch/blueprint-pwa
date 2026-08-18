@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260818-dots-1';
+  var APP_BUILD = '20260818-errhyg-1';
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -162,6 +162,11 @@
       var key = kind + '|' + String(message).slice(0, 120);
       if (_errSent[key]) return; _errSent[key] = 1;       // one report per distinct fault per session
       if (!cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return;
+      // A localhost app is NEVER a kid's phone (errorhygiene, 2026-08-18): the QA harness renders
+      // real athletes' boards at 127.0.0.1 for screenshots, and every harness reload was landing in
+      // ErrorLog under the real athlete's name — 15 rows polluting Mason's and Grace's error history
+      // in one day. The harness sees its own errors in its own console; the ErrorLog is for devices.
+      if (/^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname)) return;
       var body = {
         action: 'clienterror', athlete: athlete || '(none)', kind: kind,
         message: String(message || '').slice(0, 900), source: String(source || '').slice(0, 300),

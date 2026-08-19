@@ -867,6 +867,14 @@
     if (ex.logged_as) return titleName(ex.logged_as);
     return titleName(ex.athlete_name || ex.variant_name || ex.display_name || ex.exercise || '');
   }
+  // R375 (Phil's pick (a), 2026-08-19): a workout's NAME is its first two anchor lifts — "Deadlift +
+  // Bench" — never two tiles both reading "Full Body" (Mason started the wrong one on 8/18 because
+  // the names couldn't tell him apart). top_ex is the server's A-sides of the first complexes; the
+  // friendly theme name is the fallback when anchors are unknown (held previews).
+  function woTitle(s) {
+    if (s && s.top_ex && s.top_ex.length) return s.top_ex.slice(0, 2).map(titleName).join(' + ');
+    return titlePhrase((s && (s.name || s.theme)) || 'session');
+  }
 
   // ---- In-app video: play in an overlay dismissed with one ✕ (no leaving the app) ----
   // Phil 2026-07-18: "some videos autoplay (side lying hip, suitcase) and some dont (4" box single
@@ -1778,9 +1786,14 @@
         var uSid = SESSION ? SESSION.session_id : '';
         if (!uSid) { try { uSid = sessionStorage.getItem('bp_open_session') || ''; } catch (eU) {} }
         if (uSid) {
-          logRows(splitSides({ log_id: uuid(), session_id: uSid, complex_name: slot.complex_name,
-            exercise: cur.exercise, set_no: t.set_no, side: '', target_load: '', target_reps: '',
-            actual_load: '', actual_reps: '', flag: 'uncheck', variant_name: '' }, cur.each_side));
+          // R373 (Mason 8/18 CSR pile-up): the void must reach the rows the SHEET holds, whatever
+          // shape they were logged in — a swap or re-render that changes sidedness must not strand
+          // old-shape rows immune to undo. So the undo voids ALL THREE shapes of this set; a marker
+          // for a shape the sheet never received voids nothing (harmless by construction).
+          var mkUn = function (side) { return { log_id: uuid(), session_id: uSid, complex_name: slot.complex_name,
+            exercise: cur.exercise, set_no: t.set_no, side: side, target_load: '', target_reps: '',
+            actual_load: '', actual_reps: '', flag: 'uncheck', variant_name: '' }; };
+          logRows([mkUn(''), mkUn('L'), mkUn('R')]);
         }
       }
       delete LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)];
@@ -1810,6 +1823,9 @@
       // moved on. Phil: "I get a message of done when the timer's done, even though I already checked
       // it off... then I get a timer that it's done later. That shouldn't come up."
       if (check.classList.contains('holding')) return;   // the hold's own handler owns this tap
+      // R372 (Mason 8/18): a skipped row's ✓ stayed live and logged a set the athlete never did —
+      // Roller Leg Curl reps-8 survived its own skip. A skipped row never logs; the label un-skips.
+      if (row.classList.contains('skipped')) { miniToast('Skipped — tap the skip label to undo'); return; }
       if (check.classList.contains('done')) { uncheck(); return; }   // tap a done set again to undo
       // A LOCKED button must never be a DEAD tap (Phil 2026-08-05, right after a swap: "I couldn't
       // log my first set"). A real weight on screen: this tap ACCEPTS it and proceeds — it is
@@ -2165,7 +2181,7 @@
     // really key thing for the athlete, so that 34 minutes should be on a new line in the header, its
     // own line." Appending it to the title meant the long session name truncated and took the
     // duration with it — the one number the athlete plans their evening around.
-    meta.textContent = titlePhrase(s.name || s.theme) + ' · ' + s.date;
+    meta.textContent = woTitle(s) + ' · ' + s.date;   // R375: the header matches the tile they tapped
     // REMOVE THE OLD ONE FIRST. This line lives in the HEADER, outside #app, so `app.innerHTML = ''`
     // below never cleared it — and render() runs again on every post-log refresh, so each logged set
     // stacked another "~46 min" under the title. Phil saw three, then five.
@@ -2462,11 +2478,17 @@
     function tile(s, tappable) {
       var b = el(tappable ? 'button' : 'div', 'wo st-' + (tappable ? (s.status === 'missed' ? 'planned' : s.status) : 'held'));
       if (tappable) { b.type = 'button'; b.dataset.session = s.session_id; }
-      b.appendChild(el('div', 'wo-name', titlePhrase(s.name || s.theme || 'session')));
+      b.appendChild(el('div', 'wo-name', woTitle(s)));
       var bits = [];
-      if (s.top_ex && s.top_ex.length) bits.push(s.top_ex.map(titleName).join(' + '));
+      // R376 (Phil 2026-08-19): FOUR statuses, as WORDS — "a status rather than a color, or both".
+      // completed (faint) · started (no "resume" — his words: "you don't need resume") · missed
+      // (still tappable inside the round's 7-day window) · not started.
+      if (tappable) bits.push(s.status === 'done' ? 'completed' : s.status === 'started' ? 'started'
+        : s.status === 'missed' ? 'missed' : 'not started');
+      // R375: the anchors moved UP into the title; the theme word ("Full Body") lives here so the
+      // held-tile unlock phrasing below still shares its vocabulary with something on screen.
+      if (s.top_ex && s.top_ex.length) bits.push(titlePhrase(s.name || s.theme || ''));
       if (s.est_min) bits.push('~' + s.est_min + ' min');
-      if (s.status === 'started') bits.unshift('started');
       // R347 (Phil 2026-08-18): under the NEXT ROUND banner, a dangling "— this round" suffix read
       // as a label ON the tile ("this round" on two of three sessions). The phrase belongs to the
       // PREREQUISITE: it unlocks after the current round finishes that theme.
@@ -2520,16 +2542,17 @@
       var row = dayRowFor(ds, grid, rowsByDate);
       if (ds === todayStr) { row.classList.add('today'); todayRow = row; }
     });
+    var nextMarked = false;   // R376 (Phil's pick (a)): exactly ONE highlighted card — the next workout up
     dated.forEach(function (s) {
       var ed = effDate(s), resumed = (ed !== s.date);
       var row = rowsByDate[ed] || dayRowFor(ed, grid, rowsByDate);
       if (resumed && !todayRow) { row.classList.add('today'); todayRow = row; }
       var t = tile(s, true);
-      // the ONE card says what it is: picked up where it was left, not a fresh workout to redo
-      if (resumed) {
-        var sub2 = t.querySelector('.wo-sub');
-        if (sub2) sub2.textContent = 'started · resume — ' + sub2.textContent.replace(/^started · /, '');
-      }
+      // R376: the ONE accent marks the next workout UP — a missed session keeps its word and stays
+      // quietly tappable (Phil: still doable inside the round's 7-day window), never the highlight.
+      if (!nextMarked && s.open_round && s.status !== 'done' && s.status !== 'missed') { t.classList.add('wo-next'); nextMarked = true; }
+      // R376: no "resume" wording (Phil 2026-08-19: "you don't need resume — just put started");
+      // the one-card-on-today placement itself (F2) is unchanged.
       if (s.open_round && s.status !== 'done') attachDrag(t, s);   // move/swap: the athlete's right
       row._slot.appendChild(t);
     });

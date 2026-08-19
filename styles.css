@@ -472,11 +472,17 @@ span.ex-name.sub { text-decoration: none; display: block; }
    click on one of those bars". The tile is the primary target; the move control must not sit against
    its edge. Drag-to-move (long-press the tile) is the other path. */
 .wo-line { display: flex; align-items: stretch; gap: var(--sp-14); }
-.wo { flex: 1 1 auto; min-width: 0; text-align: left; border: 0; border-left: 4px solid var(--bp);
+/* R376, Phil's pick (a) 2026-08-19 + PRINCIPLES rule 7 (the accent belongs to ONE thing on screen):
+   the default tile is QUIET; the one .wo-next card — the next workout up — carries the accent.
+   Completed tiles go FAINT (Phil: "if they've been logged we should make them faint... it's hard to
+   tell which ones have been started and completed"); started keeps its amber + "started" chip. */
+.wo { flex: 1 1 auto; min-width: 0; text-align: left; border: 0; border-left: 4px solid var(--line-hard);
   border-radius: var(--r-10); background: var(--bg); padding: 10px 12px; font: inherit; min-height: 56px; }
 .wo-name { font-size: var(--fs-15); font-weight: 700; color: var(--ink); overflow-wrap: break-word; }
 .wo-sub { font-size: var(--fs-12); color: var(--muted); margin-top: 2px; }
-.wo.st-done { border-left-color: var(--ok); background: var(--ok-bg); }
+.wo.wo-next { border-left-color: var(--bp); background: var(--bp-tint-2); }
+.wo.st-done { border-left-color: var(--line-hard); background: none; opacity: .55; }
+.wo.st-done .wo-name { color: var(--muted); font-weight: 600; }
 .wo.st-missed { border-left-color: var(--line-hard); opacity: .7; }
 .wo.st-started { border-left-color: var(--warn); background: var(--warn-bg-3); }
 

@@ -2553,8 +2553,27 @@
       if (!nextMarked && s.open_round && s.status !== 'done' && s.status !== 'missed') { t.classList.add('wo-next'); nextMarked = true; }
       // R376: no "resume" wording (Phil 2026-08-19: "you don't need resume — just put started");
       // the one-card-on-today placement itself (F2) is unchanged.
-      if (s.open_round && s.status !== 'done') attachDrag(t, s);   // move/swap: the athlete's right
-      row._slot.appendChild(t);
+      if (s.open_round && s.status !== 'done') {
+        attachDrag(t, s);   // move/swap: the athlete's right
+        // ⇄ TAP BUTTON RESTORED (Phil 2026-08-21, ruling (a)). It was deleted on 2026-08-12 inside a
+        // CHECKPOINT auto-snapshot (8317a03) when the calendar rewrite made hold-drag the move
+        // gesture — but the original code kept it deliberately ("the ⇄ button stays for tap users"),
+        // and a 350ms hold-and-drag is a discoverability problem for a kid mid-session. Nothing else
+        // had to be rebuilt: `.ag-move`, `.wo-wrap` and `.wo-line` were all still in styles.css and
+        // `toggleMove` was still here — only this wiring was missing, which is why the whole
+        // `.move-panel` block had become unreachable code.
+        var wrap = el('div', 'wo-wrap');
+        var line = el('div', 'wo-line');
+        line.appendChild(t);
+        var mv = el('button', 'ag-move', '\u21C4'); mv.type = 'button'; mv.title = 'Move to another day';
+        mv.setAttribute('aria-label', 'Move this workout to another day');
+        mv.addEventListener('click', function (ev) { ev.stopPropagation(); toggleMove(wrap, s); });
+        line.appendChild(mv);
+        wrap.appendChild(line);          // the panel appends to `wrap`, BELOW this line, full width
+        row._slot.appendChild(wrap);
+      } else {
+        row._slot.appendChild(t);
+      }
     });
     Object.keys(rowsByDate).forEach(function (ds) {
       if (!rowsByDate[ds]._slot.childNodes.length) rowsByDate[ds]._slot.appendChild(el('div', 'wo-sub', 'rest'));

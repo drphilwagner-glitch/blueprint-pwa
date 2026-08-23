@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260821-move-btn';   // + the ⇄ tap button restored on open-round rows (Phil 2026-08-21)
+  var APP_BUILD = '20260823-variant-grain';   // history panel shows the served variant's own days (Phil 2026-08-23)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1241,6 +1241,15 @@
     // Nothing here is bold — history is reference; the only bold on screen is what he logs today.
     function paint(days) {
       body.innerHTML = '';
+      // VARIANT GRAIN (Phil 2026-08-23, his 12" Box Cossack): variants are different exercises, so
+      // the panel shows the SERVED variant's own days — a day labeled with a different variant is
+      // another exercise's history (his 18" days rendered under a "12"" header he had never done).
+      // Unlabeled legacy days (pre-variant logging) stay visible for any variant.
+      var vGrain = String(ex.variant_name || '').trim().toLowerCase();
+      if (vGrain) days = days.filter(function (day) {
+        var dv = String(day.variant || '').trim().toLowerCase();
+        return !dv || dv === vGrain;
+      });
       if (!days.length) { body.appendChild(el('div', 'hist-note', 'No history yet — first time.')); return; }
       days.forEach(function (day) {
         var line = el('div', 'hist-row');

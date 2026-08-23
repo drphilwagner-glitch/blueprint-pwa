@@ -1986,7 +1986,9 @@
     // THE BELOW-THE-HEADLINE STRUCTURE (Phil 2026-08-23): up to 2 secondary strength bests, one
     // progress-to-rung line, one consistency line. 'Keep an eye on' (a deficit list) never renders
     // on a celebration surface — the coach reads deficits in Coach View.
-    block('Best work 🔺', (d.secondary && d.secondary.length ? d.secondary : (d.best || []).slice(0, 2)), 'up');
+    // d.secondary === [] means "nothing strength-class qualified" — honor it. Fall back to d.best
+    // only when the field is ABSENT (a pre-hierarchy payload).
+    block('Best work 🔺', (d.secondary != null ? d.secondary : (d.best || []).slice(0, 2)), 'up');
     var rpLine = rungProgress();
     if (rpLine && d.highlight) app.appendChild(el('div', 'sum-row up', '\ud83c\udfaf ' + rpLine));
     if (d.sessions_n && d.highlight) app.appendChild(el('div', 'sum-row', '\u2705 Session #' + d.sessions_n + ' in the books'));

@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260823-no-ramp-note';   // ramp hint REVERTED on Phil's word — mechanism never surfaces to athletes
+  var APP_BUILD = '20260823-tellcoach';   // R085 athlete-side report (report-only)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3551,6 +3551,33 @@
       });
       app.appendChild(togg); app.appendChild(wrap);
     }
+
+    // R085 (Phil 07-21 x2, athlete-side input): "Tell coach" — a new pain/injury or fewer days this
+    // week, reported by the ATHLETE. Report-only: it lands on the coach's FLAGGED list; nothing about
+    // the program changes until the coach acts. Two taps, plain words, no mechanism talk.
+    var tc = el('div', 'tellcoach');
+    tc.appendChild(el('div', 'p-ai-h', 'Tell coach'));
+    var tcRow = el('div', 'tc-row');
+    function tcSend(kind, detail) {
+      fetch(cfg.WEBAPP_URL + '?action=report&athlete=' + encodeURIComponent(athlete) +
+            '&token=' + encodeURIComponent(token) + '&kind=' + kind + '&detail=' + encodeURIComponent(detail))
+        .then(function (r) { return r.json(); })
+        .then(function (d) { show(d && d.ok ? 'Sent to coach 👍' : 'Could not send — try again'); })
+        .catch(function () { show('Offline — try again when connected'); });
+    }
+    var b1 = el('button', 'tc-btn', '🚑 New pain or injury'); b1.type = 'button';
+    b1.addEventListener('click', function () {
+      var w = window.prompt('Where does it hurt? (e.g. left knee)');
+      if (w && w.trim()) tcSend('injury', w.trim());
+    });
+    var b2 = el('button', 'tc-btn', '📅 Fewer days this week'); b2.type = 'button';
+    b2.addEventListener('click', function () {
+      var n = window.prompt('How many days can you train this week?');
+      if (n && n.trim()) tcSend('days', 'can train ' + n.trim() + ' day(s) this week');
+    });
+    tcRow.appendChild(b1); tcRow.appendChild(b2);
+    tc.appendChild(tcRow);
+    app.appendChild(tc);
   }
 
   // INSTANT OPEN. A cold session build measures 11.2s on the backend — 73% of it just reading ten

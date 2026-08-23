@@ -1,7 +1,7 @@
 /* Service worker: caches the app shell for offline + installability.
  * Cross-origin API calls (the Apps Script Web App) are left to the app / offline queue (S10).
  */
-var CACHE = 'bp-shell-v97';   // v97: ramp hint reverted (Phil 2026-08-23)
+var CACHE = 'bp-shell-v98';   // v98: R085 Tell coach (athlete-side report channel)
 var SHELL = ['./', './index.html', './app.js', './config.js', './tokens.css', './styles.css',
   './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 

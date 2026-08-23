@@ -1084,3 +1084,8 @@ body #app { padding-bottom: 108px; }
    (the volume row's eye is right-aligned under a chart). Same .p-info control, no new tokens. */
 .p-clk-inforow { text-align: left; margin-top: 2px; }
 .p-info { background: none; border: 0; color: var(--ink-3); font-size: 14px; padding: 2px 4px; }
+
+/* R085 — Tell coach (athlete-side report; report-only, lands on the coach's FLAGGED list) */
+.tellcoach { margin: 14px 0 6px; }
+.tc-row { display: flex; gap: 8px; }
+.tc-btn { flex: 1; font-size: var(--fs-14); padding: 10px 8px; border-radius: var(--r-8); border: 1px solid var(--line); background: var(--card); color: var(--ink); }

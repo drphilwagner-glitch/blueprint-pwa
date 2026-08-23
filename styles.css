@@ -1084,6 +1084,3 @@ body #app { padding-bottom: 108px; }
    (the volume row's eye is right-aligned under a chart). Same .p-info control, no new tokens. */
 .p-clk-inforow { text-align: left; margin-top: 2px; }
 .p-info { background: none; border: 0; color: var(--ink-3); font-size: 14px; padding: 2px 4px; }
-
-/* R289 — the total-load ramp hint on bodyweight-plus warm-ups (display-family, one line) */
-.ramp-note { font-size: var(--fs-12); color: var(--muted); padding: 2px 0 4px; }

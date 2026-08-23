@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260823-ramp-note';   // + R289 total-load ramp hint (display-family)
+  var APP_BUILD = '20260823-no-ramp-note';   // ramp hint REVERTED on Phil's word — mechanism never surfaces to athletes
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1605,12 +1605,6 @@
     if (ex.mode === 'conditioning') return conditioningRow(slot, ex, t, timer);
     var isDur = !!t.duration_s, isAcc = ex.mode === 'accessory';
     var row = el('div', 'ex-row' + (t.kind === 'warmup' ? ' warmup' : ''));
-    // R289 (Phil 2026-08-23, display-family): on a bodyweight-plus lift the warm-up ramp runs on
-    // TOTAL load (BW + added), so a light or zero ADDED number is the correct ramp, not a broken
-    // progression — say so once, on the first warm-up row of the lift.
-    if (t.kind === 'warmup' && ex.bw_plus && t === ((ex.sets || []).filter(function (x) { return x.kind === 'warmup'; })[0])) {
-      row.appendChild(el('div', 'ramp-note', 'Warm-up ramps your total load (bodyweight + added) — a small added number here is right.'));
-    }
     // swap target. `each_side` rides along because the LOG needs it (splitSides) and because it must
     // follow the SWAP: swapping Bulgarian Split Squat for a two-legged alternate has to stop writing
     // L/R rows, and the swap handler already carries the flag onto the new `ex` (see the alternates

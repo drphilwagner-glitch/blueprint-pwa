@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260823-variant-strict';   // strict variant grain — blanks are nobody's history (Phil's L124 proof)
+  var APP_BUILD = '20260823-celebration';   // trophy hierarchy + evidence-only surfaces (Phil 2026-08-23)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1902,7 +1902,32 @@
     app.appendChild(el('p', 'sum-sub', n + ' set' + (n === 1 ? '' : 's') + ' logged'));
     // Something is ALWAYS shown as the day's best (Phil 2026-08-05) — the server picks the first
     // true thing: level-up > tonnage PR > best session > strongest set > session count.
+    // PROGRESS TO THE NEXT RUNG (Phil 2026-08-23 design order): computed from the session the
+    // athlete just finished — the nearest strength lift to its own level goal.
+    function rungProgress() {
+      try {
+        var best = null;
+        ((SESSION && SESSION.slots) || []).forEach(function (sl) {
+          (sl.exercises || []).forEach(function (e2) {
+            if (!e2 || !e2.level_goal || e2.level_goal.load == null || !e2.level) return;
+            var top = null;
+            (e2.setPlan || []).forEach(function (st) { if (st.kind === 'work' && st.load != null && (top == null || st.load > top)) top = st.load; });
+            if (top == null && e2.today && e2.today.load != null) top = e2.today.load;
+            if (top == null) return;
+            var gap = Number(e2.level_goal.load) - Number(top);
+            if (gap > 0 && (!best || gap < best.gap)) best = { name: exLabel(e2), gap: gap, level: e2.level };
+          });
+        });
+        if (best) return Math.round(best.gap * 2) / 2 + ' lb from L' + best.level + ' on ' + titleName(best.name);
+      } catch (eRP) {}
+      return null;
+    }
     if (d && d.highlight) app.appendChild(el('p', 'sum-highlight', d.highlight));
+    else if (d && d.ok) {
+      // No PR today — the filler is a streak + the distance to the next rung, never a deficit.
+      var rp0 = rungProgress();
+      app.appendChild(el('p', 'sum-highlight', '\u2705 Session #' + (d.sessions_n || '?') + ' in the books' + (rp0 ? ' \u2014 ' + rp0 : '')));
+    }
     function block(title, items, cls) {
       if (!items || !items.length) return;
       app.appendChild(el('h3', 'sum-t ' + cls, title));
@@ -1946,8 +1971,9 @@
         // HIT / SHORT vs today's prescription (Phil: the summary told him "nothing insightful" — this
         // is the one feedback the rows already contain). Hit everything = a quiet check; short = the
         // honest count, not a judgment.
-        if (m.of) tail += (m.hit === m.of) ? ' · target ' + m.hit + '/' + m.of + ' ✅'
-                                           : ' · short on ' + (m.of - m.hit) + ' of ' + m.of;
+        // Deficit language dies on a celebration surface (Phil 2026-08-23): the honest count,
+        // never "short on N of 3".
+        if (m.of) tail += ' · target ' + m.hit + '/' + m.of + (m.hit === m.of ? ' ✅' : '');
         app.appendChild(el('div', 'sum-row main', titleName(m.name || m.exercise) + ' — ' + result + tail));
       });
     }
@@ -1957,8 +1983,13 @@
         app.appendChild(el('div', 'sum-row up levelup', titleName(u.exercise) + ' → level ' + u.level));
       });
     }
-    block('Top gains 🔺', d.best, 'up');
-    block('Keep an eye on 🔻', d.worst, 'down');
+    // THE BELOW-THE-HEADLINE STRUCTURE (Phil 2026-08-23): up to 2 secondary strength bests, one
+    // progress-to-rung line, one consistency line. 'Keep an eye on' (a deficit list) never renders
+    // on a celebration surface — the coach reads deficits in Coach View.
+    block('Best work 🔺', (d.secondary && d.secondary.length ? d.secondary : (d.best || []).slice(0, 2)), 'up');
+    var rpLine = rungProgress();
+    if (rpLine && d.highlight) app.appendChild(el('div', 'sum-row up', '\ud83c\udfaf ' + rpLine));
+    if (d.sessions_n && d.highlight) app.appendChild(el('div', 'sum-row', '\u2705 Session #' + d.sessions_n + ' in the books'));
     backLink();                                  // small, and last — it is navigation, not the point
   }
 

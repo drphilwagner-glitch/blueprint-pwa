@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260823-variant-grain';   // history panel shows the served variant's own days (Phil 2026-08-23)
+  var APP_BUILD = '20260823-variant-strict';   // strict variant grain — blanks are nobody's history (Phil's L124 proof)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1247,8 +1247,10 @@
       // Unlabeled legacy days (pre-variant logging) stay visible for any variant.
       var vGrain = String(ex.variant_name || '').trim().toLowerCase();
       if (vGrain) days = days.filter(function (day) {
+        // STRICT (Phil 2026-08-23 L124 proof): "if my one real 12\" session is all that exists,
+        // one row is the correct render" — unlabeled legacy days are nobody's history.
         var dv = String(day.variant || '').trim().toLowerCase();
-        return !dv || dv === vGrain;
+        return dv === vGrain;
       });
       if (!days.length) { body.appendChild(el('div', 'hist-note', 'No history yet — first time.')); return; }
       days.forEach(function (day) {

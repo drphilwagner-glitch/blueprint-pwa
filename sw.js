@@ -1,7 +1,7 @@
 /* Service worker: caches the app shell for offline + installability.
  * Cross-origin API calls (the Apps Script Web App) are left to the app / offline queue (S10).
  */
-var CACHE = 'bp-shell-v92';   // v92: variant-grain history panel (Phil 2026-08-23)
+var CACHE = 'bp-shell-v93';   // v93: variant grain STRICT (Phil's L124 proof, 2026-08-23)
 var SHELL = ['./', './index.html', './app.js', './config.js', './tokens.css', './styles.css',
   './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 

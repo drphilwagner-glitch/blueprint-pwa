@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260823-tellcoach';   // R085 athlete-side report (report-only)
+  var APP_BUILD = '20260823-dupguard';   // R381 the L167 writer guard now outlives the render
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1760,6 +1760,20 @@
     var lastLogId = null;
     var lastSig = null;   // L167 writer guard: what this row last appended, so an identical re-fire is a no-op
     function commit(heldS) {   // checking = "already did it" — the timer is its own Start button, not tied to this
+      // R381 — THE WRITER GUARD USED TO DIE WITH THE RENDER. `lastSig` is a per-row CLOSURE, so every
+      // re-render (back to the calendar and reopen, a swap, a session refresh) rebuilt the rows with
+      // lastSig = null and re-armed a re-commit that changes nothing. Reproduced deterministically in
+      // qa/harness/dup-logid.mjs: log a round, leave and reopen the session, tap Update — 2 queued rows
+      // become 4 under FRESH log_ids for the SAME 2 set-keys, inside ONE undrained batch. That is the
+      // exact shape of Grace's 08-15 18:08:49 batch (10 dup keys, incl. a conflicting 45-vs-50) and
+      // Mason's 08-18 identical batches 45s apart. Idempotency (hard rule 4) is keyed on log_id and
+      // structurally cannot collapse them, so the guard is the only thing standing here.
+      // The remembered signature now lives per SET-KEY, in the same shape the server buckets sets by
+      // (`demo_setDupes`, LoggerApi.gs — session · exercise · set · side), and survives a reload of the
+      // same tab. A CORRECTION still appends: only a byte-identical re-fire is dropped. That direction
+      // is deliberate (rule 40) — an extra append is lawful debris, a suppressed correction is lost work.
+      var sigK = doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no);
+      if (lastSig === null && COMMIT_SIG[sigK] != null) lastSig = COMMIT_SIG[sigK];
       // L167 — NO PHANTOM APPENDS (Phil 2026-08-15, rider 2). The round Log button re-commits EVERY
       // row when none are pending (:2192) so an "Update" can correct a mis-entered set — legitimate.
       // But nothing stopped a re-fire that changes NOTHING from appending another row, and each one
@@ -1778,6 +1792,7 @@
       if (isDur && arguments.length > 1 && arguments[1] != null && arguments[1] > 0) log.duration_s2 = arguments[1];
       lastLogId = log.log_id;
       lastSig = sig;
+      COMMIT_SIG[sigK] = sig; saveCommitSig();   // R381: outlives this render
       LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)] = true;
       logRows(splitSides(log, cur.each_side));
       row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
@@ -1809,6 +1824,9 @@
       }
       delete LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)];
       lastLogId = null; lastSig = null;   // L167: undo re-arms the row, so a genuine re-log still appends
+      // R381: the durable half has to re-arm too, or an undo followed by re-logging the SAME numbers
+      // would be swallowed by the remembered signature and the set would stay voided.
+      delete COMMIT_SIG[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)]; saveCommitSig();
       row.classList.remove('done'); check.classList.remove('done');
       check.textContent = isDur ? '▶' : '✓';
       refocus();
@@ -2833,6 +2851,20 @@
   var LOCAL_DONE = {};
   function doneKey(sid, slot, exName, setNo) {
     return [sid, slot && slot.complex_name, exName, setNo].join('|');
+  }
+  // R381 — THE L167 WRITER GUARD'S DURABLE HALF. `lastSig` (the per-row closure at the commit site)
+  // only ever remembered what THIS render appended; a re-render re-armed every row and the round's
+  // Update button re-committed the lot under fresh log_ids. Same key shape as `doneKey` — one entry
+  // per SET, which is what the server buckets on too — and held in sessionStorage so a reload of the
+  // same tab (the iOS memory-kill class, all over ErrorLog) does not re-arm it either. Deliberately
+  // NOT seeded from the server's logged map: an extra append is lawful debris under hard rule 1,
+  // while suppressing a real correction loses work the athlete performed (rule 40's direction).
+  var SIG_STORE = 'bp_commit_sig';
+  var COMMIT_SIG = (function () {
+    try { return JSON.parse(sessionStorage.getItem(SIG_STORE) || '{}') || {}; } catch (e) { return {}; }
+  })();
+  function saveCommitSig() {
+    try { sessionStorage.setItem(SIG_STORE, JSON.stringify(COMMIT_SIG)); } catch (e) {}
   }
   var SCREEN_SEQ = 0;
   function newScreen() { return ++SCREEN_SEQ; }

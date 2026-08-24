@@ -3472,28 +3472,9 @@
     }
     return out;
   }
-  function winsCard(v2) {
-    var wins = (v2 && v2.wins) || [], bc = v2 && v2.best_complex;
-    if (!wins.length && !bc) return null;
-    var c = el('div', 'p-ai');
-    c.appendChild(el('div', 'p-ai-h', 'Recent wins'));
-    if (bc) {
-      var hl = el('div', 'p-win-hl');
-      hl.appendChild(el('b', '', '🏆 Best volume — whole complex'));
-      // R024 + I5 (Phil 2026-08-16): the pairing IS the complex's full name to an athlete —
-      // "Deadlift + Step Down". "Comp1" is an internal slot token (#1: never show internal codes);
-      // it led the line and read as the name being cut off.
-      hl.appendChild(el('div', '', (bc.lifts || bc.complex) + ': ' + Number(bc.lb).toLocaleString() + ' lb across ' + bc.sets + ' sets — your biggest complex in 90 days.'));
-      c.appendChild(hl);
-    }
-    wins.slice(0, 10).forEach(function (w) {
-      var r = el('div', 'p-win');
-      r.appendChild(el('span', 'p-win-tag ' + (w.t === 'set' ? 'p-t-set' : 'p-t-vol'), w.t === 'set' ? 'SET PR' : 'VOLUME'));
-      r.appendChild(el('span', '', w.ex + ' ' + w.txt + ' · ' + w.date));
-      c.appendChild(r);
-    });
-    return c;
-  }
+  // R412 (Phil's ruling, executed 2026-08-24): 'Recent wins' is DELETED — it contradicted the
+  // R109 feed and the recency law says the deletion wins. The PR star on the tonnage graph and the
+  // finish-screen highlight are the wins surfaces; payload.wins is no longer read by anything.
   function renderProfile(list, summary, categories, clocks, payload) {
     SESSION = null; app.innerHTML = '';
     meta.textContent = athlete + ' · your progress';
@@ -3561,11 +3542,8 @@
     var clkCard = clockCard(clocks);
     if (clkCard) app.appendChild(clkCard);
 
-    // Tiles 3 + 4 (I3), then wins — wins now render for ladderless athletes too, instead of
-    // silently vanishing with the ladder as before.
+    // Tiles 3 + 4 (I3). Wins no longer render here — R412's ruled deletion (2026-08-24).
     topCards(list).forEach(function (c) { app.appendChild(c); });
-    var wc = winsCard(payload);
-    if (wc) app.appendChild(wc);
 
     // If the ladder can't render (fewer than 3 qualities), fall back to a flat list so lifts are never
     // stranded. Otherwise every quality lift lives under its bar; only the non-quality "other work"

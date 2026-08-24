@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260824-r412';   // R412 recent-wins deletion (blessed); prev: R381 dupguard
+  var APP_BUILD = '20260824-r533';   // R533 offline echo fix (COMMIT_SIG read-back); prev: r412 wins deletion
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1677,6 +1677,36 @@
     if (lgd) {
       if (lgd.load !== '' && lgd.load != null) state.load = Number(lgd.load);
       if (lgd.reps !== '' && lgd.reps != null) state.reps = Number(lgd.reps);
+    }
+    // R533 — A SET THIS DEVICE ALREADY LOGGED MUST NOT RE-RENDER SHOWING THE PRESCRIPTION.
+    //
+    // The restore above only works when the SERVER already holds the row (`ex.logged`). Log a set
+    // OFFLINE and the queue has not drained, so `ex.logged` is empty: `wasLogged` still goes true via
+    // LOCAL_DONE and the row correctly reads done — but `state` was never restored, so it is still
+    // sitting at `t.target_reps` from :1658. The round's Update button then re-commits EVERY row when
+    // none are pending (:2395, deliberately, so a mis-entered set can be corrected), and what it
+    // commits for that row is THE PRESCRIPTION. A fresh log_id rides it, the signature differs from
+    // the real one so the R381 guard lawfully lets it through, and it lands LATER — so L167's
+    // latest-per-set collapse serves the target instead of the athlete.
+    //
+    // MEASURED, not theorised (2026-08-24, demo_targetEcho @530 over all five athletes): 12 set
+    // coordinates are serving an echo right now. Grace's 08-22 'Assisted Dips 40 lb' set 2 is Phil's
+    // — he watched 3x12, the sheet holds x12 beside x4, and the Coach View reads 4. Her whole session
+    // drained in one 24ms burst, i.e. she was offline throughout, which is exactly the state this
+    // hole needs. Mason's RDL 85x5 serves as its 80x5 target; his Step Down 55x8 as 50x8.
+    //
+    // COMMIT_SIG already holds what this device last committed for this set, in this shape, in
+    // sessionStorage (R381's durable half) — the value was there all along and nothing read it back.
+    // Seeded ONLY where the server has no answer, so a genuine server correction still wins, and a
+    // never-committed row is untouched: an unlogged set must keep showing its prescription.
+    if (wasLogged) {
+      var _sk = doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no);
+      var _cs = COMMIT_SIG[_sk];
+      if (_cs != null) {
+        var _p = String(_cs).split('|');
+        if ((!lgd || lgd.load === '' || lgd.load == null) && _p[0] !== '' && _p[0] !== 'undefined') state.load = isNaN(Number(_p[0])) ? _p[0] : Number(_p[0]);
+        if ((!lgd || lgd.reps === '' || lgd.reps == null) && _p[1] !== '' && _p[1] !== 'undefined') state.reps = isNaN(Number(_p[1])) ? _p[1] : Number(_p[1]);
+      }
     }
 
     // --- line 2: FIXED COLUMNS, identical for every row type ---

@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260824-r533';   // R533 offline echo fix (COMMIT_SIG read-back); prev: r412 wins deletion
+  var APP_BUILD = '20260825-r563';   // R563 skip is one exercise in ONE set + tappable undo on reload; prev: r533 offline echo fix
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1027,53 +1027,80 @@
   // skip:coach / skip:mine / skip:pain, blank load and reps, NEVER a zero-rep row. Markers ride the
   // same IndexedDB queue as sets (durable), are excluded from evidence server-side by construction,
   // and pain skips surface to the coach's FLAGGED list. The rows grey out and stop prompting. ----
-  function markRowsSkipped(exName, reason, slot) {
-    (ROW_REG[exName] || []).forEach(function (en) {
-      en.row.classList.add('skipped');
-      if (!en.row.querySelector('.skiplab')) {
-        var lab = el('div', 'skiplab', 'skipped — ' + (reason === 'coach' ? 'coach said to' : reason === 'pain' ? 'pain' : 'your choice') + ' · tap to undo');
-        // UNSKIP (Phil 2026-08-17 URGENT: a stray skip killed his whole complex's logging with no way
-        // back — "could not unskip which is needed"). Tapping the label appends an uncheck marker at
-        // the skip's coordinates (set '', side '' — the R016 void, same law) and re-arms every row.
-        lab.addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          var uSid2 = SESSION ? SESSION.session_id : '';
-          if (!uSid2) { try { uSid2 = sessionStorage.getItem('bp_open_session') || ''; } catch (eU2) {} }
-          if (uSid2) {
-            logRows([{ log_id: uuid(), session_id: uSid2, complex_name: (slot && slot.complex_name) || '',
-              exercise: exName, set_no: '', side: '', target_load: '', target_reps: '',
-              actual_load: '', actual_reps: '', flag: 'uncheck', variant_name: '' }]);
-          }
-          (ROW_REG[exName] || []).forEach(function (en2) {
-            en2.row.classList.remove('skipped');
-            var l2 = en2.row.querySelector('.skiplab'); if (l2) l2.remove();
-          });
-          refocus();
-        });
-        en.row.appendChild(lab);
-      }
+  // R563 (Phil 2026-08-25): `setNo` scopes the skip to ONE exercise in ONE set — "if you skip one
+  // exercise in set 1, that exercise is not automatically skipped in set 2". Passing setNo === null
+  // keeps the old whole-exercise sweep, which is what a LEGACY blank-set marker still means.
+  function skipRows(exName, setNo) {
+    return (ROW_REG[exName] || []).filter(function (en) {
+      return setNo == null || String(en.t && en.t.set_no) === String(setNo);
     });
   }
-  function postSkip(slot, exName, reason) {
+  // THE ONE TAPPABLE SKIP LABEL. Both paths that can render a skipped row use this — the live tap
+  // AND the reload render — because until R563 the reload path appended a PLAIN label with no
+  // handler, so after a refresh the row said "tap to undo" and nothing happened. That is the second
+  // half of Phil's complaint, reported twice ("could not unskip which is needed" 08-17; "it was very
+  // hard to find a way to un-skip it" 08-19) and never actually fixed on the reload path.
+  function attachSkipLabel(row, exName, reason, slot, setNo) {
+    if (row.querySelector('.skiplab')) return;
+    var words = (reason === 'coach' || reason === 'coach said to') ? 'coach said to'
+              : (reason === 'pain') ? 'pain'
+              : (reason === 'mine') ? 'your choice' : reason;
+    var lab = el('div', 'skiplab', 'skipped — ' + words + ' · tap to undo');
+    // UNSKIP (Phil 2026-08-17 URGENT: a stray skip killed his whole complex's logging with no way
+    // back). Tapping the label appends an uncheck marker at the skip's OWN coordinates (the R016
+    // void, same law) and re-arms exactly the rows that skip covered.
+    lab.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var uSid2 = SESSION ? SESSION.session_id : '';
+      if (!uSid2) { try { uSid2 = sessionStorage.getItem('bp_open_session') || ''; } catch (eU2) {} }
+      if (uSid2) {
+        // The void must land on the SKIP'S OWN coordinates or it voids nothing: the server matches
+        // uncheck to skip on (exercise, session, set_no, side), so a per-set skip needs a per-set
+        // uncheck. Legacy blank-set skips keep voiding with a blank set_no, same as before.
+        logRows([{ log_id: uuid(), session_id: uSid2, complex_name: (slot && slot.complex_name) || '',
+          exercise: exName, set_no: (setNo == null ? '' : setNo), side: '', target_load: '', target_reps: '',
+          actual_load: '', actual_reps: '', flag: 'uncheck', variant_name: '' }]);
+      }
+      skipRows(exName, setNo).forEach(function (en2) {
+        en2.row.classList.remove('skipped');
+        var l2 = en2.row.querySelector('.skiplab'); if (l2) l2.remove();
+      });
+      if (!skipRows(exName, setNo).length) {   // reload render: the row may not be in ROW_REG yet
+        row.classList.remove('skipped');
+        var lSelf = row.querySelector('.skiplab'); if (lSelf) lSelf.remove();
+      }
+      refocus();
+    });
+    row.appendChild(lab);
+  }
+  function markRowsSkipped(exName, reason, slot, setNo) {
+    skipRows(exName, setNo).forEach(function (en) {
+      en.row.classList.add('skipped');
+      attachSkipLabel(en.row, exName, reason, slot, setNo);
+    });
+  }
+  function postSkip(slot, exName, reason, setNo) {
     var marker = { log_id: uuid(), session_id: SESSION ? SESSION.session_id : '', complex_name: slot.complex_name,
-      exercise: exName, set_no: '', side: '', target_load: '', target_reps: '',
+      exercise: exName, set_no: (setNo == null ? '' : setNo), side: '', target_load: '', target_reps: '',
       actual_load: '', actual_reps: '', flag: 'skip:' + reason };
     qAdd(marker).then(function () { drain(); }).catch(function () {});
-    markRowsSkipped(exName, reason, slot);
+    markRowsSkipped(exName, reason, slot, setNo);
   }
-  function toggleSkip(row, ex, slot) {
+  function toggleSkip(row, ex, slot, setNo) {
     var old = row.querySelector('.skip-panel');
     if (old) { old.remove(); return; }
     var p = el('div', 'skip-panel');
     p.appendChild(el('div', 'skip-h', 'Skip — why?'));
     [['coach', 'Coach said to'], ['mine', 'My choice'], ['pain', 'Pain 🚩']].forEach(function (o) {
       var b = el('button', 'skip-opt' + (o[0] === 'pain' ? ' pain' : '')); b.type = 'button'; b.textContent = o[1];
-      b.addEventListener('click', function () { p.remove(); postSkip(slot, ex.exercise, o[0]); });
+      b.addEventListener('click', function () { p.remove(); postSkip(slot, ex.exercise, o[0], setNo); });
       p.appendChild(b);
     });
     // The whole-complex skip button is GONE (Phil 2026-08-17 URGENT, after it ate his Bent Row +
     // Front Press logging: "skip is by exercise, not by set and certainly not by whole complex").
-    // Skipping stays per-exercise; a whole complex is skipped one exercise at a time, deliberately.
+    // R563 (2026-08-25) then defined the unit he meant all along: ONE exercise in ONE set. Skipping
+    // Bent Row in set 1 leaves Front Press in set 1 alone AND leaves Bent Row's set 2 serving. All
+    // three of his reports describe the same trigger — a skip tapped on one row eating more than it.
     row.appendChild(p);
   }
   // Registry of rendered rows, keyed by the ORIGINAL exercise, so a swap can reach every set of that
@@ -1642,11 +1669,19 @@
     l1.appendChild(hb);
     // SKIP (L162) — beside history, same idiom as swap: acts on the exercise, lives with its name.
     var skb = el('button', 'skipbtn'); skb.type = 'button'; skb.innerHTML = '⏭';
-    skb.title = 'Skip this exercise';
-    skb.addEventListener('click', function () { toggleSkip(row, ex, slot); });
+    skb.title = 'Skip this set';
+    skb.addEventListener('click', function () { toggleSkip(row, ex, slot, t.set_no); });
     l1.appendChild(skb);
     row.appendChild(l1);   // the ✓ is appended to l1 further down, once it exists
-    if (ex.skipped) { row.classList.add('skipped'); row.appendChild(el('div', 'skiplab', 'skipped — ' + ex.skipped)); }
+    // R563: this row is skipped if THIS SET carries a skip marker, or if a LEGACY blank-set marker
+    // skipped the whole exercise before the per-set law existed.
+    var skReason = (ex.skipped_sets && ex.skipped_sets[String(t.set_no)]) || ex.skipped;
+    if (skReason) {
+      row.classList.add('skipped');
+      // A LEGACY whole-exercise skip voids with a blank set_no; a per-set skip voids at its own set.
+      attachSkipLabel(row, ex.exercise, skReason, slot,
+                      (ex.skipped_sets && ex.skipped_sets[String(t.set_no)]) ? t.set_no : null);
+    }
     noteUnder(row, ex, isMaxVal(t.target_reps));
 
     var prefill = isAcc ? ((ex.load_prefill === '' || ex.load_prefill == null) ? '' : ex.load_prefill) : t.target_load;

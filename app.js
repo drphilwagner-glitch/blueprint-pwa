@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260825-r533b';   // R533 swap event: a swap leaves a server-side record (who/when/from->to); prev: r563 per-set skip
+  var APP_BUILD = '20260825-r533c';   // R533 slice 3: the undrained queue restores what a relaunch forgot; prev: r533b swap event
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -275,6 +275,20 @@
   function qAdd(row) { return qStore('readwrite').then(function (s) { return new Promise(function (res) { s.put(row); s.transaction.oncomplete = res; }); }); }
   function qAll() { return qStore('readonly').then(function (s) { return new Promise(function (res) { var rq = s.getAll(); rq.onsuccess = function () { res(rq.result || []); }; }); }); }
   try { window.BP_qCount = function () { return qAll().then(function (r) { return r.length; }); }; } catch (e) {}   // j20 asserts a tap really queued
+  // j33 needs the queue's COORDINATES, not just its depth. The round Update deliberately commits
+  // every row, including sets that were never logged, so a depth delta cannot tell a lawful new set
+  // from the re-fire of one already committed — and the first cut of that journey read the delta and
+  // called a legitimate set-4 commit a duplicate.
+  try {
+    window.BP_qRows = function () {
+      return qAll().then(function (r) {
+        return (r || []).map(function (x) {
+          return { sid: x.session_id, ex: x.exercise, set: x.set_no, side: x.side,
+                   load: x.actual_load, reps: x.actual_reps, flag: x.flag };
+        });
+      });
+    };
+  } catch (e) {}
   function qDel(ids) { return qStore('readwrite').then(function (s) { ids.forEach(function (id) { s['delete'](id); }); return new Promise(function (res) { s.transaction.oncomplete = res; }); }); }
   function updateBadge() {
     return qAll().then(function (rows) {
@@ -2961,6 +2975,69 @@
   function saveCommitSig() {
     try { sessionStorage.setItem(SIG_STORE, JSON.stringify(COMMIT_SIG)); } catch (e) {}
   }
+  // THE MARKER VOCABULARY, CLIENT SIDE — byte-identical to `_isMarkerFlag_` on the server
+  // (LoggerApi.gs :10948-10956). R533 slice 1 collapsed FIVE hand-rolled copies of this list into one
+  // predicate precisely because a sixth copy that drifts counts a swap or a skip RECORD as a kid's
+  // logged set, at that record's own coordinates. This is the sixth copy, so it is pinned:
+  // `qa/harness/marker-flags.mjs` extracts BOTH lists and reds if they differ by one word.
+  // NOTE `recovered` is deliberately absent — an L131 crumb-recovered row IS a performed set.
+  var MARKER_FLAG_PREFIXES = ['skip:', 'report:', 'climb|', 'swap:'];
+  var MARKER_FLAG_WORDS = ['uncheck', 'history'];
+  function isMarkerFlag(f) {
+    var s = String(f == null ? '' : f).trim().toLowerCase();
+    if (!s) return false;
+    for (var i = 0; i < MARKER_FLAG_WORDS.length; i++) if (s === MARKER_FLAG_WORDS[i]) return true;
+    for (var j = 0; j < MARKER_FLAG_PREFIXES.length; j++) if (s.slice(0, MARKER_FLAG_PREFIXES[j].length) === MARKER_FLAG_PREFIXES[j]) return true;
+    return false;
+  }
+  // R533 SLICE 3 — THE DEVICE'S OWN QUEUE IS THE ONLY MEMORY THAT SURVIVES A RELAUNCH.
+  //
+  // Slice 2 (:1746) seeds a re-rendered row from COMMIT_SIG, and that closes the SOFT re-render —
+  // leave the workout tab, come back, same tab (j32). It cannot close the HARD one: COMMIT_SIG lives
+  // in sessionStorage and LOCAL_DONE is a bare object, so an iOS memory kill or a home-screen
+  // relaunch starts BOTH EMPTY while the IndexedDB queue — persistent storage, which is the entire
+  // reason the queue is in IndexedDB — still holds the undrained sets. The row then re-renders with
+  // no server answer, no local answer and no signature: it shows its PRESCRIPTION, `wasLogged` is
+  // false, and the round's Update button (:1872, deliberately re-commits every row) writes that
+  // prescription as an actual under a fresh log_id. Two rows, one set-key, ONE UNDRAINED BATCH —
+  // Grace's 'Assisted Dips 40 lb' shape, and it walks past BOTH standing guards, because hard rule 4
+  // keys idempotency on log_id and the L167 signature guard can only drop a re-fire it remembers.
+  //
+  // THE ANSWER WAS IN THE QUEUE THE WHOLE TIME, exactly as slice 2's was in COMMIT_SIG: the queued
+  // row carries the actuals the athlete typed. So NOTHING IS DEDUPED AWAY and no "which of these two
+  // rows wins" judgment is ever made — the device simply remembers what it already committed, the
+  // re-commit becomes byte-identical, and L167 drops it. That direction is the point (rule 40): a
+  // real correction still appends, because a corrected value makes a DIFFERENT signature. A queue
+  // dedupe that dropped the loser would have had to choose, and in Grace's case latest-wins picks
+  // the ECHO — the fix would have kept the wrong row.
+  //
+  // WHY THIS IS NOT THE SEEDING :2955 REFUSES: that refusal is about the SERVER's logged map — other
+  // devices, other sessions, coach entries. This is THIS device's OWN uncommitted writes. An existing
+  // COMMIT_SIG entry is never overwritten, so a live signature always wins over a recovered one.
+  //
+  // HONEST LIMIT: for a DURATION row stopped with no held time the commit signature carries '' while
+  // the queued row stores the prescribed duration, so the reconstruction differs and L167 will not
+  // drop that re-fire — an extra append, which hard rule 1 makes lawful debris. The display restore
+  // still works. Never the other way round: a mismatch can only fail to suppress, never suppress
+  // something real.
+  function seedFromQueue() {
+    return qAll().then(function (rows) {
+      var seeded = 0;
+      (rows || []).forEach(function (r) {
+        if (!r || isMarkerFlag(r.flag)) return;         // a marker RECORDS something; it is not a set
+        var k = [String(r.session_id || ''), String(r.complex_name || ''), String(r.exercise || ''), r.set_no].join('|');
+        LOCAL_DONE[k] = true;   // ":1739 — a queued-but-unconfirmed set is still a set the athlete did"
+        if (COMMIT_SIG[k] == null) {
+          COMMIT_SIG[k] = String(r.actual_load) + '|' + String(r.actual_reps) + '|' +
+                          (r.duration_s == null ? '' : String(r.duration_s));
+          seeded += 1;
+        }
+      });
+      if (seeded) saveCommitSig();
+      return seeded;
+    });
+  }
+  try { window.BP_seedFromQueue = seedFromQueue; } catch (e) {}   // observable from a journey/console
   var SCREEN_SEQ = 0;
   function newScreen() { return ++SCREEN_SEQ; }
   function isCurrent(t) { return t === SCREEN_SEQ; }
@@ -3738,6 +3815,10 @@
       });
   }
 
-  load();
+  // R533 slice 3 — RECOVER BEFORE THE FIRST PAINT, not after. `load()` (:2553) restores an
+  // interrupted workout SYNCHRONOUSLY from cache, so a seed that lands afterwards would arrive at a
+  // row that has already re-rendered at its prescription. `.then(load, load)` runs load on either
+  // outcome: a broken or slow IndexedDB delays the paint by one small read and can never block it.
+  seedFromQueue().then(load, load);
   updateBadge().then(drain);
 })();

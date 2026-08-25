@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260825-r563';   // R563 skip is one exercise in ONE set + tappable undo on reload; prev: r533 offline echo fix
+  var APP_BUILD = '20260825-r533b';   // R533 swap event: a swap leaves a server-side record (who/when/from->to); prev: r563 per-set skip
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1204,9 +1204,39 @@
     };
   }
   // QA-05: apply the choice to EVERY set of that exercise in the session.
+  // THE SWAP RECORD (R533, Phil 2026-08-24 verbatim): "swaps must leave a server-side event — who,
+  // when, from→to; 'swaps leave none by design' is the gap that made the dips dispute possible; the
+  // eyewitness must never be the only record." Grace's Assisted Dips dispute was unresolvable
+  // precisely because nothing on the server knew a swap had happened — the only account was Phil's
+  // memory of watching her. This rides the same durable IndexedDB queue as sets and skips, so it
+  // survives offline exactly as a logged set does, and it is a MARKER row (blank actuals, flag
+  // `swap:<from> -> <to>`) so `_isMarkerFlag_` keeps it out of evidence at every reader.
+  function postSwapEvent(slot, fromEx, toEx) {
+    if (!fromEx || !toEx || fromEx === toEx) return;          // a no-op swap is not an event
+    var sid = SESSION ? SESSION.session_id : '';
+    if (!sid) { try { sid = sessionStorage.getItem('bp_open_session') || ''; } catch (eS) {} }
+    if (!sid) return;
+    try {
+      qAdd({ log_id: uuid(), session_id: sid, complex_name: (slot && slot.complex_name) || '',
+        exercise: fromEx, set_no: '', side: '', target_load: '', target_reps: '',
+        actual_load: '', actual_reps: '', flag: 'swap:' + fromEx + ' -> ' + toEx, variant_name: '' })
+        .then(function () { drain(); }).catch(function () {});
+    } catch (eQ) {}
+  }
   function applySwapAll(key, a) {
     try { setTimeout(function () { document.querySelectorAll('.round').forEach(function (rb) { syncRound(rb); }); }, 400); } catch (eSR) {}
     var entries = (ROW_REG[key] || []).slice();
+    try {
+      var e0 = entries[0];
+      if (e0) {
+        // FROM is what is on screen NOW, not the prescribed original — otherwise a revert
+        // ("Keep original") reads from==to and no event is written, losing exactly the half of the
+        // record that says an athlete changed their mind back.
+        var fromN = e0.ex.exercise;
+        var toN = (a && a.main) ? ((e0.ex._alt_of || e0.ex).exercise) : (a && (a.name || a.exercise));
+        postSwapEvent(e0.slot, fromN, toN || '');
+      }
+    } catch (eSw) {}
     ROW_REG[key] = [];                      // the rebuilt rows re-register themselves
     entries.forEach(function (en) {
       var oEx = en.ex._alt_of || en.ex, oT = en.ex._alt_t || en.t;   // each set keeps its own set_no

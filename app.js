@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260826-r606rev';   // R606 slice 1 REVERTED by device measurement (r606a silent both switch states, Phil's phone) — the beeping build is back, music interruption his accepted cost; L194 silence kept; prev: r606a
+  var APP_BUILD = '20260826-r607';   // R607: visible build id + ship-stamped PWA_VER (the stale-phone trace); carries the r606 revert (beeping build, L194 kept); prev: r606rev
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3831,6 +3831,10 @@
     tcRow.appendChild(b1); tcRow.appendChild(b2);
     tc.appendChild(tcRow);
     app.appendChild(tc);
+    // R607 (Phil 2026-08-26, the stale-phone trace, order 1): the build THIS device is running,
+    // visible on the surface — "what build is my phone on" was answerable only by ear until today.
+    // One muted line at the profile's end; the id is the same APP_BUILD the reload handshake compares.
+    app.appendChild(el('div', 'build-id', 'build ' + APP_BUILD));
   }
 
   // INSTANT OPEN. A cold session build measures 11.2s on the backend — 73% of it just reading ten

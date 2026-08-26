@@ -10,9 +10,45 @@
   var cfg = window.BP_CONFIG || {};
   var params = new URLSearchParams(location.search);
   var athlete = params.get('athlete') || localStorage.getItem('bp_athlete') || '';
-  var token = params.get('token') || localStorage.getItem('bp_token') || '';
+  // R601 TOKEN INDIRECTION (Phil's R600 ruling: rotations must touch zero athletes). The bookmark's
+  // URL token is now the ENROLLMENT credential; every call authenticates with a DEVICE token the
+  // server minted for this install. Order matters: device token first (survives link rotation),
+  // URL/stored link token as the fallback that can always re-enroll.
+  var urlToken = params.get('token') || localStorage.getItem('bp_token') || '';
+  var deviceToken = '';
+  try { deviceToken = localStorage.getItem('bp_devtok_' + athlete) || ''; } catch (eDt) {}
+  var token = deviceToken || urlToken;
   if (params.get('athlete')) localStorage.setItem('bp_athlete', athlete);
-  if (params.get('token')) localStorage.setItem('bp_token', token);
+  if (params.get('token')) localStorage.setItem('bp_token', params.get('token'));
+  // One-time invisible enrollment: fire-and-forget on boot when this install has no device token.
+  // On success every SUBSEQUENT request rides the device token (the closure var flips); failure of
+  // any kind changes nothing — the link token keeps working exactly as before this build.
+  function enrollDevice() {
+    if (deviceToken || !urlToken || !athlete || !(cfg.WEBAPP_URL)) return;
+    try {
+      fetch(cfg.WEBAPP_URL + '?action=enroll&athlete=' + encodeURIComponent(athlete) +
+            '&token=' + encodeURIComponent(urlToken) +
+            '&ua=' + encodeURIComponent(String(navigator.userAgent || '').slice(0, 40)))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.ok && d.device_token) {
+            deviceToken = String(d.device_token);
+            try { localStorage.setItem('bp_devtok_' + athlete, deviceToken); } catch (eS) {}
+            token = deviceToken;
+          }
+        }).catch(function () {});
+    } catch (eEn) {}
+  }
+  // Revocation self-heal: a device token the server no longer lists gets 'forbidden' — drop it and
+  // fall back to the bookmark's link token (which re-enrolls on the next boot). Without this, a
+  // revoked device would stay dead even though its bookmark is still valid.
+  function tokenRejected() {
+    if (!deviceToken) return false;
+    try { localStorage.removeItem('bp_devtok_' + athlete); } catch (eR) {}
+    deviceToken = '';
+    if (urlToken) { token = urlToken; return true; }   // caller may retry with the link token
+    return false;
+  }
 
   var app = document.getElementById('app');
   var meta = document.getElementById('meta');
@@ -28,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260826-r607';   // R607: visible build id + ship-stamped PWA_VER (the stale-phone trace); carries the r606 revert (beeping build, L194 kept); prev: r606rev
+  var APP_BUILD = '20260826-r601';   // L288/R601: invisible device enrollment + revocation self-heal (token indirection); prev: r607 (visible build id + ship-stamped PWA_VER, beeping build, L194 kept)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2632,6 +2668,7 @@
   function load() {
     if (!cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return show('App not configured yet (WEBAPP_URL).', 'err');
     if (!athlete || !token) return show('Missing athlete or token — open your personal link.', 'err');
+    enrollDevice();   // R601: one-time invisible device enrollment; a no-op once enrolled
     var open = null; try { open = sessionStorage.getItem('bp_open_session'); } catch (e) {}
     if (open) return openSession(open);   // restore the workout a reload interrupted
     loadHome();
@@ -2664,6 +2701,9 @@
           try { localStorage.setItem('bp_week_' + CACHE_V + '_' + athlete, JSON.stringify({ at: Date.now(), sessions: data.sessions })); } catch (e) {}
         }
         if (!isCurrent(mine)) return;
+        // R601 self-heal: a REVOKED device token gets ok:false here — drop it, fall back to the
+        // bookmark's link token, and retry ONCE. A genuinely dead link still shows the denial.
+        if (!data.ok && tokenRejected()) { loadHome(); return; }
         if (!data.ok) { if (!cachedWk) show('Access denied — check your link.', 'err'); return; }
         if (!data.sessions || !data.sessions.length) {
           if (!cachedWk) {

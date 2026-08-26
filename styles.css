@@ -684,6 +684,10 @@ span.ex-name { display: block; }
 .slot-sum .slot-state { margin-left: auto; white-space: nowrap; }
 /* R589(b), Phil 2026-08-26: the LAST complex's collapsed summary carries its own Begin — visible
    only there, so "you can't start yet" keeps meaning what it says on every other collapsed slot. */
+/* R603 degrade cue (spec 1b): audio unavailable -> one 350ms full-screen flash beside the vibration. */
+.cue-flash { position: fixed; inset: 0; z-index: 999; pointer-events: none;
+  background: var(--bp); opacity: 0; animation: cueflash .35s ease-out; }
+@keyframes cueflash { 0% { opacity: 0; } 25% { opacity: .55; } 100% { opacity: 0; } }
 .slot-sum .sum-begin { display: none; }
 .slot.slot-last.slot-later:not(.open) > .slot-sum .sum-begin {
   display: inline-block; min-height: 30px; border: 0; border-radius: var(--r-8);

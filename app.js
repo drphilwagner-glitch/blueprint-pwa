@@ -1177,6 +1177,10 @@
     if (ex.video_url) nm.classList.add('has-video');
     nm.addEventListener('click', function () { openVideo(ex.video_url); });
     lr.appendChild(nm);
+    // R618 CLOSED AS NOT-A-DEFECT (2026-08-26): this function is DEAD since 5ff164f ("reverse
+    // S17") — LEG_REG is never seeded, so no legend ever renders and this gate can hide nothing
+    // from an athlete. Left as-is for the R529 dead-code sweep; the live law (every rendered
+    // exercise row carries ⇄) is pinned by swap.mjs arm 4.
     if ((ex.alternates && ex.alternates.length) || ex._alt_of) {
       var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄ Swap';
       sw.addEventListener('click', function () { toggleSwap(lr, ex); });

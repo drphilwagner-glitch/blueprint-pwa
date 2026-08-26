@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260826-r606a';   // R606 slice 1: the cue ducks, never interrupts ('transient' + oscillator; media path deleted); prev: r589b Begin chip
+  var APP_BUILD = '20260826-r606rev';   // R606 slice 1 REVERTED by device measurement (r606a silent both switch states, Phil's phone) — the beeping build is back, music interruption his accepted cost; L194 silence kept; prev: r606a
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -353,65 +353,102 @@
   function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
     // --- rest-timer alert: a chime + vibrate + a half-screen banner when the interval rolls over ---
     //
-    // R606 AUDIO LAW (Phil's timer spec, 2026-08-26): THE CUE MUST NEVER INTERRUPT THE ATHLETE'S
-    // MUSIC. Before this change the app ran the interrupting configuration DELIBERATELY, twice over:
-    // `navigator.audioSession.type = 'playback'` plus an unmuted <audio> media element — the
-    // 2026-08-1x silent-switch design ("a gym phone lives on silent; a bare oscillator dies there").
-    // Phil's ruling supersedes it: killing Apple Music is the defect. Target category is
-    // 'transient' — the beep DUCKS other audio and the music resumes. What the silent switch does
-    // to a transient oscillator is MEASURED on his device, never guessed here; the sticky banner
-    // and vibration remain the cues that survive a pocketed, silenced phone.
-    //   - ONE persistent AudioContext for the whole session, created and unlocked on the SILENT
-    //     gesture-prime (L194/U6). Never closed or recreated mid-session — recreation re-interrupts.
-    //   - The cue is a WebAudio oscillator. The media-element path is DELETED, not fallen back to.
-    //   - No audioSession API (pre-16.4 Safari / non-Safari): degrade to vibration + visual flash.
-    //     Degrading NEVER means an interrupting beep (spec 1b, verbatim).
-    var _ac = null;
+    // THE CUE IS A MEDIA ELEMENT FIRST, WEBAUDIO ONLY AS A FALLBACK — REINSTATED BY DEVICE
+    // MEASUREMENT (Phil 2026-08-26, R606 slice 1 REVERT). The r606a oscillator+'transient' build was
+    // measured SILENT on his real device in BOTH silent-switch states — the spec's own acceptance
+    // failed, and his ruling reverted it the same morning: "the beep is the product (a kid mid-set
+    // must hear the expiry, silent switch or not); interrupting music is an ACCEPTED cost, my word,
+    // recorded." The 08-1x reasoning below proved itself on his phone and supersedes back. A
+    // music-ducking cue gets ONE bounded offline retry later, below the fold, only if it can be
+    // proven on HIS device without ever risking the beep — otherwise it dies as a nicety.
+    // Two things make the cue audible, both needed:
+    //   1. `navigator.audioSession.type = 'playback'` (Safari 16.4+) — declares this page's audio as
+    //      playback rather than ambient, so it sounds with the ringer off.
+    //   2. an <audio> element carrying a real clip — media playback, not synthesis, is what the audio
+    //      session category applies to.
+    // The clip is generated here as a WAV rather than shipped as a file: no second upload to forget
+    // (rule 11), and nothing to 404 on a phone that cached an older build.
+    var _ac = null, _cueEl = null, _cueUrl = null, _cuePrimed = false;
+    function _cueWavUrl() {
+      // three rising notes, ~0.48s total — under the 700ms repeat below, so pulses never overlap
+      var sr = 22050, notes = [[880, 0.13], [1174.7, 0.13], [1568, 0.22]], total = 0, i;
+      for (i = 0; i < notes.length; i++) total += Math.round(notes[i][1] * sr);
+      var buf = new ArrayBuffer(44 + total * 2), v = new DataView(buf), o = 0;
+      function s(str) { for (var k = 0; k < str.length; k++) v.setUint8(o++, str.charCodeAt(k)); }
+      function u32(n) { v.setUint32(o, n, true); o += 4; }
+      function u16(n) { v.setUint16(o, n, true); o += 2; }
+      s('RIFF'); u32(36 + total * 2); s('WAVE'); s('fmt '); u32(16); u16(1); u16(1);
+      u32(sr); u32(sr * 2); u16(2); u16(16); s('data'); u32(total * 2);
+      var t = 0;
+      for (i = 0; i < notes.length; i++) {
+        var f = notes[i][0], n = Math.round(notes[i][1] * sr);
+        for (var j = 0; j < n; j++) {
+          var env = Math.min(1, j / 200) * Math.pow(1 - j / n, 1.6);   // fast attack, decaying tail
+          var samp = Math.sin(2 * Math.PI * f * (j / sr)) * env * 0.9;
+          v.setInt16(44 + (t++) * 2, Math.max(-1, Math.min(1, samp)) * 32767, true);
+        }
+      }
+      return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    }
     // Called from the taps that begin work — opening the session, starting a timer, starting a hold.
     // iOS only unlocks audio inside a gesture, and the interval that needs the cue expires minutes
-    // later with no gesture anywhere near it. NOTHING in here is audible: priming creates and
-    // resumes the one persistent context. With the media element gone, an audible-priming
-    // regression (L194's class) has no mechanism left to regress through.
+    // later with no gesture anywhere near it.
     function primeAudio() {
-      try { if (navigator.audioSession) navigator.audioSession.type = 'transient'; } catch (e) {}
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
       try { _ac = _ac || new (window.AudioContext || window.webkitAudioContext)(); if (_ac.state === 'suspended') _ac.resume(); } catch (e) {}
+      try {
+        if (!_cueEl) {
+          _cueEl = document.createElement('audio');
+          _cueEl.preload = 'auto';
+          _cueEl.setAttribute('playsinline', '');
+          _cueEl.src = _cueUrl || (_cueUrl = _cueWavUrl());
+          _cueEl.load();
+        }
+        if (!_cuePrimed) {                     // unlock it under the gesture: play muted, then rewind
+          // L194 — PRIMING MUST NEVER BE AUDIBLE (Phil 2026-08-16: "It did a beep when I choose the
+          // workout. Thought we got rid of that. The audio was only for the timer.") — the revert
+          // KEEPS this fix, by Phil's explicit instruction ("that class must not resurrect").
+          // The element STAYS MUTED here forever; `beep()` sets `muted = false` itself at the moment
+          // a real cue fires — the unlock gesture is what priming is for, not sound.
+          _cueEl.muted = true;
+          var pr = _cueEl.play();
+          var settle = function () { try { _cueEl.pause(); _cueEl.currentTime = 0; } catch (e2) {} _cuePrimed = true; };
+          if (pr && pr.then) pr.then(settle, function () { _cuePrimed = true; });
+          else settle();
+        }
+      } catch (e) {}
     }
     function beep() {
-      if (navigator.audioSession) _waBeep();   // transient session declared -> the ducking beep
-      else _cueFlash();                        // no session API -> flash, never an interrupting beep
+      var fired = false;
+      try {
+        if (!_cueEl) primeAudio();
+        if (_cueEl) {
+          try { _cueEl.currentTime = 0; } catch (eT) {}
+          _cueEl.muted = false;
+          var pr = _cueEl.play();
+          fired = true;
+          if (pr && pr.catch) pr.catch(function () { _waBeep(); });   // blocked -> synth, never silence
+        }
+      } catch (e) {}
+      if (!fired) _waBeep();
       if (navigator.vibrate) { try { navigator.vibrate([200, 80, 200]); } catch (e) {} }
     }
     function _waBeep() {
       try {
         if (!_ac) primeAudio();
-        if (!_ac) { _cueFlash(); return; }
+        if (!_ac) return;
         if (_ac.state === 'suspended') { try { _ac.resume().then(function () { _tone(); }); } catch (eR) { _tone(); } }
         else _tone();
       } catch (e) {}
     }
     function _tone() {
-      // the same three rising notes the WAV carried (880 / 1174.7 / 1568), scheduled on the one
-      // persistent context — the cue keeps its recognizable character, synthesis-only.
       try {
-        var notes = [[880, 0, 0.13], [1174.7, 0.13, 0.13], [1568, 0.26, 0.22]];
-        for (var i = 0; i < notes.length; i++) {
-          var o = _ac.createOscillator(), g = _ac.createGain();
-          o.type = 'sine'; o.frequency.value = notes[i][0]; o.connect(g); g.connect(_ac.destination);
-          var t0 = _ac.currentTime + notes[i][1], d = notes[i][2];
-          g.gain.setValueAtTime(0.0001, t0);
-          g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
-          o.start(t0); o.stop(t0 + d);
-        }
-      } catch (e) {}
-    }
-    // spec 1b's degrade half: a full-screen 350ms flash the athlete can catch from a glance.
-    function _cueFlash() {
-      try {
-        var f = document.createElement('div');
-        f.className = 'cue-flash';
-        document.body.appendChild(f);
-        setTimeout(function () { try { f.remove(); } catch (e2) {} }, 400);
+        var o = _ac.createOscillator(), g = _ac.createGain();
+        o.type = 'sine'; o.frequency.value = 880; o.connect(g); g.connect(_ac.destination);
+        g.gain.setValueAtTime(0.0001, _ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.35, _ac.currentTime + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + 0.45);
+        o.start(); o.stop(_ac.currentTime + 0.45);
       } catch (e) {}
     }
     // Phase banner. `sticky` = stays until the athlete taps it (the cue of last resort: the chime

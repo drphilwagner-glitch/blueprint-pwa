@@ -538,7 +538,7 @@
     document.body.classList.remove('has-tbar');
   }
 
-  function makeTimer(node, pauseBtn, intervals, label, roundsOf) {
+  function makeTimer(node, pauseBtn, intervals, label, roundsOf, key) {
     var seq = (intervals && intervals.length) ? intervals.slice() : [120];
     var idx = 0;
     // Which round's rest is currently running — idx walks the interval sequence, and the round titles
@@ -628,6 +628,29 @@
       toggle: toggle,
       skip: skip,
       running: function () { return st.running; },
+      // R589 — WHICH SLOT THIS TIMER BELONGS TO, so a re-render can find it again. The label is not
+      // an identity: complexes are RENUMBERED as the athlete meets them (:2386), so "Complex 2" can
+      // name a different slot after a re-lay. The Plan's own slot id is stable.
+      key: function () { return key; },
+      // R589 — A RE-RENDER MUST RE-ADOPT THIS TIMER, NOT ORPHAN IT. render() rebuilds every slot
+      // header on every post-log refresh while clearTimerBar deliberately keeps a running timer
+      // alive (:533) — so the live countdown kept counting into a DETACHED node and the very same
+      // complex re-offered "Begin complex". One tap and the athlete was back at SET 1 with her place
+      // gone. Phil, watching Grace 2026-08-25: "forward tap killed the running complex timer."
+      // Adoption rebinds the two nodes this closure paints and leaves seq/idx/end untouched — the
+      // countdown never restarts, because nothing about the COUNT is rebuilt.
+      adopt: function (newNode, newPause) {
+        node = newNode; pauseBtn = newPause;
+        newPause.addEventListener('click', toggle);
+        newPause.hidden = !st.running;
+        newPause.textContent = st.paused ? '▶' : '⏸';
+        // Paint the state NOW rather than waiting up to 250ms for the next tick: a header that reads
+        // blank after every logged set is the same "did my timer die?" the orphan itself caused.
+        if (st.paused) node.textContent = 'paused ' + fmt(st.rem);
+        else if (st.running) node.textContent = 'next ' + fmt(Math.max(0, Math.round((st.end - Date.now()) / 1000)));
+        pub(node.textContent);
+        return api;
+      },
       stop: function () { clearTimeout(st.t); st.t = null; st.running = false; st.paused = false; node.textContent = ''; pauseBtn.hidden = true; },
       start: function () {
         if (st.running) return;
@@ -639,6 +662,19 @@
       }
     };
     return api;
+  }
+  // R589 — ONE PREDICATE for "is this slot's timer already counting?", called by the render path and
+  // driven verbatim by its check (`qa/harness/complex-timer.mjs`). A caller that re-derives the rule
+  // drifts from the test that proves it — that is the marker-vocabulary lesson (five readers, five
+  // hand-rolled lists) applied at birth instead of learned again.
+  // BOTH clauses are load-bearing: the slot key alone would re-adopt a timer belonging to a DIFFERENT
+  // session (clearTimerBar only spares the timer when the session matches, :533), and the session
+  // alone would hand complex 3's header the countdown running in complex 2.
+  function liveTimerFor(key, sid) {
+    if (!ACTIVE_TIMER || !ACTIVE_TIMER.running()) return null;
+    if (!ACTIVE_TIMER.key || ACTIVE_TIMER.key() !== key) return null;
+    if (!TIMER_SID || TIMER_SID !== sid) return null;
+    return ACTIVE_TIMER;
   }
   // How many timed holds are counting right now. A re-render mid-hold detaches the row the athlete is
   // holding, so the countdown finishes against a node that is no longer on screen and the set silently
@@ -1291,7 +1327,12 @@
     return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m[2]) - 1] + ' ' + Number(m[3]);
   }
   function fmtHistSet(s) {
-    if (s.load != null && s.load !== '') return s.load + '×' + (s.reps != null ? s.reps : '—');
+    // R584 — THE LOAD CARRIES ITS UNIT, per DESIGN.md rule 3's own vocabulary ("Log Set 5 · 105 lb ×
+    // 4"): load first WITH "lb", reps after the ×. The bare "5×15" chip was read right-to-left by the
+    // coach as "15 lbs" on Grace's Side Raise (she lifts 5 per hand) — a number with no unit invites
+    // whichever convention the reader brings, and Everfit's was reps×weight. Bodyweight sets keep the
+    // bare rep count; that is the established convention everywhere else on the profile.
+    if (s.load != null && s.load !== '') return s.load + ' lb × ' + (s.reps != null ? s.reps : '—');
     return (s.reps != null ? s.reps : '—');
   }
   function toggleHistory(row, ex) {
@@ -2399,7 +2440,15 @@
           roundTitles.push('Set ' + (q + 1) + (aS && aS.kind === 'warmup' ? ' (warm-up)' : ''));
         }
       })();
-      var timer = makeTimer(timerNode, pauseBtn, ivs, sLabel, roundTitles);
+      // R589 — RE-ADOPT, NEVER RE-OFFER. If this slot's timer is the one already counting, the new
+      // header takes over the LIVE timer and hides its own "Begin complex": tapping that button
+      // restarted the complex at set 1, which is how a post-log refresh cost Grace her place
+      // mid-complex. Identity is the Plan's slot id, not the displayed label (labels renumber).
+      var slotKey = String(slot.slot || sLabel);
+      var live = liveTimerFor(slotKey, s.session_id || s.date);
+      var timer = live ? live.adopt(timerNode, pauseBtn)
+                       : makeTimer(timerNode, pauseBtn, ivs, sLabel, roundTitles, slotKey);
+      if (live) startBtn.hidden = true;
       startBtn.addEventListener('click', function () { timer.start(); startBtn.hidden = true; });
 
       // Collapsed form of a complex you haven't reached (or have finished) — rule 1. Tap to open it

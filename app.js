@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260825-r533c';   // R533 slice 3: the undrained queue restores what a relaunch forgot; prev: r533b swap event
+  var APP_BUILD = '20260825-r591';   // R591: one day, one volume — the merged history set carries the server's own limb multiplier; prev: r533c queue seed
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;

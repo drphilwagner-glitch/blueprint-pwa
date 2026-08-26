@@ -28,7 +28,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260826-r603a';   // R603 slice 1: the cue ducks, never interrupts ('transient' + oscillator; media path deleted); prev: r589b Begin chip
+  var APP_BUILD = '20260826-r606a';   // R606 slice 1: the cue ducks, never interrupts ('transient' + oscillator; media path deleted); prev: r589b Begin chip
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -353,7 +353,7 @@
   function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
     // --- rest-timer alert: a chime + vibrate + a half-screen banner when the interval rolls over ---
     //
-    // R603 AUDIO LAW (Phil's timer spec, 2026-08-26): THE CUE MUST NEVER INTERRUPT THE ATHLETE'S
+    // R606 AUDIO LAW (Phil's timer spec, 2026-08-26): THE CUE MUST NEVER INTERRUPT THE ATHLETE'S
     // MUSIC. Before this change the app ran the interrupting configuration DELIBERATELY, twice over:
     // `navigator.audioSession.type = 'playback'` plus an unmuted <audio> media element — the
     // 2026-08-1x silent-switch design ("a gym phone lives on silent; a bare oscillator dies there").

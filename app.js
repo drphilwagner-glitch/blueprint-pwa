@@ -3162,9 +3162,15 @@
   // signal across variant changes (a harder Dip variant lowers reps but the 1RM chart read as
   // "getting worse"); the PR star still marks where a new best 1RM landed.
   function _sessVol(sets) {   // tonnage: load×reps for loaded sets, reps for bodyweight (warm-ups included)
+    // R591 — `s.vmult` IS THE SERVER'S OWN `_volMult_`, carried across the display merge. The merge
+    // drops `side` (L170/U5: one line per set), so this function cannot see that two limbs did the
+    // work and has no exercise flags to consult — it scored every each-side day at HALF the "Best
+    // volume" tile printed directly above it. Measured on Grace's real 2026-08-25 Side Raise: tile
+    // 300 lb, day card 150 lb, same sets, same screen. Defaulting to 1 keeps an older cached payload
+    // rendering exactly as it always did.
     var v = 0; (sets || []).forEach(function (s) {
-      var l = Number(s.load), rp = Number(s.reps);
-      if (l > 0) v += l * (rp || 0); else if (rp > 0) v += rp;
+      var l = Number(s.load), rp = Number(s.reps), m = Number(s.vmult) > 0 ? Number(s.vmult) : 1;
+      if (l > 0) v += l * (rp || 0) * m; else if (rp > 0) v += rp * m;
     }); return Math.round(v);
   }
   function _sess1rm(sets) {   // best est-1RM in a session (reps for bodyweight) — used only to flag PRs

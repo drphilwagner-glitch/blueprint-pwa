@@ -2279,6 +2279,7 @@
         roundSummary(rb); syncRound(rb);
       });
       card.classList.remove('slot-done', 'slot-now', 'slot-later');
+      card.classList.toggle('slot-last', i === info.length - 1);   // R589(b): the last complex's summary shows Begin
       var st = card.querySelector('.slot-state');
       if (x.allDone) {
         card.classList.add('slot-done');                 // fully logged -> collapsed, "done"
@@ -2456,6 +2457,19 @@
       var slotSum = el('div', 'slot-sum');
       slotSum.appendChild(el('span', 'ss-t', slot.exercises.map(function (e) { return exLabel(e); }).join(' + ')));
       slotSum.appendChild(el('span', 'slot-state', ''));
+      // R589(b) — Phil's ruling 2026-08-26, "always show Begin on the LAST complex": Grace ended her
+      // session not knowing the last collapsed complex could start — the control existed one tap
+      // away and the summary read as a label, not a control. The LAST slot's collapsed summary now
+      // carries its own Begin (CSS shows it only on .slot-last.slot-later:not(.open)). It opens the
+      // slot and starts through the SAME startBtn path — never a second timer authority.
+      var sumBegin = el('button', 'sum-begin', 'Begin');
+      sumBegin.type = 'button';
+      sumBegin.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        card.classList.add('open');
+        if (!startBtn.hidden) startBtn.click();
+      });
+      slotSum.appendChild(sumBegin);
       slotSum.addEventListener('click', function () { card.classList.toggle('open'); });
       card.appendChild(slotSum);
 

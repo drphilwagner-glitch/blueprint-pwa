@@ -682,6 +682,13 @@ span.ex-name { display: block; }
   min-width: 0; border: 1.5px solid var(--line); border-radius: var(--r-12); padding: 9px 10px; background: var(--surface-1); }
 .slot-sum .ss-t { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .slot-sum .slot-state { margin-left: auto; white-space: nowrap; }
+/* R589(b), Phil 2026-08-26: the LAST complex's collapsed summary carries its own Begin — visible
+   only there, so "you can't start yet" keeps meaning what it says on every other collapsed slot. */
+.slot-sum .sum-begin { display: none; }
+.slot.slot-last.slot-later:not(.open) > .slot-sum .sum-begin {
+  display: inline-block; min-height: 30px; border: 0; border-radius: var(--r-8);
+  background: var(--bp); color: var(--white); font-size: var(--fs-13); font-weight: 700; padding: 0 12px;
+}
 .slot.slot-later:not(.open) > .sets,
 .slot.slot-done:not(.open) > .sets { display: none; }
 .slot.slot-later:not(.open) > .slot-sum,

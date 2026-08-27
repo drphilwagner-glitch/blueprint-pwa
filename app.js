@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639g';   // R639 C26-C28 (page FROZEN per C29): excluded days invisible, dropdown-as-title, best-vs-goal bar; prev: r639f
+  var APP_BUILD = '20260827-r639h';   // R639 BLOCKS REBUILD: four blocks (Tell Coach / Where You Stand by region + folded clocks / Strongest / Needs), one row component, aggregate graph + ladder + Recent Wins gone; prev: r639g
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3925,98 +3925,44 @@
   // R412 (Phil's ruling, executed 2026-08-24): 'Recent wins' is DELETED — it contradicted the
   // R109 feed and the recency law says the deletion wins. The PR star on the tonnage graph and the
   // finish-screen highlight are the wins surfaces; payload.wins is no longer read by anything.
+  // R639 BLOCKS REBUILD (Phil's spec, design/PROFILE-SPEC-R639.md): FOUR blocks, top to bottom,
+  // NOTHING else — 0 Tell Coach · 1 Where You Stand · 2 Strongest Right Now · 3 Biggest Needs.
+  // Blocks 1-3 are ONE component (profileRow) sorted three ways over the same data: same row, same
+  // numbers, same click target, same detail page — built as three components they would disagree,
+  // which is the defect class the rebuild exists to kill. DELETED: the aggregate volume graph and
+  // Recent Wins ("the graphs are the wins"); no aggregate number anywhere; the quality-ladder bars
+  // and the standalone clock card fold away — each region header now carries its own clock line.
+  // Row format (D6): VARIANT — L<level>, variant only, never the parent, never both.
+  function profileRow(x, opts) {
+    var wrap = el('div', 'p-rowwrap');
+    var row = el('button', 'p-row'); row.type = 'button';
+    var l1 = el('div', 'p-row-1');
+    l1.appendChild(el('span', 'p-row-n', titleName(x.variant || x.name)));
+    if (x.level != null && x.level !== '') l1.appendChild(el('span', 'p-row-l', 'L' + x.level));
+    row.appendChild(l1);
+    // BIGGEST NEEDS rows carry the target in ONE format, every row — "goal:" and nothing else.
+    if (opts && opts.goal && x.goal && (x.goal.load != null || x.goal.reps != null)) {
+      row.appendChild(el('div', 'p-row-goal', x.goal.load != null
+        ? 'goal: ' + x.goal.load + ' lb × ' + x.goal.reps
+        : 'goal: ' + x.goal.reps + ' reps'));
+    }
+    var det = el('div', 'p-detail'); det.style.display = 'none'; det._loaded = false;
+    row.addEventListener('click', function () {
+      var open = det.style.display !== 'none';
+      det.style.display = open ? 'none' : 'block';
+      if (!open && !det._loaded) { det._loaded = true; loadProfileDetail(x, det); }
+    });
+    wrap.appendChild(row); wrap.appendChild(det);
+    return wrap;
+  }
   function renderProfile(list, summary, categories, clocks, payload) {
     SESSION = null; app.innerHTML = '';
     meta.textContent = athlete + ' · your progress';
     if (!list.length) { app.appendChild(el('p', 'empty', 'No exercises yet.')); return; }
 
-    // R027/I3 ORDER (Phil 2026-08-16 ×2, amending the B7 mock): tonnage graph LEADS (ruling 4),
-    // then the LADDER — "Where you stand", title only — then "Strongest right now" + "Biggest
-    // needs" as tiles 3 and 4, then wins. The clock keeps its adjacency directly under the ladder
-    // (proposed DESIGN rule 10's rationale: the promotion cycle beside the standing it governs).
-    var vc = volumeCard(payload && payload.volume_rounds, payload && payload.volume_weeks);
-    if (vc) app.appendChild(vc);
-
-    // The AI-summary points card no longer leads — the tiles ARE the summary, per B7. Only the
-    // honest EMPTY state survives here, and it must precede the ladder (nothing logged means this
-    // is the whole screen; the breakdown means nothing without it).
-    if (!((summary && summary.points) || []).length && summary && summary.text) {
-      var ai2 = el('div', 'p-ai');
-      ai2.appendChild(el('div', 'p-ai-h', 'Where you stand'));
-      ai2.appendChild(el('div', 'p-ai-b', summary.text));
-      app.appendChild(ai2);
-      categories = [];
-    }
-
-    // BY QUALITY, as the LADDER — and the navigation. Group every lift under its rolled-up quality
-    // (server sends x.quality) so tapping a bar opens that quality's lifts, weakest first. This REPLACES
-    // the old flat "needs work / strongest / everything else" scroll (S20 spec, Phil 2026-07-28).
-    var QKEYS = ['Upper Body Max', 'Lower Body Max', 'Upper Body Relative', 'Lower Body Relative',
-                 'Upper Body Str Endurance', 'Lower Body Str Endurance'];
-    var byQuality = {}, other = [];
-    list.forEach(function (x) {
-      if (x.quality && QKEYS.indexOf(x.quality) >= 0) (byQuality[x.quality] || (byQuality[x.quality] = [])).push(x);
-      else other.push(x);   // accessories / stability / carries — no strength-quality bar; kept, never hidden
-    });
-    var byLevel = function (a, b) {   // weakest first; tie-break on LEAST progress (the true floor, matching
-      var la = parseFloat(a.level), lb = parseFloat(b.level);   // the ladder fill + server sets_level); un-levelled last
-      if (isNaN(la) && isNaN(lb)) return 0; if (isNaN(la)) return 1; if (isNaN(lb)) return -1;
-      if (la !== lb) return la - lb;
-      return (a.progress || 0) - (b.progress || 0);
-    };
-    Object.keys(byQuality).forEach(function (k) { byQuality[k].sort(byLevel); });
-
-    // WORST FIRST (B7): the ladder orders by the quality's level ascending — the weakest quality is
-    // the headline.
-    if (categories && categories.length) {
-      categories = categories.slice().sort(function (a, b) {
-        var la = parseFloat(a.low != null ? a.low : (a.span || '')), lb = parseFloat(b.low != null ? b.low : (b.span || ''));
-        if (isNaN(la) && isNaN(lb)) return 0; if (isNaN(la)) return 1; if (isNaN(lb)) return -1;
-        return la - lb;
-      });
-    }
-    var laddered = categories && categories.length >= 3;
-    if (laddered) {
-      app.appendChild(ladderCard(categories, byQuality));
-    } else if (categories && categories.length) {
-      var cw = el('div', 'p-cats');
-      cw.appendChild(el('div', 'p-cats-h', 'By quality'));
-      categories.forEach(function (c) {
-        var r = el('div', 'p-cat');
-        r.appendChild(el('span', 'p-cat-n', c.label));
-        r.appendChild(el('span', 'p-cat-v', c.span));
-        cw.appendChild(r);
-      });
-      app.appendChild(cw);
-    }
-    var clkCard = clockCard(clocks);
-    if (clkCard) app.appendChild(clkCard);
-
-    // Tiles 3 + 4 (I3). Wins no longer render here — R412's ruled deletion (2026-08-24).
-    topCards(list).forEach(function (c) { app.appendChild(c); });
-
-    // If the ladder can't render (fewer than 3 qualities), fall back to a flat list so lifts are never
-    // stranded. Otherwise every quality lift lives under its bar; only the non-quality "other work"
-    // (accessories, carries, stability) needs its own home so nothing disappears.
-    if (!laddered) {
-      list.slice().sort(byLevel).forEach(function (x) { app.appendChild(profileCard(x)); });
-    } else if (other.length) {
-      other.sort(byLevel);
-      var togg = el('button', 'p-more', 'Other work (' + other.length + ')'); togg.type = 'button';
-      var wrap = el('div', 'p-rest'); wrap.hidden = true;
-      other.forEach(function (x) { wrap.appendChild(profileCard(x)); });
-      togg.addEventListener('click', function () {
-        wrap.hidden = !wrap.hidden;
-        togg.textContent = (wrap.hidden ? 'Other work (' + other.length + ')' : 'Hide other work');
-      });
-      app.appendChild(togg); app.appendChild(wrap);
-    }
-
-    // R085 (Phil 07-21 x2, athlete-side input): "Tell coach" — a new pain/injury or fewer days this
-    // week, reported by the ATHLETE. Report-only: it lands on the coach's FLAGGED list; nothing about
-    // the program changes until the coach acts. Two taps, plain words, no mechanism talk.
+    // ── 0. TELL COACH — it writes to the coach, so it leads (R085; spec block 0).
     var tc = el('div', 'tellcoach');
-    tc.appendChild(el('div', 'p-ai-h', 'Tell coach'));
+    tc.appendChild(el('div', 'p-block-h', 'Tell coach'));
     var tcRow = el('div', 'tc-row');
     function tcSend(kind, detail) {
       fetch(cfg.WEBAPP_URL + '?action=report&athlete=' + encodeURIComponent(athlete) +
@@ -4025,22 +3971,107 @@
         .then(function (d) { show(d && d.ok ? 'Sent to coach 👍' : 'Could not send — try again'); })
         .catch(function () { show('Offline — try again when connected'); });
     }
-    var b1 = el('button', 'tc-btn', '🚑 New pain or injury'); b1.type = 'button';
-    b1.addEventListener('click', function () {
+    var tb1 = el('button', 'tc-btn', '🚑 New pain or injury'); tb1.type = 'button';
+    tb1.addEventListener('click', function () {
       var w = window.prompt('Where does it hurt? (e.g. left knee)');
       if (w && w.trim()) tcSend('injury', w.trim());
     });
-    var b2 = el('button', 'tc-btn', '📅 Fewer days this week'); b2.type = 'button';
-    b2.addEventListener('click', function () {
+    var tb2 = el('button', 'tc-btn', '📅 Fewer days this week'); tb2.type = 'button';
+    tb2.addEventListener('click', function () {
       var n = window.prompt('How many days can you train this week?');
       if (n && n.trim()) tcSend('days', 'can train ' + n.trim() + ' day(s) this week');
     });
-    tcRow.appendChild(b1); tcRow.appendChild(b2);
+    tcRow.appendChild(tb1); tcRow.appendChild(tb2);
     tc.appendChild(tcRow);
     app.appendChild(tc);
-    // R607 (Phil 2026-08-26, the stale-phone trace, order 1): the build THIS device is running,
-    // visible on the surface — "what build is my phone on" was answerable only by ear until today.
-    // One muted line at the profile's end; the id is the same APP_BUILD the reload handshake compares.
+
+    // ONE dataset, three sorts.
+    var laddered = [], other = [];
+    list.forEach(function (x) {
+      if (x.level != null && x.level !== '') laddered.push(x); else other.push(x);
+    });
+    var lvlAsc = function (a, b) {
+      var la = parseFloat(a.level), lb = parseFloat(b.level);
+      if (la !== lb) return la - lb;
+      return (a.progress || 0) - (b.progress || 0);
+    };
+    var regionOf = function (x) {
+      var q = String(x.quality || '') + ' ' + String(x.category || '');
+      if (/Lower|LE/.test(q)) return 'Lower body';
+      if (/Upper|UE/.test(q)) return 'Upper body';
+      return null;
+    };
+    // The region's clock line, folded into its header (the standalone card is gone). The minus copy
+    // is the spec's LEVELING CLOCK rewrite — plain athlete English, accurate to law.
+    var MINUS_COPY = 'you moved up without passing yet — pass at this level and it sticks; three rounds without a pass returns you to the previous sub-level.';
+    function clockLineFor(regionName) {
+      var code = regionName === 'Lower body' ? 'LE' : 'UE';
+      var c = (clocks || []).filter(function (c2) { return c2 && c2.side === code; })[0];
+      if (!c) return null;
+      var line = (!c.at_top && c.round != null && c.of != null && c.level != null && Number(c.round) <= Number(c.of))
+        ? 'Round ' + c.round + ' of ' + c.of + ' at ' + c.level
+        : (c.english ? String(c.english).replace(/^LE:\s*/, '').replace(/^UE:\s*/, '') : null);
+      if (!line) return null;
+      var holder = el('span', 'p-reg-clk');
+      holder.appendChild(el('span', '', line));
+      if (c.minus) {
+        var mb = el('button', 'p-info'); mb.type = 'button'; mb.textContent = 'ⓘ';
+        mb.title = 'What the “−” means';
+        var note = el('div', 'p-clk-n', MINUS_COPY); note.hidden = true;
+        mb.addEventListener('click', function (ev) { ev.stopPropagation(); note.hidden = !note.hidden; });
+        holder.appendChild(mb); holder.appendChild(note);
+      }
+      return holder;
+    }
+
+    // ── 1. WHERE YOU STAND — all exercises by region, weakest first.
+    var b1 = el('section', 'p-block');
+    b1.appendChild(el('div', 'p-block-h', 'Where you stand'));
+    ['Lower body', 'Upper body'].forEach(function (region) {
+      var rows = laddered.filter(function (x) { return regionOf(x) === region; }).sort(lvlAsc);
+      if (!rows.length) return;
+      var rh = el('div', 'p-reg-h');
+      rh.appendChild(el('span', 'p-reg-n', region));
+      var cl = clockLineFor(region); if (cl) rh.appendChild(cl);
+      b1.appendChild(rh);
+      rows.forEach(function (x) { b1.appendChild(profileRow(x)); });
+    });
+    var unregioned = laddered.filter(function (x) { return !regionOf(x); }).sort(lvlAsc);
+    unregioned.forEach(function (x) { b1.appendChild(profileRow(x)); });
+    // Non-laddered work (accessories, carries, conditioning) keeps a home so no history is
+    // stranded — collapsed at the block's tail, same row, same detail. (A call, reversible: the
+    // spec's row law wants no blank levels, so these sit apart rather than fake one.)
+    if (other.length) {
+      var togg = el('button', 'p-more', 'Other work (' + other.length + ') ▾'); togg.type = 'button';
+      var wrap2 = el('div', 'p-rest'); wrap2.hidden = true;
+      other.forEach(function (x) { wrap2.appendChild(profileRow(x)); });
+      togg.addEventListener('click', function () {
+        wrap2.hidden = !wrap2.hidden;
+        togg.textContent = wrap2.hidden ? 'Other work (' + other.length + ') ▾' : 'Other work (' + other.length + ') ▴';
+      });
+      b1.appendChild(togg); b1.appendChild(wrap2);
+    }
+    app.appendChild(b1);
+
+    // ── 2. STRONGEST RIGHT NOW — the top of the same list.
+    var strongest = laddered.slice().sort(lvlAsc).slice(-3).reverse();
+    if (strongest.length) {
+      var b2 = el('section', 'p-block strong');
+      b2.appendChild(el('div', 'p-block-h', 'Strongest right now'));
+      strongest.forEach(function (x) { b2.appendChild(profileRow(x)); });
+      app.appendChild(b2);
+    }
+
+    // ── 3. BIGGEST NEEDS — the bottom of the same list, each with its goal.
+    var needs = laddered.slice().sort(lvlAsc).slice(0, 3);
+    if (needs.length) {
+      var b3 = el('section', 'p-block needs');
+      b3.appendChild(el('div', 'p-block-h', 'Biggest needs'));
+      needs.forEach(function (x) { b3.appendChild(profileRow(x, { goal: true })); });
+      app.appendChild(b3);
+    }
+
+    // R607: the build this device runs, one muted line — the debug footer survives the rebuild.
     app.appendChild(el('div', 'build-id', 'build ' + APP_BUILD));
   }
 

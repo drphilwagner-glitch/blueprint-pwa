@@ -1142,3 +1142,18 @@ body #app { padding-bottom: 108px; }
 .p-sess.short { opacity: .55; }
 .p-sess-short { font-size: var(--fs-10); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--muted); border: 1px solid var(--line-soft); border-radius: var(--r-8); padding: 1px 6px; }
 .p-sess-imported { font-size: var(--fs-10); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--bp); border: 1px solid var(--bp-line); border-radius: var(--r-8); padding: 1px 6px; }
+
+/* R639 BLOCKS — the four-block profile; sparse screen, type sized up */
+.p-block { background: var(--card); border: 1px solid var(--line-soft); border-radius: var(--r-12, 12px); padding: 12px; margin: 12px 0; }
+.p-block-h { font-size: var(--fs-13); font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 8px; }
+.p-reg-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
+.p-reg-n { font-size: var(--fs-15); font-weight: 800; color: var(--ink); }
+.p-reg-clk { font-size: var(--fs-12); color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+.p-rowwrap { border-bottom: 1px solid var(--line-soft); }
+.p-rowwrap:last-child { border-bottom: 0; }
+.p-row { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 10px 2px; font: inherit; color: var(--ink); }
+.p-row-1 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.p-row-n { font-size: var(--fs-16); font-weight: 700; min-width: 0; }
+.p-row-l { font-size: var(--fs-15); font-weight: 800; color: var(--bp); flex: none; }
+.p-row-goal { font-size: var(--fs-13); font-weight: 600; color: var(--muted); margin-top: 2px; }
+.tellcoach { margin-top: 8px; }

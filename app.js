@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639f';   // R639 C22(b)+C23: blueprint-only median exclusion (legacy never excludes), imported label on EverFit days; prev: r639e
+  var APP_BUILD = '20260827-r639g';   // R639 C26-C28 (page FROZEN per C29): excluded days invisible, dropdown-as-title, best-vs-goal bar; prev: r639f
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3352,14 +3352,12 @@
     // the best-volume session. Nothing else — no badges, no PR text. C18a: the header is the DATE
     // ONLY (the variant lives in the title and its dropdown). C13: a short session renders greyed
     // and visible — history is evidence; only the claim was cleaned.
-    var c = el('div', 'p-sess' + ((opts && opts.shade) ? ' pr' : '') + ((opts && opts.short) ? ' short' : ''));
+    var c = el('div', 'p-sess' + ((opts && opts.shade) ? ' pr' : ''));
     var head = el('div', 'p-sess-h');
     head.appendChild(el('span', 'p-sess-d', fmtHistDate(day.date)));
     var st = el('span', 'p-sess-s');
-    if (opts && opts.short) st.appendChild(el('span', 'p-sess-short', 'short session'));
-    // C23 (ruling b): the era distinction is VISIBLE, not a silent policy — imported EverFit days
-    // carry a small label, never greyed: they are full sessions and they hold records.
-    if (day.src === 'everfit') st.appendChild(el('span', 'p-sess-imported', 'imported'));
+    // C26 (withdrawing C23): NO labels — 'short session' was an internal rule name and 'imported'
+    // a provenance detail; excluded days no longer render at all, and legacy days carry no marker.
     var loaded = (day.vol_unit || unit) === 'lb';
     // C5: a computed volume is never labelled with a raw unit it is not; C9: the volume is the
     // TAP-THROUGH into its arithmetic (below) — tap the number, see the math.
@@ -3446,24 +3444,29 @@
         function renderSeries(series) {
           panel.innerHTML = '';
           var sKey = series.toLowerCase();
+          // C27: the DROPDOWN IS THE TITLE — variant in the control, level beside it, one line,
+          // one statement of the variant (the H1 doubled it and wrapped into a column).
           var head = el('div', 'p-dt-head');
-          head.appendChild(el('span', '', (series ? titleName(series) : titleName(x.name)) + (x.level ? ' — L' + x.level : '')));
-          if (variants.length > 1) {
-            var sel = document.createElement('select'); sel.className = 'p-dt-var';
-            variants.forEach(function (v2) {
-              var o = document.createElement('option'); o.value = v2; o.textContent = titleName(v2);
-              if (v2.toLowerCase() === sKey) o.selected = true;
-              sel.appendChild(o);
-            });
-            sel.addEventListener('change', function () { renderSeries(sel.value); });
-            head.appendChild(sel);
-          }
+          var sel = document.createElement('select'); sel.className = 'p-dt-var';
+          (variants.length ? variants : [series || x.name]).forEach(function (v2) {
+            var o = document.createElement('option'); o.value = v2; o.textContent = titleName(v2);
+            if (String(v2).toLowerCase() === sKey) o.selected = true;
+            sel.appendChild(o);
+          });
+          sel.addEventListener('change', function () { renderSeries(sel.value); });
+          head.appendChild(sel);
+          if (x.level) head.appendChild(el('span', 'p-dt-lvl', 'L' + x.level));
           panel.appendChild(head);
           var days = all.filter(function (day) {
             var dv = String(day.variant || '').trim().toLowerCase();
             return !dv || dv === sKey;   // generic/parent-named Blueprint logs count as the series
           });
           if (!days.length) days = all;
+          // C26 (withdrawing C23): an excluded day is BAD DATA, not a short workout — it does not
+          // render at all. The soft-delete overlay keeps every row; the restore list is an ADMIN
+          // surface (the shortlist diag), never the profile.
+          days = days.filter(function (day) { return !day.short; });
+          if (!days.length) { panel.appendChild(el('div', 'p-detail-note', 'No history yet.')); return; }
           var unit = null;
           days.forEach(function (day) { if (!unit && day.vol_unit) unit = day.vol_unit; });
           unit = unit || 'lb';
@@ -3504,10 +3507,27 @@
             var gtxt = x.goal.load != null ? ('goal: ' + x.goal.load + ' lb × ' + x.goal.reps)
                                            : ('goal: ' + x.goal.reps + ' reps');
             gwrap.appendChild(el('div', 'p-dt-goaltxt', gtxt));
-            if (x.progress != null) {
+            // C28: the bar reads the athlete's BEST FOR THIS VARIANT against the goal, raw units,
+            // computed from the sets on this page — the profile row's progress nulls under the
+            // R023 variant-jump guard, and a bar reading empty when the athlete has beaten the
+            // number is worse than no bar. Goal source: the CURRENT serving rung's pass standard.
+            var bestRaw = 0, goalRaw = null;
+            if (x.goal.load != null) {
+              goalRaw = Number(x.goal.load) * (1 + (Number(x.goal.reps) || 0) / 30);
+              days.forEach(function (day) { (day.sets || []).forEach(function (s2) {
+                var l = Number(s2.load), rp = Number(s2.reps) || 0;
+                if (l > 0 && rp > 0) bestRaw = Math.max(bestRaw, l * (1 + rp / 30));
+              }); });
+            } else {
+              goalRaw = Number(x.goal.reps) || null;
+              days.forEach(function (day) { (day.sets || []).forEach(function (s2) {
+                bestRaw = Math.max(bestRaw, Number(s2.reps) || 0);
+              }); });
+            }
+            if (goalRaw > 0) {
               var bar = el('div', 'p-dt-bar');
               var fill = el('div', 'p-dt-fill');
-              fill.style.width = Math.round(Math.max(0, Math.min(1, x.progress)) * 100) + '%';
+              fill.style.width = Math.round(Math.max(0, Math.min(1, bestRaw / goalRaw)) * 100) + '%';
               bar.appendChild(fill); gwrap.appendChild(bar);
             }
             panel.appendChild(gwrap);

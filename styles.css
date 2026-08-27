@@ -1132,7 +1132,8 @@ body #app { padding-bottom: 108px; }
 .bc-hit { cursor: pointer; }
 
 /* C13/C18-C20 */
-.p-dt-var { font: inherit; font-size: var(--fs-13); border: 1px solid var(--line); border-radius: var(--r-8); background: var(--card); color: var(--ink); padding: 4px 6px; margin-left: 8px; }
+.p-dt-var { flex: 1 1 auto; min-width: 0; font: inherit; font-size: var(--fs-15); font-weight: 700; border: 1px solid var(--line); border-radius: var(--r-8); background: var(--card); color: var(--ink); padding: 6px 8px; }
+.p-dt-lvl { flex: 0 0 auto; font-size: var(--fs-15); font-weight: 800; color: var(--ink); }
 .p-dt-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .p-dt-goal { margin: 8px 0; }
 .p-dt-goaltxt { font-size: var(--fs-13); font-weight: 700; color: var(--ink); margin-bottom: 4px; }

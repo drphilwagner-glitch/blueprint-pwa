@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639d';   // R639 C9-C11: no internals on the card face (math behind the volume tap), star is a SET-row mark, records jump-line above the list; prev: r639c
+  var APP_BUILD = '20260827-r639e';   // R639 C13+C18-C21: short-session law (visible, greyed, out of records), stripped one-shape page (title+dropdown/graph/goal/collapsed sessions), chronological axis with dates; prev: r639d
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3262,24 +3262,11 @@
       card.appendChild(el('div', 'p-empty', (x.legacy && x.legacy.sets)
         ? 'No sets logged in Blueprint yet.'
         : 'No sets logged yet — log one and your bests show up here.'));
-    } else {
-      // Phil: "best volume and one set font not so big same as exercise" — these were the loudest
-      // thing on the card. They're facts about the past; the level and the gap are what's actionable.
-      var stats = el('div', 'p-stats');
-      if (x.best_one != null) {
-        var s1 = el('div', 'p-stat');
-        s1.appendChild(el('span', 'p-stat-l', 'Best one set'));
-        s1.appendChild(el('span', 'p-stat-v', x.best_one + ' ' + (x.best_one_unit || '')));
-        stats.appendChild(s1);
-      }
-      if (x.best_volume != null) {
-        var s2 = el('div', 'p-stat');
-        s2.appendChild(el('span', 'p-stat-l', 'Best volume'));
-        s2.appendChild(el('span', 'p-stat-v', x.best_volume + ' ' + (x.volume_unit || 'lb')));
-        stats.appendChild(s2);
-      }
-      card.appendChild(stats);
     }
+    // C20 (Phil 2026-08-27): the best-set/best-volume CHIPS are gone from card faces too — C1
+    // deleted them from the open page and they survived here because the sweep only covered the
+    // page that happened to be open. The records live as marks in the session list; every exercise
+    // renders ONE shape (title · graph · goal · collapsed sessions), no exceptions, no chips.
 
     // Level: where you are on the climb and how far to go. L242 (Phil 2026-08-18): a LEVEL is hinge
     // vocabulary — non-hinge strength lifts rotate with the region and their cards show the current
@@ -3361,14 +3348,15 @@
   // verifiable against the logged sets because they ARE the logged sets).
   function sessionCard(day, unit, opts) {
     var sets = day.sets || [];
-    // C3: the BOX is the shade — best VOLUME only, a SESSION-level property. C10 (Phil, third
-    // correction): the STAR is a SET-level mark — it sits on the ROW that produced the best e1RM,
-    // inside the table below; a session is not a set and never wears a star.
-    var c = el('div', 'p-sess' + ((opts && opts.shade) ? ' pr' : ''));
+    // TWO MARKS EXIST (C18f): the star on the set row that produced the best e1RM, the shade box on
+    // the best-volume session. Nothing else — no badges, no PR text. C18a: the header is the DATE
+    // ONLY (the variant lives in the title and its dropdown). C13: a short session renders greyed
+    // and visible — history is evidence; only the claim was cleaned.
+    var c = el('div', 'p-sess' + ((opts && opts.shade) ? ' pr' : '') + ((opts && opts.short) ? ' short' : ''));
     var head = el('div', 'p-sess-h');
-    head.appendChild(el('span', 'p-sess-d', fmtHistDate(day.date) + (day.variant ? ' · ' + titleName(day.variant) : '')));
+    head.appendChild(el('span', 'p-sess-d', fmtHistDate(day.date)));
     var st = el('span', 'p-sess-s');
-    ((opts && opts.badges) || []).forEach(function (b) { st.appendChild(el('span', 'p-sess-1rm', b)); });
+    if (opts && opts.short) st.appendChild(el('span', 'p-sess-short', 'short session'));
     var loaded = (day.vol_unit || unit) === 'lb';
     // C5: a computed volume is never labelled with a raw unit it is not; C9: the volume is the
     // TAP-THROUGH into its arithmetic (below) — tap the number, see the math.
@@ -3444,99 +3432,103 @@
           return Object.assign({}, day, { sets: sets });
         }).filter(function (day) { return (day.sets || []).length > 0; });
         if (!all.length) { panel.appendChild(el('div', 'p-detail-note', 'No history yet.')); return; }
-        // R639 D5: the default series is the variant LAST PERFORMED (server-computed) — never the
-        // profile's current variant (Mason's 2-leg-after-a-1-leg-session defect).
-        var series = String((d && d.series_variant) || x.variant || '').trim();
-        var sKey = series.toLowerCase();
-        // D6: VARIANT + LEVEL on one line, variant only — never the parent name, never both.
-        panel.appendChild(el('div', 'p-dt-head', (series ? titleName(series) : titleName(x.name)) + (x.level ? ' — L' + x.level : '')));
-        var days = all.filter(function (day) {
-          var dv = String(day.variant || '').trim().toLowerCase();
-          return !dv || dv === sKey;   // generic/parent-named Blueprint logs count as the series
+        // C19 — THE PAGE, fixed order, nothing else: 1 title (variant + level, with the variant
+        // dropdown) · 2 line graph (volume per round, DATES on the axis, tappable) · 3 goal bar ·
+        // 4 session history, collapsed by default. C18 deleted everything that restated any of it.
+        var variants = [];
+        all.forEach(function (day) {
+          var v2 = String(day.variant || '').trim();
+          if (v2 && variants.indexOf(v2) < 0) variants.push(v2);
         });
-        if (!days.length) days = all;
-        var unit = null;
-        days.forEach(function (day) { if (!unit && day.vol_unit) unit = day.vol_unit; });
-        unit = unit || 'lb';
-        // C1 (Phil 2026-08-27, overriding his earlier chips spec — a reversal, not a regression):
-        // star and shade are POSITION MARKERS in the list, never header chips. The athlete finds
-        // their best by seeing WHERE it happened. Header = variant + level, then the graph.
-        var mk = (d && d.marks && d.marks[sKey]) || {};
-        // ONE GRAPH (D4): session volume by ROUND, this variant only, last 12 rounds — ALL rounds,
-        // current included (D2's 5-vs-3 came from a silent current-round exclusion; the grain is now
-        // labelled and every point decomposes by tap). Three or fewer points: no graph, the table is
-        // the record.
-        var byRn = {};
-        days.forEach(function (day) {
-          var rn = Number(day.round_n);
-          if (!rn) return;
-          var b = byRn[rn] = byRn[rn] || { n: rn, date: day.date, v: 0, days: [], star: false, shade: false };
-          b.v += Number(day.vol) || 0;
-          b.days.push(day);
-          if (String(day.date) > String(b.date)) b.date = day.date;
-          if (mk.star_date && String(day.date).slice(0, 10) === mk.star_date) b.star = true;
-          if (mk.shade_date && String(day.date).slice(0, 10) === mk.shade_date) b.shade = true;
-        });
-        var rpts = Object.keys(byRn).map(function (n2) { return byRn[n2]; })
-          .filter(function (pp) { return pp.v > 0; })
-          .sort(function (a, b) { return a.n - b.n; }).slice(-12);
-        var breakdown = el('div', 'p-dt-break');
-        function showRound(pp) {
-          breakdown.innerHTML = '';
-          breakdown.appendChild(el('div', 'p-detail-note', 'Round ' + pp.n + ' — the sessions behind this point'));
-          pp.days.forEach(function (day) { breakdown.appendChild(sessionCard(day, unit, {})); });
-        }
-        if (rpts.length >= 2) {   // C4: two points plot a line — 12 ideal, 2 the floor
-          panel.appendChild(bigChart(
-            rpts.map(function (pp) { return { date: pp.date, v: pp.v, star: pp.star, shade: pp.shade, lbl: 'R' + pp.n }; }),
-            unit === 'lb' ? 'lb' : '', 'Volume per round · tap a point', { onTap: function (i) { showRound(rpts[i]); } }));
-          panel.appendChild(breakdown);
-        } else if (rpts.length) {
-          panel.appendChild(el('div', 'p-detail-note', 'One round so far — the sessions below are the record.'));
-        }
-        // SHOW PROGRESS — every session of this variant; three highlights, each verifiable against
-        // the logged sets rendered right under it: PR (heaviest load), best est-1RM, best volume.
-        // PR (heaviest load) computed from the visible sets — verifiable by eye. C2: star/shade
-        // placement comes from the SERVER marks (the earliest-tie fold — one reader for the graph
-        // and the list). C3: the star is a star; SHADING is reserved for best volume.
-        var hlLoad = null;
-        days.forEach(function (day) {
-          (day.sets || []).forEach(function (s2) { var l = Number(s2.load); if (l > 0 && (!hlLoad || l > hlLoad.v)) hlLoad = { d: day, v: l }; });
-        });
-        panel.appendChild(el('div', 'p-dt-sub', 'Every session — ' + (series ? titleName(series) : 'this lift')));
-        // C11: the records are FINDABLE — one text line above the list names both and tapping
-        // scrolls to (and flashes) the mark, because a record below the fold is not findable.
-        var cardByDate = {};
-        var jump = (mk.star_date || mk.shade_date) ? el('div', 'p-dt-jump') : null;
-        if (jump) panel.appendChild(jump);
-        days.forEach(function (day) {
-          var d10 = String(day.date).slice(0, 10);
-          var isStar = mk.star_date === d10, isShade = mk.shade_date === d10;
-          var badges = [];
-          if (hlLoad && day === hlLoad.d) badges.push('PR ' + hlLoad.v + ' lb');
-          if (isShade) badges.push('◼ best volume');
-          var card = sessionCard(day, unit, { badges: badges, shade: isShade, star: isStar });
-          cardByDate[d10] = card;
-          panel.appendChild(card);
-        });
-        // C11: the records are FINDABLE — a text line above the list names both; tapping scrolls to
-        // and flashes the mark. Built AFTER the cards so a record OLDER than the rendered list says
-        // so honestly instead of dead-tapping (Back Squat's own case: both records live on a legacy
-        // day months back).
-        if (jump) {
-          function jl(txt, d10) {
-            var t = cardByDate[d10];
-            var a = el('span', t ? 'p-dt-jumplink' : 'p-dt-jumpold', txt + (t ? '' : ' (older than shown)'));
-            if (t) a.addEventListener('click', function () {
-              t.scrollIntoView({ block: 'center', behavior: 'smooth' });
-              t.classList.add('flash'); setTimeout(function () { t.classList.remove('flash'); }, 1600);
+        function renderSeries(series) {
+          panel.innerHTML = '';
+          var sKey = series.toLowerCase();
+          var head = el('div', 'p-dt-head');
+          head.appendChild(el('span', '', (series ? titleName(series) : titleName(x.name)) + (x.level ? ' — L' + x.level : '')));
+          if (variants.length > 1) {
+            var sel = document.createElement('select'); sel.className = 'p-dt-var';
+            variants.forEach(function (v2) {
+              var o = document.createElement('option'); o.value = v2; o.textContent = titleName(v2);
+              if (v2.toLowerCase() === sKey) o.selected = true;
+              sel.appendChild(o);
             });
-            jump.appendChild(a);
+            sel.addEventListener('change', function () { renderSeries(sel.value); });
+            head.appendChild(sel);
           }
-          if (mk.star_date) jl('best set ' + fmtHistDate(mk.star_date), mk.star_date);
-          if (mk.star_date && mk.shade_date) jump.appendChild(el('span', 'p-dt-jumpsep', ' · '));
-          if (mk.shade_date) jl('best volume ' + fmtHistDate(mk.shade_date), mk.shade_date);
+          panel.appendChild(head);
+          var days = all.filter(function (day) {
+            var dv = String(day.variant || '').trim().toLowerCase();
+            return !dv || dv === sKey;   // generic/parent-named Blueprint logs count as the series
+          });
+          if (!days.length) days = all;
+          var unit = null;
+          days.forEach(function (day) { if (!unit && day.vol_unit) unit = day.vol_unit; });
+          unit = unit || 'lb';
+          var mk = (d && d.marks && d.marks[sKey]) || {};
+          var live = days.filter(function (day) { return !day.short; });   // C13: shorts hold no records
+          // 2. THE GRAPH — volume per round, points CHRONOLOGICAL BY DATE (C21: the resurrected
+          // round re-done after a newer round made round-number order run backwards in time; the
+          // round is only the grouping), short sessions excluded, dates on the axis, no caption,
+          // no glyphs (marks live in the list), every point tappable to its sessions.
+          var byRn = {};
+          live.forEach(function (day) {
+            var rn = Number(day.round_n);
+            if (!rn) return;
+            var b = byRn[rn] = byRn[rn] || { n: rn, date: day.date, v: 0, days: [] };
+            b.v += Number(day.vol) || 0;
+            b.days.push(day);
+            if (String(day.date) > String(b.date)) b.date = day.date;
+          });
+          var rpts = Object.keys(byRn).map(function (n2) { return byRn[n2]; })
+            .filter(function (pp) { return pp.v > 0; })
+            .sort(function (a, b) { return String(a.date) < String(b.date) ? -1 : 1; })
+            .slice(-12);
+          var breakdown = el('div', 'p-dt-break');
+          function showRound(pp) {
+            breakdown.innerHTML = '';
+            pp.days.forEach(function (day) { breakdown.appendChild(sessionCard(day, unit, seriesOpts(day))); });
+          }
+          if (days.length >= 2 && rpts.length >= 2) {
+            panel.appendChild(bigChart(
+              rpts.map(function (pp) { return { date: pp.date, v: pp.v, lbl: fmtHistDate(pp.date) }; }),
+              unit === 'lb' ? 'lb' : '', null, { onTap: function (i2) { showRound(rpts[i2]); } }));
+            panel.appendChild(breakdown);
+          }
+          // 3. THE GOAL BAR — the one forward-looking thing on the page (from the profile row the
+          // athlete tapped; the served rung's own numbers, D1's resolver).
+          if (days.length >= 2 && x.goal && (x.goal.load != null || x.goal.reps != null)) {
+            var gwrap = el('div', 'p-dt-goal');
+            var gtxt = x.goal.load != null ? ('goal: ' + x.goal.load + ' lb × ' + x.goal.reps)
+                                           : ('goal: ' + x.goal.reps + ' reps');
+            gwrap.appendChild(el('div', 'p-dt-goaltxt', gtxt));
+            if (x.progress != null) {
+              var bar = el('div', 'p-dt-bar');
+              var fill = el('div', 'p-dt-fill');
+              fill.style.width = Math.round(Math.max(0, Math.min(1, x.progress)) * 100) + '%';
+              bar.appendChild(fill); gwrap.appendChild(bar);
+            }
+            panel.appendChild(gwrap);
+          }
+          // 4. SESSION HISTORY — collapsed by default; every session for the selected variant,
+          // short sessions greyed and visible (C13: history is evidence, the graph is a claim).
+          function seriesOpts(day) {
+            var d10 = String(day.date).slice(0, 10);
+            return { shade: mk.shade_date === d10 && !day.short, star: mk.star_date === d10 && !day.short, short: !!day.short };
+          }
+          var hwrap = el('div', 'p-dt-hist'); hwrap.style.display = 'none';
+          var htog = el('button', 'p-more'); htog.type = 'button';
+          htog.textContent = 'Sessions (' + days.length + ') ▾';
+          htog.addEventListener('click', function () {
+            var open2 = hwrap.style.display !== 'none';
+            hwrap.style.display = open2 ? 'none' : 'block';
+            htog.textContent = 'Sessions (' + days.length + ') ' + (open2 ? '▾' : '▴');
+          });
+          days.forEach(function (day) { hwrap.appendChild(sessionCard(day, unit, seriesOpts(day))); });
+          if (days.length === 1) { hwrap.style.display = 'block'; htog.style.display = 'none'; }   // C20: one session = just that session
+          panel.appendChild(htog);
+          panel.appendChild(hwrap);
         }
+        renderSeries(String((d && d.series_variant) || x.variant || '').trim());
       })
       .catch(function () { panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Could not load history.')); });
   }
@@ -3606,12 +3598,10 @@
     add('path', { class: 'bc-line', d: d });
     xy.forEach(function (c, i) {
       var p = pts[i];
-      // R639: shade = the best-volume session's round (filled marker under the dot); star = the
-      // best-e1RM session's round (a literal star above it). Independent — one point may hold both.
-      if (p.shade) add('rect', { class: 'bc-shadebox', x: (c[0] - 5).toFixed(1), y: (c[1] - 5).toFixed(1), width: 10, height: 10, rx: 2 });
-      add('circle', { class: (i === n - 1 ? 'bc-dot bc-now' : 'bc-dot') + (p.star ? ' bc-starpt' : ''), cx: c[0].toFixed(1), cy: c[1].toFixed(1), r: i === n - 1 ? 4 : 2.6 });
-      if (p.star) add('text', { class: 'bc-star', x: c[0].toFixed(1), y: Math.max(12, c[1] - 8).toFixed(1), 'text-anchor': 'middle' }, '★');
-      if (p.lbl && (n <= 8 || i % 2 === (n - 1) % 2)) add('text', { class: 'bc-xlbl', x: c[0].toFixed(1), y: (H - 4).toFixed(1), 'text-anchor': 'middle' }, p.lbl);
+      // C18f/C21: the graph carries NO record glyphs — the star belongs to a set row and the shade
+      // to a session card; the graph is a clean line whose points decompose by tap.
+      add('circle', { class: i === n - 1 ? 'bc-dot bc-now' : 'bc-dot', cx: c[0].toFixed(1), cy: c[1].toFixed(1), r: i === n - 1 ? 4 : 2.6 });
+      if (p.lbl && (n <= 6 || i === 0 || i === n - 1 || i % 2 === (n - 1) % 2)) add('text', { class: 'bc-xlbl', x: c[0].toFixed(1), y: (H - 4).toFixed(1), 'text-anchor': 'middle' }, p.lbl);
       // EVERY point is tappable (spec: no number that can't be decomposed) — a wide invisible hit
       // target over each dot, because a 2.6px circle is not a tap target on a phone.
       if (opts.onTap) {
@@ -3622,10 +3612,8 @@
     add('text', { class: 'bc-val', x: (xy[n - 1][0] > W - 46 ? xy[n - 1][0] - 6 : xy[n - 1][0] + 6).toFixed(1),
       y: Math.max(13, xy[n - 1][1] - 7).toFixed(1), 'text-anchor': xy[n - 1][0] > W - 46 ? 'end' : 'start' }, vs[n - 1] + u);
     var wrap = el('div', 'bc-wrap'); wrap.appendChild(svg);
-    var up = Math.round((vs[n - 1] - vs[0]) * 10) / 10;
-    var cap = el('div', 'bc-cap');
-    cap.textContent = (metric ? metric + ' · ' : '') + fmtHistDate(pts[0].date) + ' → ' + fmtHistDate(pts[n - 1].date) + (up > 0 ? '   ▲ up ' + up + u : '');
-    wrap.appendChild(cap);
+    // C18c/d: NO caption — dates live on the axis; the line shows its own direction.
+    if (metric) wrap.appendChild(el('div', 'bc-cap', metric));
     return wrap;
   }
 

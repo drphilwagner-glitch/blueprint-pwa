@@ -1130,3 +1130,13 @@ body #app { padding-bottom: 108px; }
 .bc-shadebox { fill: var(--bp-tint); stroke: var(--bp-line); }
 .bc-xlbl { font-size: 8px; fill: var(--muted); }
 .bc-hit { cursor: pointer; }
+
+/* C13/C18-C20 */
+.p-dt-var { font: inherit; font-size: var(--fs-13); border: 1px solid var(--line); border-radius: var(--r-8); background: var(--card); color: var(--ink); padding: 4px 6px; margin-left: 8px; }
+.p-dt-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.p-dt-goal { margin: 8px 0; }
+.p-dt-goaltxt { font-size: var(--fs-13); font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.p-dt-bar { height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line-soft); overflow: hidden; }
+.p-dt-fill { height: 100%; background: var(--bp); }
+.p-sess.short { opacity: .55; }
+.p-sess-short { font-size: var(--fs-10); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--muted); border: 1px solid var(--line-soft); border-radius: var(--r-8); padding: 1px 6px; }

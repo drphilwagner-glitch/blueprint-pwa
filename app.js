@@ -2677,6 +2677,22 @@
   // ---- Home = calendar of the athlete's sessions; tap a day to open that workout ----
   function mondayOf(s) { var x = new Date(s + 'T00:00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
   function ymd(d) { return d.toLocaleDateString('en-CA'); }
+  // R564: the server ACK is the truth about a move, so the cached week adopts it immediately.
+  // loadHome instant-paints that cache, and its refresh path deliberately keeps the paint on a
+  // server hiccup — which, right after a move (the server just wrote the Plan and rebuilt Coach
+  // View), is the likeliest moment for one. Without this patch the pre-move cache repaints and the
+  // athlete watches a date the server has already changed.
+  function patchWeekCacheDate(sessionId, toDate) {
+    try {
+      var k = 'bp_week_' + CACHE_V + '_' + athlete;
+      var raw = localStorage.getItem(k); if (!raw) return;
+      var obj = JSON.parse(raw);
+      (obj.sessions || []).forEach(function (s) {
+        if (String(s.session_id) === String(sessionId)) s.date = String(toDate);
+      });
+      localStorage.setItem(k, JSON.stringify(obj));
+    } catch (e) {}
+  }
   function loadHome() {
     // Takes a screen ticket like every other loader. Without one, a slow week fetch resolving AFTER the
     // athlete opened a workout ran renderCalendar over the top of it — and renderCalendar sets
@@ -2955,7 +2971,7 @@
         // reopen" (Phil 2026-08-08). The move panel got this fix earlier; the drag path kept the
         // race. Same rule now: ack, then reload.
         sendMove(s.session_id, to).then(function (res) {
-          if (res && res.ok) { loadHome(); return; }
+          if (res && res.ok) { patchWeekCacheDate(s.session_id, to); loadHome(); return; }
           show(MOVE_ERR[res && res.error] || 'Move failed — try again.', 'err');
           setTimeout(loadHome, 1600);
         });
@@ -2988,7 +3004,7 @@
       // is often shorter than an Apps Script cold start \u2014 so the calendar re-read the cache before
       // the move had landed and showed the old day.
       sendMove(s.session_id, iso).then(function (res) {
-        if (res && res.ok) { loadHome(); return; }
+        if (res && res.ok) { patchWeekCacheDate(s.session_id, iso); loadHome(); return; }
         p.innerHTML = '';
         p.appendChild(el('div', 'move-h err', MOVE_ERR[res && res.error] || 'Move failed \u2014 try again.'));
         var again = el('button', 'move-opt', 'Back'); again.type = 'button';

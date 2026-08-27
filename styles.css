@@ -1140,3 +1140,4 @@ body #app { padding-bottom: 108px; }
 .p-dt-fill { height: 100%; background: var(--bp); }
 .p-sess.short { opacity: .55; }
 .p-sess-short { font-size: var(--fs-10); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--muted); border: 1px solid var(--line-soft); border-radius: var(--r-8); padding: 1px 6px; }
+.p-sess-imported { font-size: var(--fs-10); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--bp); border: 1px solid var(--bp-line); border-radius: var(--r-8); padding: 1px 6px; }

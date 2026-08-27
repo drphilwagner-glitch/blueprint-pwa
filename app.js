@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639e';   // R639 C13+C18-C21: short-session law (visible, greyed, out of records), stripped one-shape page (title+dropdown/graph/goal/collapsed sessions), chronological axis with dates; prev: r639d
+  var APP_BUILD = '20260827-r639f';   // R639 C22(b)+C23: blueprint-only median exclusion (legacy never excludes), imported label on EverFit days; prev: r639e
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3357,6 +3357,9 @@
     head.appendChild(el('span', 'p-sess-d', fmtHistDate(day.date)));
     var st = el('span', 'p-sess-s');
     if (opts && opts.short) st.appendChild(el('span', 'p-sess-short', 'short session'));
+    // C23 (ruling b): the era distinction is VISIBLE, not a silent policy — imported EverFit days
+    // carry a small label, never greyed: they are full sessions and they hold records.
+    if (day.src === 'everfit') st.appendChild(el('span', 'p-sess-imported', 'imported'));
     var loaded = (day.vol_unit || unit) === 'lb';
     // C5: a computed volume is never labelled with a raw unit it is not; C9: the volume is the
     // TAP-THROUGH into its arithmetic (below) — tap the number, see the math.

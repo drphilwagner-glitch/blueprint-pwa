@@ -1,7 +1,7 @@
 /* Service worker: caches the app shell for offline + installability.
  * Cross-origin API calls (the Apps Script Web App) are left to the app / offline queue (S10).
  */
-var CACHE = 'bp-shell-v100';   // v100: R607 stale-phone fix rides a fresh shell cache; prev v99 R381
+var CACHE = 'bp-shell-v101';   // v101: R631 navigation-only fallback (below); prev v100 R607
 var SHELL = ['./', './index.html', './app.js', './config.js', './tokens.css', './styles.css',
   './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
@@ -35,7 +35,14 @@ self.addEventListener('fetch', function (e) {
       var copy = resp.clone(); caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
       return resp;
     }).catch(function () {
-      return caches.match(e.request).then(function (cached) { return cached || caches.match('./index.html'); });
+      return caches.match(e.request).then(function (cached) {
+        if (cached) return cached;
+        // R631: the index.html fallback is for NAVIGATIONS only. Serving it for a missing app.js
+        // (install() tolerates a failed shell add, so a cache CAN be born without one) hands the
+        // browser an HTML document as JavaScript — a syntax error and a dead blank app.
+        if (e.request.mode === 'navigate') return caches.match('./index.html');
+        return Response.error();
+      });
     })
   );
 });

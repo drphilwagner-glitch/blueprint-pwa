@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260826-r601';   // L288/R601: invisible device enrollment + revocation self-heal (token indirection); prev: r607 (visible build id + ship-stamped PWA_VER, beeping build, L194 kept)
+  var APP_BUILD = '20260827-r631';   // R631: workout tap can never strand on a blank screen (open watchdog + safeRender + retry card); prev: r601 (device enrollment)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -197,6 +197,9 @@
     try {
       var key = kind + '|' + String(message).slice(0, 120);
       if (_errSent[key]) return; _errSent[key] = 1;       // one report per distinct fault per session
+      // R631 test seam: the localhost guard below rightly keeps harness noise out of ErrorLog, but
+      // j34 must still SEE that a failure reported itself — record the attempt where a journey can read it.
+      try { (window.__bpErrLog = window.__bpErrLog || []).push(kind); } catch (eSeam) {}
       if (!cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return;
       // A localhost app is NEVER a kid's phone (errorhygiene, 2026-08-18): the QA harness renders
       // real athletes' boards at 127.0.0.1 for screenshots, and every harness reload was landing in
@@ -1181,7 +1184,12 @@
     p.appendChild(el('div', 'skip-h', 'Skip — why?'));
     [['coach', 'Coach said to'], ['mine', 'My choice'], ['pain', 'Pain 🚩']].forEach(function (o) {
       var b = el('button', 'skip-opt' + (o[0] === 'pain' ? ' pain' : '')); b.type = 'button'; b.textContent = o[1];
-      b.addEventListener('click', function () { p.remove(); postSkip(slot, ex.exercise, o[0], setNo); });
+      // R632 (Grace 2026-08-26, the FOURTH skip report): the skip's identity is the PRESCRIBED
+      // exercise, always. A swapped row's `ex` is the alternate; skipping under ITS name missed
+      // ROW_REG (keyed by original — nothing grayed, the tap looked dead) and wrote a marker the
+      // payload's skipped_sets (keyed by prescribed name) could never match, so the skip vanished
+      // on every reload. Her 02:18Z uncheck/skip thrash is this exact seam.
+      b.addEventListener('click', function () { p.remove(); postSkip(slot, (ex._alt_of || ex).exercise, o[0], setNo); });
       p.appendChild(b);
     });
     // The whole-complex skip button is GONE (Phil 2026-08-17 URGENT, after it ate his Bent Row +
@@ -1517,13 +1525,25 @@
           // "add a column G under Alternates for weighted exercises").
           var fallback = { name: x.exercise, video_url: x.video_url || '', reps: x.default_reps,
                            wants_load: x.wants_load === true, reason: 'searched' };
+          // R633 (Grace's ~15s dips swap, on a cold just-deployed backend): the swap applies NOW,
+          // from the library row the panel already holds — in-workout actions are <2s perceived.
+          // The exscheme answer (the athlete's real prescription, 5-13s cold) RECONCILES the rows
+          // in the background, and only while they are untouched: once a set is logged or a
+          // stepper confirmed, the athlete's screen wins (the R533 mid-set discipline).
+          applySwapAll(origEx.exercise, fallback);
           fetch(cfg.WEBAPP_URL + '?action=exscheme&athlete=' + encodeURIComponent(athlete) +
                 '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(x.exercise) + '&sets=3')
             .then(function (r) { return r.json(); })
             .then(function (d) {
-              if (!d || !d.ok) return applySwapAll(origEx.exercise, fallback);
+              if (!d || !d.ok) return;                       // the fallback already serves
+              var ents = ROW_REG[origEx.exercise] || [];
+              var touched = ents.some(function (en) {
+                return en.row.classList.contains('done') || en.row.querySelector('.stepper.confirmed');
+              });
+              if (touched) return;
               applySwapAll(origEx.exercise, {
                 name: x.exercise, video_url: x.video_url || '', reason: 'searched',
+                best_reps: (d.best_reps != null ? d.best_reps : null),   // R634: the athlete's own variant basis rides the swap
                 reps: (d.reps != null ? d.reps : x.default_reps),
                 wants_load: (x.wants_load === true) || !!d.wants_load,   // weighted column OR Level Standards
                 prefill_load: (d.load != null ? d.load : null),
@@ -1531,7 +1551,7 @@
                 duration_s: (d.duration_s != null ? d.duration_s : null)
               });
             })
-            .catch(function () { applySwapAll(origEx.exercise, fallback); });
+            .catch(function () {});
         });
         hits.appendChild(hb);
       });
@@ -1802,12 +1822,15 @@
     row.appendChild(l1);   // the ✓ is appended to l1 further down, once it exists
     // R563: this row is skipped if THIS SET carries a skip marker, or if a LEGACY blank-set marker
     // skipped the whole exercise before the per-set law existed.
-    var skReason = (ex.skipped_sets && ex.skipped_sets[String(t.set_no)]) || ex.skipped;
+    // R632: read the skip state from the PRESCRIBED exercise — a swapped row's `ex` is the
+    // alternate, whose object never carries the payload's skipped/skipped_sets.
+    var skBase = ex._alt_of || ex;
+    var skReason = (skBase.skipped_sets && skBase.skipped_sets[String(t.set_no)]) || skBase.skipped;
     if (skReason) {
       row.classList.add('skipped');
       // A LEGACY whole-exercise skip voids with a blank set_no; a per-set skip voids at its own set.
-      attachSkipLabel(row, ex.exercise, skReason, slot,
-                      (ex.skipped_sets && ex.skipped_sets[String(t.set_no)]) ? t.set_no : null);
+      attachSkipLabel(row, skBase.exercise, skReason, slot,
+                      (skBase.skipped_sets && skBase.skipped_sets[String(t.set_no)]) ? t.set_no : null);
     }
     noteUnder(row, ex, isMaxVal(t.target_reps));
 
@@ -2092,7 +2115,10 @@
     // value line is down to three lanes.
     l1.appendChild(check);
     row.appendChild(l2);
-    if (wasLogged) { row.classList.add('done'); check.classList.add('done'); check.textContent = '✓'; }   // show as logged; tap to edit
+    // L290: a set with a STANDING skip never renders a checkmark — the skip wins the render even
+    // when an older logged state survives locally (LOCAL_DONE); the server's evidence readers
+    // already refuse to count it.
+    if (wasLogged && !skReason) { row.classList.add('done'); check.classList.add('done'); check.textContent = '✓'; }   // show as logged; tap to edit
     regRow({ row: row, slot: slot, ex: ex, t: t, timer: timer, isASide: isASide });   // so a swap can reach every set (QA-05)
     return row;
   }
@@ -2643,12 +2669,20 @@
             }
           });
       });
-      show('Workout complete — ' + n + ' logged. Loading summary…');
+      // R635 (Grace 2026-08-26): completion renders IMMEDIATELY from what the phone already knows,
+      // and the server's richer summary UPGRADES it in place when it lands. The old shape —
+      // 'Loading summary…' + a fetch with an empty catch — sat frozen for the summary's own
+      // cold-build seconds and FOREVER on a failed fetch (the R631 stall class on the exit door).
+      var sumScreen = newScreen();
+      renderSummary(n, null);
       var url = cfg.WEBAPP_URL + '?action=summary&athlete=' + encodeURIComponent(athlete) +
         '&session_id=' + encodeURIComponent(SESSION.session_id) + '&token=' + encodeURIComponent(token);
       setTimeout(function () {
-        fetch(url).then(function (r) { return r.json(); }).then(function (d) { renderSummary(n, d); }).catch(function () {});
-      }, 1800);
+        fetchJson(url).then(function (d) {
+          if (!isCurrent(sumScreen)) return;             // the athlete moved on; leave their screen alone
+          if (d && d.ok) renderSummary(n, d);            // any failure: the local completion stands
+        });
+      }, 1200);
     });
     app.appendChild(finish);
     refocus();   // rule 1: set the opening focus before the athlete sees anything
@@ -3925,20 +3959,65 @@
     return !!document.querySelector('.ex-row.done') || !!document.querySelector('.stepper.confirmed');
   }
 
+  // R631 (Grace 2026-08-26, defect 1 — "worst defect this system has produced"): calendar → workout
+  // tap → BLANK, three times, force-closed, and her phone reported NOTHING. Two stranding paths,
+  // both closed here, both journey-proven (j34):
+  //   1. no cached session + a HUNG backend (a freshly-deployed cold Apps Script): 'Loading…' sat
+  //      forever with no timeout, no retry control, no error report — invisible to ErrorLog.
+  //   2. a cached session whose render() THROWS (corrupt/interrupted cache write): the screen was
+  //      cleared, the exception killed the paint, and nothing ever drew again.
+  // The law: a workout tap ALWAYS ends in either the workout or an actionable retry card, and the
+  // failure reports itself. Retry discards the cached copy first, so a corrupt cache self-heals.
+  function showRetryCard(sessionId, msg) {
+    app.innerHTML = '';
+    // 'slowload', NOT 'err': journey helpers (and any future code) treat '.err' as a terminal
+    // screen; this card is a live state with a pending fetch that may still repaint the workout.
+    app.appendChild(el('p', 'slowload', msg));
+    var b = el('button', 'retry-open', 'Try again'); b.type = 'button';
+    b.addEventListener('click', function () {
+      try { localStorage.removeItem(sessCacheKey(sessionId)); } catch (e) {}
+      openSession(sessionId);
+    });
+    app.appendChild(b);
+  }
+  function safeRender(s, sessionId) {
+    try { render(s); return true; }
+    catch (e) {
+      reportError('render_crash', (e && e.message) || String(e), 'openSession ' + sessionId, e && e.stack);
+      showRetryCard(sessionId, 'Something went wrong showing this workout.');
+      return false;
+    }
+  }
+  // 20s, not 8: a COLD session build legitimately takes ~11.2s (measured, the INSTANT OPEN note
+  // below) — an 8s watchdog showed the card on every cold open. 20s clears the honest cold path
+  // and still bounds the minutes-long hang Grace hit. The pending fetch stays alive under the card:
+  // a late success repaints the workout (screenTouched is false on the card).
+  var OPEN_WATCHDOG_MS = 20000;
   function openSession(sessionId) {
     var _screen = newScreen();   // claims the screen: a pending calendar/profile draw must not win
     primeAudio();                // the session-start TAP is the gesture iOS unlocks audio on (L124)
     try { sessionStorage.setItem('bp_open_session', sessionId); } catch (e) {}
     var cached = cachedSession(sessionId);
-    if (cached) { render(cached); } else { show('Loading…'); }
+    var painted = cached ? safeRender(cached, sessionId) : false;
+    if (!cached) show('Loading…');
+    var settled = false;
+    if (!painted) {
+      setTimeout(function () {
+        if (settled || !isCurrent(_screen)) return;
+        reportError('workout_open_slow', 'session fetch still pending after ' + OPEN_WATCHDOG_MS + 'ms', sessionId, '');
+        showRetryCard(sessionId, 'Your workout is taking too long to load.');
+      }, OPEN_WATCHDOG_MS);
+    }
     fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))
       .then(function (data) {
+        settled = true;
+        if (data && data.ok && data.session) cacheSession(sessionId, data.session);
+        if (!isCurrent(_screen)) return;   // athlete moved on; the cache above still updated
         if (data && (data.error === 'offline' || data.error === 'server')) {
-          if (!cached) show(data.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to open this workout.', 'err');
+          if (!painted) show(data.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to open this workout.', 'err');
           return;
         }
-        if (!data.ok || !data.session) { if (!cached) show('No workout that day.'); return; }
-        cacheSession(sessionId, data.session);
+        if (!data.ok || !data.session) { if (!painted) show('No workout that day.'); return; }
         // Re-render unless the athlete is actively logging over a cached paint. BUT a reopened session
         // the SERVER already has logged sets for must always show its review state — the stale cached
         // paint (from before those sets landed) is why 7/27 opened blank after logging (Phil, 2026-07-27).
@@ -3946,7 +4025,7 @@
         var srvLogged = (data.session.slots || []).some(function (sl) {
           return (sl.exercises || []).some(function (e) { return e.logged && Object.keys(e.logged).length; });
         });
-        if (!cached || !screenTouched() || srvLogged) render(data.session);
+        if (!painted || !screenTouched() || srvLogged) safeRender(data.session, sessionId);
       });
   }
 

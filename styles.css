@@ -198,7 +198,9 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 
 .l1 { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
 .l1 .ex-name { flex: 0 1 auto; min-width: 0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-size: var(--fs-14); font-weight: 600; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); }
+  /* R638-1: margin 0 — the generic .ex-name's 8px bottom margin skewed flex centering by exactly
+     the measured -4.0px (half the margin) against the 32px icon row */
+  font-size: var(--fs-14); font-weight: 600; text-align: left; background: none; border: 0; padding: 0; margin: 0; color: var(--ink); }
 .l1 .ex-name.has-video { color: var(--bp); text-decoration: underline; }
 .swapbtn { flex: none; display: inline-flex; align-items: center; gap: var(--sp-4); border: 1px solid var(--line);
   border-radius: var(--r-8); background: var(--bp-faint); color: var(--bp); font-size: var(--fs-11); font-weight: 700; padding: 4px 9px; }
@@ -291,7 +293,7 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 /* D-03 / QA-02: long athlete-facing names were ellipsized and unreadable
    ("bilateral chest supported row"). Wrap instead of hiding. */
 .l1 .ex-name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word; }
-.l1 { align-items: flex-start; }
+.l1 { align-items: center; }   /* R638-1: name centers on the swap/history icon row — measured -4.0px under flex-start */
 .l1 .goaltag, .l1 .swapbtn { margin-top: 1px; }
 
 /* QA-04: escape hatch under a blocked embed */
@@ -842,6 +844,9 @@ body.has-tbar #app { padding-bottom: 128px; }
   font-variant-numeric: tabular-nums; }
 /* goal: context, NOT bold — "why number bolded?" */
 .c-goal .goal-v { font-size: var(--fs-14); font-weight: 400; color: var(--ink); }
+/* R638-1: the goal VALUE centers against the adjacent reps/lb stepper (measured +16.6px before).
+   50px = the stepper's rendered control height (44px steps + padding + border), a structural literal. */
+.c-goal .cv { min-height: 50px; display: flex; align-items: center; justify-content: center; }
 /* secondary: quieter than the actual, and NOT bold — "why reps bolded now too for exercises where
    weight is actual?" It isn't the number being decided. */
 .c-second .stepper { background: var(--surface-2); border-color: var(--line-soft); }
@@ -1078,6 +1083,11 @@ body #app { padding-bottom: 108px; }
 
 /* SKIP (L162): marker affordance + skipped state */
 .skipbtn { background: none; border: 0; font-size: 14px; color: var(--ink-3); padding: 2px 4px; }
+/* R638-2: swap/history/skip carry small text labels (Phil 2026-08-27; the old no-room claim was
+   never rendered and is retired under L292). Stacked under the glyph so the row grows no wider. */
+.l1 .swapbtn, .l1 .histbtn, .l1 .skipbtn { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: auto; min-width: 34px; }
+.btn-lbl { display: block; font-size: var(--fs-8); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--muted); line-height: 1; }
+#app.lbl-set1 .ex-row.set-n .btn-lbl { display: none; }   /* variant B: labels on set 1 only */
 .ex-row.skipped { opacity: .45; }
 .ex-row.skipped .stepper, .ex-row.skipped .check { pointer-events: none; }
 .skiplab { font-size: 11px; color: var(--ink-3); font-style: italic; padding: 2px 0 0; }

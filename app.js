@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r631';   // R631: workout tap can never strand on a blank screen (open watchdog + safeRender + retry card); prev: r601 (device enrollment)
+  var APP_BUILD = '20260827-r638';   // R638: measured alignment (name~icons 0.0px, goal~stepper -1.0px) + swap/history/skip text labels; prev: r631 (blank-screen kill)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1779,6 +1779,7 @@
     if (ex.mode === 'conditioning') return conditioningRow(slot, ex, t, timer);
     var isDur = !!t.duration_s, isAcc = ex.mode === 'accessory';
     var row = el('div', 'ex-row' + (t.kind === 'warmup' ? ' warmup' : ''));
+    if (Number(t.set_no) > 1) row.classList.add('set-n');   // R638-2: lets CSS scope icon labels to set 1
     // swap target. `each_side` rides along because the LOG needs it (splitSides) and because it must
     // follow the SWAP: swapping Bulgarian Split Squat for a two-legged alternate has to stop writing
     // L/R rows, and the swap handler already carries the flag onto the new `ex` (see the alternates
@@ -1804,19 +1805,25 @@
     // EVERY exercise is swappable — even with zero curated alternates you can search any exercise.
     // Phil 2026-07-27: "every exercise needs that swap icon ... if there are no alternates you can pick
     // any exercise through that search box." The icon used to hide when a lift had no alternates.
+    // R638-2 (Phil 2026-08-27): the icons carry small TEXT LABELS. His eyewitness rejected the old
+    // "no room" claim — correctly: that claim was reasoned from layout code and never rendered
+    // (L292 now makes that class unlawful — feasibility claims need a rendered screenshot).
     var sw = el('button', 'swapbtn'); sw.type = 'button'; sw.innerHTML = '⇄';
     sw.title = 'Change exercise';
+    sw.appendChild(el('span', 'btn-lbl', 'Swap'));
     sw.addEventListener('click', function () { toggleSwap(row, ex); });
     l1.appendChild(sw);
     // HISTORY — "what did I do last time?" the most-used Everfit feature (Phil 2026-07-25). Beside the
     // swap icon; taps open a panel of past days (Blueprint sessions + Everfit legacy).
     var hb = el('button', 'histbtn'); hb.type = 'button'; hb.innerHTML = '🕐';
     hb.title = 'History — what you did last time';
+    hb.appendChild(el('span', 'btn-lbl', 'History'));
     hb.addEventListener('click', function () { toggleHistory(row, ex); });
     l1.appendChild(hb);
     // SKIP (L162) — beside history, same idiom as swap: acts on the exercise, lives with its name.
     var skb = el('button', 'skipbtn'); skb.type = 'button'; skb.innerHTML = '⏭';
     skb.title = 'Skip this set';
+    skb.appendChild(el('span', 'btn-lbl', 'Skip'));
     skb.addEventListener('click', function () { toggleSkip(row, ex, slot, t.set_no); });
     l1.appendChild(skb);
     row.appendChild(l1);   // the ✓ is appended to l1 further down, once it exists

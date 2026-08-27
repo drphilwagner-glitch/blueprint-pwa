@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639j';   // R639 C37-C38: side clock renders ONCE beside its gating lift (payload `gate`), side-labeled; exercise rows carry own-ladder bars; prev: r639i
+  var APP_BUILD = '20260827-r639k';   // R639 C40-C42: column C parent at the first layer, clocks are their own two-row section (gate lift in tooltip); prev: r639j
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3717,12 +3717,9 @@
       card.appendChild(row);
       if (tappable) {
         var panel = el('div', 'ldr-drill'); panel.hidden = true;
-        // C31: the drill-down shows CURRENT VARIANT + level per lift via the ONE row component —
-        // same row, same tap, same detail page as Strongest/Needs. The side's leveling clock lives
-        // here, one level down — ONCE per side, in the quality that holds its gating lift (C37).
-        if (ladderCard._clockPlacement && ladderCard._clockPlacement[q.key]) {
-          panel.appendChild(ladderCard._clockPlacement[q.key]);
-        }
+        // C31/C40: the drill-down shows the column C parent + level per lift via the ONE row
+        // component — same row, same tap, same detail page as Strongest/Needs. The leveling clocks
+        // moved to their OWN section below Tell Coach (C42) — no clock renders in any drill-down.
         lifts.forEach(function (lift, i) {
           var pr2 = profileRow(lift);
           if (i === 0) pr2.insertBefore(el('div', 'pc-sets', 'sets your level'), pr2.firstChild);   // weakest = the floor
@@ -3949,7 +3946,13 @@
     var wrap = el('div', 'p-rowwrap');
     var row = el('button', 'p-row'); row.type = 'button';
     var l1 = el('div', 'p-row-1');
-    l1.appendChild(el('span', 'p-row-n', String(titleName(x.variant || x.name)).replace(/^\s*-\s*/, '')));   // C32b: no orphan leading dash, ever
+    // C40: the first layer is the Level Standards COLUMN C PARENT, sheet-spelled — x.exercise IS
+    // that string verbatim (the band match is exact and case-sensitive), so a laddered row renders
+    // it as-is; the live variant is one tap in (the detail's dropdown title). Non-laddered rows
+    // have no column C parent and keep their own display name (C32b dash strip stays there).
+    var ladRow = x.level != null && x.level !== '';
+    l1.appendChild(el('span', 'p-row-n', ladRow ? String(x.exercise || x.name)
+                                                : String(titleName(x.variant || x.name)).replace(/^\s*-\s*/, '')));
     // C38: every laddered row carries its OWN ladder bar — the Where You Stand track one level down.
     // Scale = this exercise's full ladder (top_level, never an assumed 9); ticks per rung, heavier at
     // level boundaries; fill = rung + clearance fraction, the same math the category bars use.
@@ -4038,45 +4041,34 @@
     });
     Object.keys(byQuality).forEach(function (k) { byQuality[k].sort(lvlAsc); });
 
-    // C32c: the clock line in a form that does not look broken — the minus renders as words, with
-    // the rewritten copy behind the ⓘ (the spec's LEVELING CLOCK language).
+    // C32c: the minus renders as words, with the rewritten copy behind the ⓘ (the spec's LEVELING
+    // CLOCK language). C42 (superseding C37's in-drill placement): the clock is per-SIDE machinery
+    // (two clocks, L137) — inside any one category it reads as missing from the other two, so it is
+    // its OWN section, two rows, directly below Tell Coach. The gating lift names itself in the
+    // tooltip, never on the row.
     var MINUS_COPY = 'you moved up without passing yet — pass at this level and it sticks; three rounds without a pass returns you to the previous sub-level.';
-    // C37: the engine has exactly TWO clocks — one per SIDE (L137), each about the side's gating
-    // HINGE lift, at the side's serving rung. The old per-category render printed each side's clock
-    // under all three of its qualities, which read as six category clocks all at one number. Now:
-    // each side's clock renders ONCE, named with its side in plain words, placed in the drill-down
-    // of the quality that CONTAINS the gating lift (payload `gate`) — beside the lift it is about.
-    function clockNodeFor(c) {
+    function clockRowFor(c) {
       if (!c) return null;
       var sideWord = c.side === 'LE' ? 'Lower body' : c.side === 'UE' ? 'Upper body' : String(c.side || '');
       var base = (!c.at_top && c.round != null && c.of != null && c.level != null && Number(c.round) <= Number(c.of))
         ? 'Round ' + c.round + ' of ' + c.of + ' at ' + String(c.level).replace(/-$/, '')
         : (c.english ? String(c.english).replace(/^LE:\s*/, '').replace(/^UE:\s*/, '').replace(/-$/, '') : null);
       if (!base) return null;
-      var holder = el('div', 'p-reg-clk');
-      holder.appendChild(el('span', '', sideWord + ' · ' + base + (c.minus ? ' · not passed yet' : '')));
-      if (c.minus) {
+      var row = el('div', 'p-clkrow');
+      row.appendChild(el('span', 'p-clkrow-side', sideWord));
+      row.appendChild(el('span', 'p-clkrow-txt', base + (c.minus ? ' · not passed yet' : '')));
+      var tip = (c.gate ? 'Gating lift: ' + c.gate + '.' : '') + (c.minus ? (c.gate ? ' ' : '') + MINUS_COPY : '');
+      if (tip) {
         var mb = el('button', 'p-info'); mb.type = 'button'; mb.textContent = 'ⓘ';
-        var note = el('div', 'p-clk-n', MINUS_COPY); note.hidden = true;
+        var note = el('div', 'p-clk-n', tip); note.hidden = true;
         mb.addEventListener('click', function (ev) { ev.stopPropagation(); note.hidden = !note.hidden; });
-        holder.appendChild(mb); holder.appendChild(note);
+        row.appendChild(mb); row.appendChild(note);
       }
-      return holder;
+      return row;
     }
-    var clockPlacement = {};   // quality key -> the side's ONE clock node
-    ['LE', 'UE'].forEach(function (sc) {
-      var c = (clocks || []).filter(function (c2) { return c2 && c2.side === sc; })[0];
-      var node = clockNodeFor(c); if (!node) return;
-      var sideRe = sc === 'LE' ? /^lower/i : /^upper/i;
-      var keys = QKEYS.filter(function (k) { return sideRe.test(k) && (byQuality[k] || []).length; });
-      // Home = the quality holding the gating lift; a payload without `gate` (stale cache) falls
-      // back to the side's first populated quality — still one line, still side-labeled, never a lie.
-      var host = keys.filter(function (k) {
-        return c.gate && (byQuality[k] || []).some(function (x) { return String(x.exercise || '') === String(c.gate); });
-      })[0] || keys[0];
-      if (host) clockPlacement[host] = node;
-    });
-    ladderCard._clockPlacement = clockPlacement;
+    var ckSec = el('section', 'p-block clocks');
+    (clocks || []).forEach(function (c) { var r = clockRowFor(c); if (r) ckSec.appendChild(r); });
+    if (ckSec.children.length) app.appendChild(ckSec);
 
     // ── 2. WHERE YOU STAND — the quality-ladder BARS, restored exactly (C30: they were never on
     // the delete list; unnamed is unbuilt applies to deletions too). The bars are the whole block;

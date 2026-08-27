@@ -1169,6 +1169,12 @@ body #app { padding-bottom: 108px; }
   background: linear-gradient(90deg, color-mix(in srgb, var(--bp) 62%, white), var(--bp));
   border-radius: 8px 0 0 8px; }
 .p-row-chev { display: inline-block; margin-left: 3px; font-size: 9px; color: var(--muted); }
+/* C42: the per-side leveling clocks — their own section between Tell Coach and Where You Stand */
+.p-clkrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; padding: 6px 2px;
+  font-size: var(--fs-13); color: var(--muted); }
+.p-clkrow-side { flex: none; min-width: 92px; font-weight: 800; color: var(--ink); }
+.p-clkrow-txt { flex: 1; min-width: 0; }
+.p-clkrow .p-clk-n { flex-basis: 100%; }
 .p-row-goal { font-size: var(--fs-13); font-weight: 600; color: var(--muted); margin-top: 2px; }
 .tellcoach { margin-top: 8px; }
 

@@ -1118,6 +1118,7 @@ body #app { padding-bottom: 108px; }
 .p-dt-stat { font-size: var(--fs-12); font-weight: 700; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: var(--r-8); padding: 3px 8px; }
 .p-dt-sub { font-size: var(--fs-12); font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin: 10px 0 4px; }
 .p-dt-break { margin-top: 4px; }
+.p-sess-math { font-size: var(--fs-10); color: var(--muted); font-variant-numeric: tabular-nums; padding: 2px 0 0; }
 .bc-star { font-size: 11px; fill: var(--warn); }
 .bc-starpt { stroke: var(--warn); stroke-width: 1.5; }
 .bc-shadebox { fill: var(--bp-tint); stroke: var(--bp-line); }

@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639b';   // R639 detail page + D3 root fix (repaint never tears an open panel); prev: r639a
+  var APP_BUILD = '20260827-r639c';   // R639 C1-C5: marks are position markers (earliest-tie, server-folded), shade-only box, 2-round graph floor, honest volume labels + checkable arithmetic; prev: r639b
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3361,15 +3361,19 @@
   // verifiable against the logged sets because they ARE the logged sets).
   function sessionCard(day, unit, opts) {
     var sets = day.sets || [];
-    var c = el('div', 'p-sess' + ((opts && opts.badges && opts.badges.length) ? ' pr' : ''));
+    // C3: the BOX is the shade — best VOLUME only. A best-1RM session gets its star and nothing
+    // else; a session holding both records gets both marks, the only case both appear.
+    var c = el('div', 'p-sess' + ((opts && opts.shade) ? ' pr' : ''));
     var head = el('div', 'p-sess-h');
     head.appendChild(el('span', 'p-sess-d', fmtHistDate(day.date) + (day.variant ? ' · ' + titleName(day.variant) : '')));
     var st = el('span', 'p-sess-s');
     ((opts && opts.badges) || []).forEach(function (b) { st.appendChild(el('span', 'p-sess-1rm', b)); });
-    if (Number(day.vol) > 0) st.appendChild(el('span', 'p-sess-vol', 'Vol ' + day.vol + ' ' + (day.vol_unit || unit)));
+    var loaded = (day.vol_unit || unit) === 'lb';
+    // C5: a computed volume is never labelled with a raw unit it is not — the reps-lane number is
+    // "volume N" bare (24 logged reps x Q2 x O0.75 is not 36 reps); lb tonnage keeps lb.
+    if (Number(day.vol) > 0) st.appendChild(el('span', 'p-sess-vol', 'volume ' + day.vol + (loaded ? ' lb' : '')));
     head.appendChild(st);
     c.appendChild(head);
-    var loaded = (day.vol_unit || unit) === 'lb';
     var tbl = el('table', 'p-sess-tbl');
     var htr = el('tr', 'p-sess-thr');
     htr.appendChild(el('th', '', 'Set'));
@@ -3385,6 +3389,18 @@
       tbl.appendChild(tr);
     });
     c.appendChild(tbl);
+    // THE CHECKABLE ARITHMETIC (Phil's ruling a: "show me the arithmetic so I can check it myself"):
+    // the raw sum over the very sets printed above, then O and Q, then the product the card claims.
+    if (day.coeff && Number(day.vol) > 0) {
+      var raw = 0;
+      sets.forEach(function (s2) {
+        var l = Number(s2.load), rp = Number(s2.reps) || 0;
+        raw += loaded ? (l > 0 ? l * rp : 0) : rp;
+      });
+      c.appendChild(el('div', 'p-sess-math',
+        (loaded ? 'Σ lb×reps ' : 'Σ reps ') + Math.round(raw * 10) / 10 +
+        ' × O' + day.coeff.o + ' × Q' + day.coeff.q + ' = ' + day.vol + (loaded ? ' lb' : '')));
+    }
     return c;
   }
   function loadProfileDetail(x, panel) {
@@ -3425,12 +3441,10 @@
         var unit = null;
         days.forEach(function (day) { if (!unit && day.vol_unit) unit = day.vol_unit; });
         unit = unit || 'lb';
-        // Best single set + best session volume — this variant, all-time, SERVER math (one reader).
+        // C1 (Phil 2026-08-27, overriding his earlier chips spec — a reversal, not a regression):
+        // star and shade are POSITION MARKERS in the list, never header chips. The athlete finds
+        // their best by seeing WHERE it happened. Header = variant + level, then the graph.
         var mk = (d && d.marks && d.marks[sKey]) || {};
-        var stats = el('div', 'p-dt-stats');
-        if (mk.star_v != null) stats.appendChild(el('span', 'p-dt-stat', '⭐ Best set ' + Math.round(mk.star_v) + (unit === 'lb' ? ' lb (est 1RM)' : ' reps')));
-        if (mk.shade_v != null) stats.appendChild(el('span', 'p-dt-stat', 'Best session ' + Math.round(mk.shade_v) + ' ' + unit));
-        if (stats.childNodes.length) panel.appendChild(stats);
         // ONE GRAPH (D4): session volume by ROUND, this variant only, last 12 rounds — ALL rounds,
         // current included (D2's 5-vs-3 came from a silent current-round exclusion; the grain is now
         // labelled and every point decomposes by tap). Three or fewer points: no graph, the table is
@@ -3455,29 +3469,32 @@
           breakdown.appendChild(el('div', 'p-detail-note', 'Round ' + pp.n + ' — the sessions behind this point'));
           pp.days.forEach(function (day) { breakdown.appendChild(sessionCard(day, unit, {})); });
         }
-        if (rpts.length > 3) {
+        if (rpts.length >= 2) {   // C4: two points plot a line — 12 ideal, 2 the floor
           panel.appendChild(bigChart(
             rpts.map(function (pp) { return { date: pp.date, v: pp.v, star: pp.star, shade: pp.shade, lbl: 'R' + pp.n }; }),
-            unit, 'Volume per round · tap a point', { onTap: function (i) { showRound(rpts[i]); } }));
+            unit === 'lb' ? 'lb' : '', 'Volume per round · tap a point', { onTap: function (i) { showRound(rpts[i]); } }));
           panel.appendChild(breakdown);
         } else if (rpts.length) {
-          panel.appendChild(el('div', 'p-detail-note', 'Fewer than four rounds so far — the sessions below are the record.'));
+          panel.appendChild(el('div', 'p-detail-note', 'One round so far — the sessions below are the record.'));
         }
         // SHOW PROGRESS — every session of this variant; three highlights, each verifiable against
         // the logged sets rendered right under it: PR (heaviest load), best est-1RM, best volume.
-        var hlLoad = null, hlE1 = null, hlVol = null;
+        // PR (heaviest load) computed from the visible sets — verifiable by eye. C2: star/shade
+        // placement comes from the SERVER marks (the earliest-tie fold — one reader for the graph
+        // and the list). C3: the star is a star; SHADING is reserved for best volume.
+        var hlLoad = null;
         days.forEach(function (day) {
           (day.sets || []).forEach(function (s2) { var l = Number(s2.load); if (l > 0 && (!hlLoad || l > hlLoad.v)) hlLoad = { d: day, v: l }; });
-          if (day.best_e1 != null && (!hlE1 || day.best_e1 > hlE1.v)) hlE1 = { d: day, v: day.best_e1 };
-          if (Number(day.vol) > 0 && (!hlVol || day.vol > hlVol.v)) hlVol = { d: day, v: day.vol };
         });
         panel.appendChild(el('div', 'p-dt-sub', 'Every session — ' + (series ? titleName(series) : 'this lift')));
         days.forEach(function (day) {
+          var d10 = String(day.date).slice(0, 10);
+          var isStar = mk.star_date === d10, isShade = mk.shade_date === d10;
           var badges = [];
           if (hlLoad && day === hlLoad.d) badges.push('PR ' + hlLoad.v + ' lb');
-          if (hlE1 && day === hlE1.d) badges.push('⭐ best 1RM');
-          if (hlVol && day === hlVol.d) badges.push('◼ best volume');
-          panel.appendChild(sessionCard(day, unit, { badges: badges }));
+          if (isStar) badges.push('⭐ best 1RM');
+          if (isShade) badges.push('◼ best volume');
+          panel.appendChild(sessionCard(day, unit, { badges: badges, shade: isShade }));
         });
       })
       .catch(function () { panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Could not load history.')); });
@@ -3532,8 +3549,8 @@
   // value called out, and a date span + total gain caption. The point is progress you can't miss.
   function bigChart(pts, unit, metric, opts) {
     opts = opts || {};
-    var isLb = !/rep/i.test(String(unit || 'lb'));
-    var u = isLb ? ' lb' : ' reps';
+    // C5: '' means a computed volume with no honest raw unit — print the number bare.
+    var u = unit === 'lb' ? ' lb' : (/rep/i.test(String(unit || '')) ? ' reps' : '');
     var vs = pts.map(function (p) { return p.v; });
     var lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
     if (hi === lo) hi = lo + 1;

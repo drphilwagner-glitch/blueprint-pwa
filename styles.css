@@ -1155,6 +1155,20 @@ body #app { padding-bottom: 108px; }
 .p-row-1 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .p-row-n { font-size: var(--fs-16); font-weight: 700; min-width: 0; }
 .p-row-l { font-size: var(--fs-15); font-weight: 800; color: var(--bp); flex: none; }
+/* C38: laddered rows take the Where You Stand format — name · own-ladder bar · badge · chevron.
+   Same track/tick/fill visuals as .ldr-*; the scale is the exercise's OWN ladder. */
+.p-row-1.bar { display: grid; grid-template-columns: 96px 1fr auto; align-items: center; }
+.p-row-1.bar .p-row-n { font-size: var(--fs-13); font-weight: 800; line-height: 1.15; }
+.p-row-1.bar .p-row-l { font-size: var(--fs-12); text-align: right; white-space: nowrap; }
+.p-row-track { position: relative; height: 16px; background: var(--surface-3); border: 1px solid var(--line);
+  border-radius: 8px; overflow: hidden; }
+.p-row-tick { position: absolute; top: 2px; bottom: 2px; width: 1px; background: #fff;
+  mix-blend-mode: difference; opacity: .45; z-index: 3; }
+.p-row-tick.block { opacity: .85; width: 1.5px; }
+.p-row-fill { position: absolute; top: 0; bottom: 0; left: 0; z-index: 2;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bp) 62%, white), var(--bp));
+  border-radius: 8px 0 0 8px; }
+.p-row-chev { display: inline-block; margin-left: 3px; font-size: 9px; color: var(--muted); }
 .p-row-goal { font-size: var(--fs-13); font-weight: 600; color: var(--muted); margin-top: 2px; }
 .tellcoach { margin-top: 8px; }
 

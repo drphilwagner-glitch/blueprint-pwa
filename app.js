@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639a';   // R639 detail page: server-math panel (round graph, star/shade, tappable points, Show Progress highlights), D4 one-graph, D5 last-performed series, D6 variant-only header; prev: r638
+  var APP_BUILD = '20260827-r639b';   // R639 detail page + D3 root fix (repaint never tears an open panel); prev: r639a
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3232,7 +3232,16 @@
         if (!isCurrent(mine)) return;                 // the athlete has moved on; do not yank them back
         if (!data.ok) { if (!painted) show('Access denied — check your link.', 'err'); return; }
         try { localStorage.setItem(profCacheKey(), JSON.stringify({ at: Date.now(), data: data })); } catch (e) {}
-        renderProfile(data.exercises || [], data.summary || '', data.categories || [], data.clocks || [], data);
+        // R639 D3 ROOT (reproduced deterministically 2026-08-27, and it is not a retry problem):
+        // this repaint used to land unconditionally ~10-20s after the cached paint — exactly when an
+        // athlete had just tapped "See progress" — rebuilding every card COLLAPSED and tearing the
+        // open panel with its in-flight history fetch out of the DOM. That is the whole eyewitness:
+        // "~10-20s load, panel collapses empty, renders on second tap." Same law as the workout
+        // render (screenTouched): a late refresh only repaints while the screen is UNTOUCHED. The
+        // cache above still updated, so the next profile open paints fresh instantly.
+        var engaged = false;
+        try { engaged = [].slice.call(document.querySelectorAll('.p-detail')).some(function (d2) { return d2.style.display !== 'none'; }); } catch (eEg) {}
+        if (!engaged) renderProfile(data.exercises || [], data.summary || '', data.categories || [], data.clocks || [], data);
       }).catch(function () { if (!painted && isCurrent(mine)) show('Offline — reconnect to see your progress.', 'err'); });
   }
   // S21 profile (Phil): the two things that matter per exercise are "is my best one-set up or down"

@@ -1157,3 +1157,7 @@ body #app { padding-bottom: 108px; }
 .p-row-l { font-size: var(--fs-15); font-weight: 800; color: var(--bp); flex: none; }
 .p-row-goal { font-size: var(--fs-13); font-weight: 600; color: var(--muted); margin-top: 2px; }
 .tellcoach { margin-top: 8px; }
+
+/* C32a: content must clear the fixed bottom nav */
+.build-id { margin-bottom: 96px; }
+.p-rest { padding-bottom: 8px; }

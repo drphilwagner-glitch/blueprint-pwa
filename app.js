@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639h';   // R639 BLOCKS REBUILD: four blocks (Tell Coach / Where You Stand by region + folded clocks / Strongest / Needs), one row component, aggregate graph + ladder + Recent Wins gone; prev: r639g
+  var APP_BUILD = '20260827-r639i';   // R639 C30-C33: bars restored as Where You Stand (drill = profileRow + clocks one level down), bw one-resolver (C33), nav clearance, clock minus in words; prev: r639h
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3717,10 +3717,17 @@
       card.appendChild(row);
       if (tappable) {
         var panel = el('div', 'ldr-drill'); panel.hidden = true;
+        // C31: the drill-down shows CURRENT VARIANT + level per lift via the ONE row component —
+        // same row, same tap, same detail page as Strongest/Needs. The region's leveling clock
+        // lives here, one level down, not on the summary.
+        if (typeof ladderCard._clockFor === 'function') {
+          var clkN = ladderCard._clockFor(q.label);
+          if (clkN) panel.appendChild(clkN);
+        }
         lifts.forEach(function (lift, i) {
-          var pc = profileCard(lift);
-          if (i === 0) pc.insertBefore(el('div', 'pc-sets', 'sets your level'), pc.firstChild);   // weakest = the floor
-          panel.appendChild(pc);
+          var pr2 = profileRow(lift);
+          if (i === 0) pr2.insertBefore(el('div', 'pc-sets', 'sets your level'), pr2.firstChild);   // weakest = the floor
+          panel.appendChild(pr2);
         });
         card.appendChild(panel);
         panels.push({ row: row, panel: panel });
@@ -3937,7 +3944,7 @@
     var wrap = el('div', 'p-rowwrap');
     var row = el('button', 'p-row'); row.type = 'button';
     var l1 = el('div', 'p-row-1');
-    l1.appendChild(el('span', 'p-row-n', titleName(x.variant || x.name)));
+    l1.appendChild(el('span', 'p-row-n', String(titleName(x.variant || x.name)).replace(/^\s*-\s*/, '')));   // C32b: no orphan leading dash, ever
     if (x.level != null && x.level !== '') l1.appendChild(el('span', 'p-row-l', 'L' + x.level));
     row.appendChild(l1);
     // BIGGEST NEEDS rows carry the target in ONE format, every row — "goal:" and nothing else.
@@ -3985,7 +3992,7 @@
     tc.appendChild(tcRow);
     app.appendChild(tc);
 
-    // ONE dataset, three sorts.
+    // ONE dataset, three sorts (+ the quality grouping the ladder bars read).
     var laddered = [], other = [];
     list.forEach(function (x) {
       if (x.level != null && x.level !== '') laddered.push(x); else other.push(x);
@@ -3995,65 +4002,47 @@
       if (la !== lb) return la - lb;
       return (a.progress || 0) - (b.progress || 0);
     };
-    var regionOf = function (x) {
-      var q = String(x.quality || '') + ' ' + String(x.category || '');
-      if (/Lower|LE/.test(q)) return 'Lower body';
-      if (/Upper|UE/.test(q)) return 'Upper body';
-      return null;
-    };
-    // The region's clock line, folded into its header (the standalone card is gone). The minus copy
-    // is the spec's LEVELING CLOCK rewrite — plain athlete English, accurate to law.
+    var QKEYS = ['Upper Body Max', 'Lower Body Max', 'Upper Body Relative', 'Lower Body Relative',
+                 'Upper Body Str Endurance', 'Lower Body Str Endurance'];
+    var byQuality = {};
+    list.forEach(function (x) {
+      if (x.quality && QKEYS.indexOf(x.quality) >= 0) (byQuality[x.quality] || (byQuality[x.quality] = [])).push(x);
+    });
+    Object.keys(byQuality).forEach(function (k) { byQuality[k].sort(lvlAsc); });
+
+    // C32c: the clock line in a form that does not look broken — the minus renders as words, with
+    // the rewritten copy behind the ⓘ (the spec's LEVELING CLOCK language).
     var MINUS_COPY = 'you moved up without passing yet — pass at this level and it sticks; three rounds without a pass returns you to the previous sub-level.';
-    function clockLineFor(regionName) {
-      var code = regionName === 'Lower body' ? 'LE' : 'UE';
+    function clockLineFor(regionWord) {
+      var code = /lower/i.test(regionWord) ? 'LE' : /upper/i.test(regionWord) ? 'UE' : null;
+      if (!code) return null;
       var c = (clocks || []).filter(function (c2) { return c2 && c2.side === code; })[0];
       if (!c) return null;
-      var line = (!c.at_top && c.round != null && c.of != null && c.level != null && Number(c.round) <= Number(c.of))
-        ? 'Round ' + c.round + ' of ' + c.of + ' at ' + c.level
-        : (c.english ? String(c.english).replace(/^LE:\s*/, '').replace(/^UE:\s*/, '') : null);
-      if (!line) return null;
-      var holder = el('span', 'p-reg-clk');
-      holder.appendChild(el('span', '', line));
+      var base = (!c.at_top && c.round != null && c.of != null && c.level != null && Number(c.round) <= Number(c.of))
+        ? 'Round ' + c.round + ' of ' + c.of + ' at ' + String(c.level).replace(/-$/, '')
+        : (c.english ? String(c.english).replace(/^LE:\s*/, '').replace(/^UE:\s*/, '').replace(/-$/, '') : null);
+      if (!base) return null;
+      var holder = el('div', 'p-reg-clk');
+      holder.appendChild(el('span', '', base + (c.minus ? ' · not passed yet' : '')));
       if (c.minus) {
         var mb = el('button', 'p-info'); mb.type = 'button'; mb.textContent = 'ⓘ';
-        mb.title = 'What the “−” means';
         var note = el('div', 'p-clk-n', MINUS_COPY); note.hidden = true;
         mb.addEventListener('click', function (ev) { ev.stopPropagation(); note.hidden = !note.hidden; });
         holder.appendChild(mb); holder.appendChild(note);
       }
       return holder;
     }
+    ladderCard._clockFor = clockLineFor;
 
-    // ── 1. WHERE YOU STAND — all exercises by region, weakest first.
-    var b1 = el('section', 'p-block');
-    b1.appendChild(el('div', 'p-block-h', 'Where you stand'));
-    ['Lower body', 'Upper body'].forEach(function (region) {
-      var rows = laddered.filter(function (x) { return regionOf(x) === region; }).sort(lvlAsc);
-      if (!rows.length) return;
-      var rh = el('div', 'p-reg-h');
-      rh.appendChild(el('span', 'p-reg-n', region));
-      var cl = clockLineFor(region); if (cl) rh.appendChild(cl);
-      b1.appendChild(rh);
-      rows.forEach(function (x) { b1.appendChild(profileRow(x)); });
-    });
-    var unregioned = laddered.filter(function (x) { return !regionOf(x); }).sort(lvlAsc);
-    unregioned.forEach(function (x) { b1.appendChild(profileRow(x)); });
-    // Non-laddered work (accessories, carries, conditioning) keeps a home so no history is
-    // stranded — collapsed at the block's tail, same row, same detail. (A call, reversible: the
-    // spec's row law wants no blank levels, so these sit apart rather than fake one.)
-    if (other.length) {
-      var togg = el('button', 'p-more', 'Other work (' + other.length + ') ▾'); togg.type = 'button';
-      var wrap2 = el('div', 'p-rest'); wrap2.hidden = true;
-      other.forEach(function (x) { wrap2.appendChild(profileRow(x)); });
-      togg.addEventListener('click', function () {
-        wrap2.hidden = !wrap2.hidden;
-        togg.textContent = wrap2.hidden ? 'Other work (' + other.length + ') ▾' : 'Other work (' + other.length + ') ▴';
-      });
-      b1.appendChild(togg); b1.appendChild(wrap2);
+    // ── 2. WHERE YOU STAND — the quality-ladder BARS, restored exactly (C30: they were never on
+    // the delete list; unnamed is unbuilt applies to deletions too). The bars are the whole block;
+    // the lift lists live one tap down (C31), clocks with them.
+    var laddered2 = categories && categories.length >= 3;
+    if (laddered2) {
+      app.appendChild(ladderCard(categories, byQuality));
     }
-    app.appendChild(b1);
 
-    // ── 2. STRONGEST RIGHT NOW — the top of the same list.
+    // ── 3. STRONGEST RIGHT NOW — the top of the same list.
     var strongest = laddered.slice().sort(lvlAsc).slice(-3).reverse();
     if (strongest.length) {
       var b2 = el('section', 'p-block strong');
@@ -4062,13 +4051,30 @@
       app.appendChild(b2);
     }
 
-    // ── 3. BIGGEST NEEDS — the bottom of the same list, each with its goal.
+    // ── 4. BIGGEST NEEDS — the bottom of the same list, each with its goal.
     var needs = laddered.slice().sort(lvlAsc).slice(0, 3);
     if (needs.length) {
       var b3 = el('section', 'p-block needs');
       b3.appendChild(el('div', 'p-block-h', 'Biggest needs'));
       needs.forEach(function (x) { b3.appendChild(profileRow(x, { goal: true })); });
       app.appendChild(b3);
+    }
+
+    // Lifts outside the six qualities + non-laddered work — kept, never hidden (only the aggregate
+    // graph and Recent Wins were ever on the delete list). Collapsed, same row, same detail.
+    var inQuality = {};
+    Object.keys(byQuality).forEach(function (k) { byQuality[k].forEach(function (x) { inQuality[x.exercise] = 1; }); });
+    var rest = list.filter(function (x) { return !inQuality[x.exercise]; }).sort(lvlAsc);
+    if (!laddered2) rest = list.slice().sort(lvlAsc);   // no bars renderable: nothing may strand
+    if (rest.length) {
+      var togg = el('button', 'p-more', 'Other work (' + rest.length + ') ▾'); togg.type = 'button';
+      var wrap2 = el('div', 'p-rest'); wrap2.hidden = true;
+      rest.forEach(function (x) { wrap2.appendChild(profileRow(x)); });
+      togg.addEventListener('click', function () {
+        wrap2.hidden = !wrap2.hidden;
+        togg.textContent = wrap2.hidden ? 'Other work (' + rest.length + ') ▾' : 'Other work (' + rest.length + ') ▴';
+      });
+      app.appendChild(togg); app.appendChild(wrap2);
     }
 
     // R607: the build this device runs, one muted line — the debug footer survives the rebuild.

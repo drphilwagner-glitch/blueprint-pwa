@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639c';   // R639 C1-C5: marks are position markers (earliest-tie, server-folded), shade-only box, 2-round graph floor, honest volume labels + checkable arithmetic; prev: r639b
+  var APP_BUILD = '20260827-r639d';   // R639 C9-C11: no internals on the card face (math behind the volume tap), star is a SET-row mark, records jump-line above the list; prev: r639c
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3361,17 +3361,19 @@
   // verifiable against the logged sets because they ARE the logged sets).
   function sessionCard(day, unit, opts) {
     var sets = day.sets || [];
-    // C3: the BOX is the shade — best VOLUME only. A best-1RM session gets its star and nothing
-    // else; a session holding both records gets both marks, the only case both appear.
+    // C3: the BOX is the shade — best VOLUME only, a SESSION-level property. C10 (Phil, third
+    // correction): the STAR is a SET-level mark — it sits on the ROW that produced the best e1RM,
+    // inside the table below; a session is not a set and never wears a star.
     var c = el('div', 'p-sess' + ((opts && opts.shade) ? ' pr' : ''));
     var head = el('div', 'p-sess-h');
     head.appendChild(el('span', 'p-sess-d', fmtHistDate(day.date) + (day.variant ? ' · ' + titleName(day.variant) : '')));
     var st = el('span', 'p-sess-s');
     ((opts && opts.badges) || []).forEach(function (b) { st.appendChild(el('span', 'p-sess-1rm', b)); });
     var loaded = (day.vol_unit || unit) === 'lb';
-    // C5: a computed volume is never labelled with a raw unit it is not — the reps-lane number is
-    // "volume N" bare (24 logged reps x Q2 x O0.75 is not 36 reps); lb tonnage keeps lb.
-    if (Number(day.vol) > 0) st.appendChild(el('span', 'p-sess-vol', 'volume ' + day.vol + (loaded ? ' lb' : '')));
+    // C5: a computed volume is never labelled with a raw unit it is not; C9: the volume is the
+    // TAP-THROUGH into its arithmetic (below) — tap the number, see the math.
+    var volEl = null;
+    if (Number(day.vol) > 0) { volEl = el('span', 'p-sess-vol', 'volume ' + day.vol + (loaded ? ' lb' : '')); st.appendChild(volEl); }
     head.appendChild(st);
     c.appendChild(head);
     var tbl = el('table', 'p-sess-tbl');
@@ -3380,26 +3382,41 @@
     if (loaded) htr.appendChild(el('th', '', 'lb'));
     htr.appendChild(el('th', '', 'reps'));
     tbl.appendChild(htr);
+    // C10: on the star day, the row holding the best e1RM wears the star (server-computed set.e1
+    // against the day's best_e1 — first matching row on a within-day tie, the earliest set).
+    var starRow = -1;
+    if (opts && opts.star && day.best_e1 != null) {
+      for (var si = 0; si < sets.length; si++) {
+        if (sets[si].e1 != null && Number(sets[si].e1) === Number(day.best_e1)) { starRow = si; break; }
+      }
+    }
     sets.forEach(function (s2, i) {
       var l = Number(s2.load), rp = Number(s2.reps);
-      var tr = el('tr', '');
-      tr.appendChild(el('td', '', String(s2.set || (i + 1)) + (s2.side ? ' ' + s2.side : '')));
+      var tr = el('tr', i === starRow ? 'set-star' : '');
+      tr.appendChild(el('td', '', (i === starRow ? '★ ' : '') + String(s2.set || (i + 1)) + (s2.side ? ' ' + s2.side : '')));
       if (loaded) tr.appendChild(el('td', '', (s2.load !== '' && s2.load != null && !isNaN(l)) ? String(l) : '—'));
       tr.appendChild(el('td', '', (s2.reps !== '' && s2.reps != null && !isNaN(rp)) ? String(rp) : '—'));
       tbl.appendChild(tr);
     });
     c.appendChild(tbl);
-    // THE CHECKABLE ARITHMETIC (Phil's ruling a: "show me the arithmetic so I can check it myself"):
-    // the raw sum over the very sets printed above, then O and Q, then the product the card claims.
-    if (day.coeff && Number(day.vol) > 0) {
+    // C9 (Phil): the arithmetic comes OFF the card face — no athlete reads sheet column letters.
+    // It lives UNCHANGED behind the tap-through: tap the volume, see the math. Decomposable by
+    // tapping was always the requirement; printing internals never was.
+    if (day.coeff && Number(day.vol) > 0 && volEl) {
       var raw = 0;
       sets.forEach(function (s2) {
         var l = Number(s2.load), rp = Number(s2.reps) || 0;
         raw += loaded ? (l > 0 ? l * rp : 0) : rp;
       });
-      c.appendChild(el('div', 'p-sess-math',
+      var mathLine = el('div', 'p-sess-math',
         (loaded ? 'Σ lb×reps ' : 'Σ reps ') + Math.round(raw * 10) / 10 +
-        ' × O' + day.coeff.o + ' × Q' + day.coeff.q + ' = ' + day.vol + (loaded ? ' lb' : '')));
+        ' × O' + day.coeff.o + ' × Q' + day.coeff.q + ' = ' + day.vol + (loaded ? ' lb' : ''));
+      mathLine.style.display = 'none';
+      volEl.classList.add('tappable');
+      volEl.addEventListener('click', function () {
+        mathLine.style.display = mathLine.style.display === 'none' ? 'block' : 'none';
+      });
+      c.appendChild(mathLine);
     }
     return c;
   }
@@ -3487,15 +3504,39 @@
           (day.sets || []).forEach(function (s2) { var l = Number(s2.load); if (l > 0 && (!hlLoad || l > hlLoad.v)) hlLoad = { d: day, v: l }; });
         });
         panel.appendChild(el('div', 'p-dt-sub', 'Every session — ' + (series ? titleName(series) : 'this lift')));
+        // C11: the records are FINDABLE — one text line above the list names both and tapping
+        // scrolls to (and flashes) the mark, because a record below the fold is not findable.
+        var cardByDate = {};
+        var jump = (mk.star_date || mk.shade_date) ? el('div', 'p-dt-jump') : null;
+        if (jump) panel.appendChild(jump);
         days.forEach(function (day) {
           var d10 = String(day.date).slice(0, 10);
           var isStar = mk.star_date === d10, isShade = mk.shade_date === d10;
           var badges = [];
           if (hlLoad && day === hlLoad.d) badges.push('PR ' + hlLoad.v + ' lb');
-          if (isStar) badges.push('⭐ best 1RM');
           if (isShade) badges.push('◼ best volume');
-          panel.appendChild(sessionCard(day, unit, { badges: badges, shade: isShade }));
+          var card = sessionCard(day, unit, { badges: badges, shade: isShade, star: isStar });
+          cardByDate[d10] = card;
+          panel.appendChild(card);
         });
+        // C11: the records are FINDABLE — a text line above the list names both; tapping scrolls to
+        // and flashes the mark. Built AFTER the cards so a record OLDER than the rendered list says
+        // so honestly instead of dead-tapping (Back Squat's own case: both records live on a legacy
+        // day months back).
+        if (jump) {
+          function jl(txt, d10) {
+            var t = cardByDate[d10];
+            var a = el('span', t ? 'p-dt-jumplink' : 'p-dt-jumpold', txt + (t ? '' : ' (older than shown)'));
+            if (t) a.addEventListener('click', function () {
+              t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+              t.classList.add('flash'); setTimeout(function () { t.classList.remove('flash'); }, 1600);
+            });
+            jump.appendChild(a);
+          }
+          if (mk.star_date) jl('best set ' + fmtHistDate(mk.star_date), mk.star_date);
+          if (mk.star_date && mk.shade_date) jump.appendChild(el('span', 'p-dt-jumpsep', ' · '));
+          if (mk.shade_date) jl('best volume ' + fmtHistDate(mk.shade_date), mk.shade_date);
+        }
       })
       .catch(function () { panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Could not load history.')); });
   }

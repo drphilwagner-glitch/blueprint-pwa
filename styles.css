@@ -1119,6 +1119,12 @@ body #app { padding-bottom: 108px; }
 .p-dt-sub { font-size: var(--fs-12); font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin: 10px 0 4px; }
 .p-dt-break { margin-top: 4px; }
 .p-sess-math { font-size: var(--fs-10); color: var(--muted); font-variant-numeric: tabular-nums; padding: 2px 0 0; }
+.p-sess-vol.tappable { text-decoration: underline dotted; }
+.p-sess-tbl tr.set-star td { font-weight: 800; color: var(--ink); }
+.p-dt-jump { font-size: var(--fs-12); color: var(--bp); margin: 2px 0 6px; }
+.p-dt-jumplink { text-decoration: underline; cursor: pointer; }
+.p-dt-jumpold { color: var(--muted); }
+.p-sess.flash { outline: 2px solid var(--bp); transition: outline .2s; }
 .bc-star { font-size: 11px; fill: var(--warn); }
 .bc-starpt { stroke: var(--warn); stroke-width: 1.5; }
 .bc-shadebox { fill: var(--bp-tint); stroke: var(--bp-line); }

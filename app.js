@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r638';   // R638: measured alignment (name~icons 0.0px, goal~stepper -1.0px) + swap/history/skip text labels; prev: r631 (blank-screen kill)
+  var APP_BUILD = '20260827-r639a';   // R639 detail page: server-math panel (round graph, star/shade, tappable points, Show Progress highlights), D4 one-graph, D5 last-performed series, D6 variant-only header; prev: r638
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3297,8 +3297,9 @@
       card.appendChild(el('div', 'p-level', 'Top of the ladder 🏆'));
     }
 
-    // The compact sparkline stays as the at-a-glance "am I going up?".
-    if (x.spark && x.spark.length >= 2) card.appendChild(sparkline(x.spark, x.best_one_unit));
+    // R639 D4 (Phil 2026-08-27): ONE graph per exercise. The card sparkline is gone — the detail's
+    // round-volume graph (under Goal, spec-shaped) is the graph. sparkline() itself stays for now;
+    // nothing calls it until a surface earns it back.
 
     // TAP TO OPEN THE FULL HISTORY — Phil 2026-07-28, from Everfit: "tap an exercise, it shows the 1RM
     // improvement in a graph, the 1RM, and the volume." The point of this screen is to make progress
@@ -3346,6 +3347,37 @@
       if (e != null && (best == null || e > best)) best = e;
     }); return best;
   }
+  // R639: one session card — date, server-computed volume, optional highlight badges, and the
+  // set-by-set table (the breakdown every graph point and Show Progress row opens; the numbers are
+  // verifiable against the logged sets because they ARE the logged sets).
+  function sessionCard(day, unit, opts) {
+    var sets = day.sets || [];
+    var c = el('div', 'p-sess' + ((opts && opts.badges && opts.badges.length) ? ' pr' : ''));
+    var head = el('div', 'p-sess-h');
+    head.appendChild(el('span', 'p-sess-d', fmtHistDate(day.date) + (day.variant ? ' · ' + titleName(day.variant) : '')));
+    var st = el('span', 'p-sess-s');
+    ((opts && opts.badges) || []).forEach(function (b) { st.appendChild(el('span', 'p-sess-1rm', b)); });
+    if (Number(day.vol) > 0) st.appendChild(el('span', 'p-sess-vol', 'Vol ' + day.vol + ' ' + (day.vol_unit || unit)));
+    head.appendChild(st);
+    c.appendChild(head);
+    var loaded = (day.vol_unit || unit) === 'lb';
+    var tbl = el('table', 'p-sess-tbl');
+    var htr = el('tr', 'p-sess-thr');
+    htr.appendChild(el('th', '', 'Set'));
+    if (loaded) htr.appendChild(el('th', '', 'lb'));
+    htr.appendChild(el('th', '', 'reps'));
+    tbl.appendChild(htr);
+    sets.forEach(function (s2, i) {
+      var l = Number(s2.load), rp = Number(s2.reps);
+      var tr = el('tr', '');
+      tr.appendChild(el('td', '', String(s2.set || (i + 1)) + (s2.side ? ' ' + s2.side : '')));
+      if (loaded) tr.appendChild(el('td', '', (s2.load !== '' && s2.load != null && !isNaN(l)) ? String(l) : '—'));
+      tr.appendChild(el('td', '', (s2.reps !== '' && s2.reps != null && !isNaN(rp)) ? String(rp) : '—'));
+      tbl.appendChild(tr);
+    });
+    c.appendChild(tbl);
+    return c;
+  }
   function loadProfileDetail(x, panel) {
     panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Loading…'));
     // HISTORY P0 (Phil 2026-08-14, display lane item 0): this was a RAW single-attempt fetch — one
@@ -3364,98 +3396,79 @@
         }
         panel.innerHTML = '';
         var all = (d && d.ok && d.days) || [];   // newest-first; server already dropped flagged outliers
-        // F-E (Phil 2026-08-12): ZERO-REP rows are not history — a tapped-but-untrained set (Grace's
-        // OHP 42.5x0 pair) is noise in the athlete's own trajectory. The serve/evidence side already
-        // excludes them (@193-195); the VIEW now matches. A day left with no real sets drops entirely.
+        // F-E (Phil 2026-08-12): ZERO-REP rows are not history.
         all = all.map(function (day) {
           var sets = (day.sets || []).filter(function (s) { return Number(s.reps) > 0; });
           return Object.assign({}, day, { sets: sets });
         }).filter(function (day) { return (day.sets || []).length > 0; });
         if (!all.length) { panel.appendChild(el('div', 'p-detail-note', 'No history yet.')); return; }
-        // WINDOW: last 2 months if the lift was trained recently (Phil: "the last two months is fine"),
-        // otherwise fall back to the most recent sessions — a lift not done in months (Bent Row) must
-        // still show its trajectory, not an empty "no sets in two months".
-        var cut = new Date(); cut.setDate(cut.getDate() - 62); var cutStr = ymd(cut);
-        var recent = all.filter(function (day) { return String(day.date).slice(0, 10) >= cutStr; });
-        var stale = recent.length === 0;
-        var days = recent.length ? recent : all.slice(0, 14);
-        // CURRENT VARIANT ONLY (Phil 2026-07-28: "elevator dips not dips"). A harder variant means fewer
-        // reps, which reads as regression when every variant is mashed together. The server now resolves
-        // each day's variant to the canonical Workbook name (workbook_name), so this is an EXACT match to
-        // the current variant — no keywords. Generic/parent-named days (Blueprint logs) count as current.
-        var cur = String(x.variant || '').trim().toLowerCase();
-        var pname = String(x.name || '').trim().toLowerCase();
-        if (cur) {
-          var sameVar = days.filter(function (day) {
-            var dv = String(day.variant || '').trim().toLowerCase();
-            return !dv || dv === cur || dv === pname;
-          });
-          if (sameVar.length >= 2 && sameVar.length < days.length) days = sameVar;
-        }
-        // Loaded or bodyweight? Infer from the DATA (Dips is reps-only — never show it in lb).
-        var loaded = days.some(function (day) { return (day.sets || []).some(function (s) { return Number(s.load) > 0; }); });
-        var vunit = loaded ? 'lb' : 'reps';
-        // BY COMPLETED ROUND when the data can (R327, Phil 2026-08-17 — "this goes the same for the
-        // progress graph"): a round groups its days; the CURRENT round (highest round_n) stays off
-        // the graph until training moves past it (unless the whole window is stale — then every
-        // round shown is closed by definition). Legacy Everfit days carry no round_n, and fewer
-        // than two closed rounds means per-session, exactly as before — fail-soft, never a gap.
-        var maxRn = 0; days.forEach(function (day) { if (Number(day.round_n) > maxRn) maxRn = Number(day.round_n); });
+        // R639 D5: the default series is the variant LAST PERFORMED (server-computed) — never the
+        // profile's current variant (Mason's 2-leg-after-a-1-leg-session defect).
+        var series = String((d && d.series_variant) || x.variant || '').trim();
+        var sKey = series.toLowerCase();
+        // D6: VARIANT + LEVEL on one line, variant only — never the parent name, never both.
+        panel.appendChild(el('div', 'p-dt-head', (series ? titleName(series) : titleName(x.name)) + (x.level ? ' — L' + x.level : '')));
+        var days = all.filter(function (day) {
+          var dv = String(day.variant || '').trim().toLowerCase();
+          return !dv || dv === sKey;   // generic/parent-named Blueprint logs count as the series
+        });
+        if (!days.length) days = all;
+        var unit = null;
+        days.forEach(function (day) { if (!unit && day.vol_unit) unit = day.vol_unit; });
+        unit = unit || 'lb';
+        // Best single set + best session volume — this variant, all-time, SERVER math (one reader).
+        var mk = (d && d.marks && d.marks[sKey]) || {};
+        var stats = el('div', 'p-dt-stats');
+        if (mk.star_v != null) stats.appendChild(el('span', 'p-dt-stat', '⭐ Best set ' + Math.round(mk.star_v) + (unit === 'lb' ? ' lb (est 1RM)' : ' reps')));
+        if (mk.shade_v != null) stats.appendChild(el('span', 'p-dt-stat', 'Best session ' + Math.round(mk.shade_v) + ' ' + unit));
+        if (stats.childNodes.length) panel.appendChild(stats);
+        // ONE GRAPH (D4): session volume by ROUND, this variant only, last 12 rounds — ALL rounds,
+        // current included (D2's 5-vs-3 came from a silent current-round exclusion; the grain is now
+        // labelled and every point decomposes by tap). Three or fewer points: no graph, the table is
+        // the record.
         var byRn = {};
         days.forEach(function (day) {
           var rn = Number(day.round_n);
-          if (!rn || (!stale && rn >= maxRn)) return;
-          var b = byRn[rn] = byRn[rn] || { date: day.date, v: 0 };
-          b.v += _sessVol(day.sets);
+          if (!rn) return;
+          var b = byRn[rn] = byRn[rn] || { n: rn, date: day.date, v: 0, days: [], star: false, shade: false };
+          b.v += Number(day.vol) || 0;
+          b.days.push(day);
           if (String(day.date) > String(b.date)) b.date = day.date;
+          if (mk.star_date && String(day.date).slice(0, 10) === mk.star_date) b.star = true;
+          if (mk.shade_date && String(day.date).slice(0, 10) === mk.shade_date) b.shade = true;
         });
-        var rpts = Object.keys(byRn).map(function (n) { return { n: Number(n), date: byRn[n].date, v: byRn[n].v }; })
-          .filter(function (p) { return p.v > 0; }).sort(function (a, b) { return a.n - b.n; });
-        // the improvement line: VOLUME per completed round when >=2 exist, else per session
-        var pts = days.map(function (day) { return { date: day.date, v: _sessVol(day.sets) }; })
-          .filter(function (p) { return p.v > 0; }).reverse();
-        if (rpts.length >= 2) panel.appendChild(bigChart(rpts, vunit, 'Volume per round'));
-        else if (pts.length >= 2) panel.appendChild(bigChart(pts, vunit, 'Volume'));
-        if (stale) panel.appendChild(el('div', 'p-detail-note', 'Not trained in the last two months — showing your most recent sessions.'));
-        // Star ONLY the all-time best session — not every intermediate record. Phil 2026-07-28: "It's
-        // only best if it's the all-time best 1RM, so it shouldn't be 99 and 66 for RDL. It should just
-        // be 99." Newest-first + strict > marks the most recent day that holds the top est-1RM.
-        var pr = {}, bestVal = -Infinity, bestDate = null;
+        var rpts = Object.keys(byRn).map(function (n2) { return byRn[n2]; })
+          .filter(function (pp) { return pp.v > 0; })
+          .sort(function (a, b) { return a.n - b.n; }).slice(-12);
+        var breakdown = el('div', 'p-dt-break');
+        function showRound(pp) {
+          breakdown.innerHTML = '';
+          breakdown.appendChild(el('div', 'p-detail-note', 'Round ' + pp.n + ' — the sessions behind this point'));
+          pp.days.forEach(function (day) { breakdown.appendChild(sessionCard(day, unit, {})); });
+        }
+        if (rpts.length > 3) {
+          panel.appendChild(bigChart(
+            rpts.map(function (pp) { return { date: pp.date, v: pp.v, star: pp.star, shade: pp.shade, lbl: 'R' + pp.n }; }),
+            unit, 'Volume per round · tap a point', { onTap: function (i) { showRound(rpts[i]); } }));
+          panel.appendChild(breakdown);
+        } else if (rpts.length) {
+          panel.appendChild(el('div', 'p-detail-note', 'Fewer than four rounds so far — the sessions below are the record.'));
+        }
+        // SHOW PROGRESS — every session of this variant; three highlights, each verifiable against
+        // the logged sets rendered right under it: PR (heaviest load), best est-1RM, best volume.
+        var hlLoad = null, hlE1 = null, hlVol = null;
         days.forEach(function (day) {
-          var o = _sess1rm(day.sets);
-          if (o != null && o > bestVal) { bestVal = o; bestDate = String(day.date).slice(0, 10); }
+          (day.sets || []).forEach(function (s2) { var l = Number(s2.load); if (l > 0 && (!hlLoad || l > hlLoad.v)) hlLoad = { d: day, v: l }; });
+          if (day.best_e1 != null && (!hlE1 || day.best_e1 > hlE1.v)) hlE1 = { d: day, v: day.best_e1 };
+          if (Number(day.vol) > 0 && (!hlVol || day.vol > hlVol.v)) hlVol = { d: day, v: day.vol };
         });
-        if (bestDate != null) pr[bestDate] = bestVal;
-        // one card per session (days come newest-first from the server)
+        panel.appendChild(el('div', 'p-dt-sub', 'Every session — ' + (series ? titleName(series) : 'this lift')));
         days.forEach(function (day) {
-          var sets = day.sets || [], isPR = !!pr[String(day.date).slice(0, 10)];
-          var c = el('div', 'p-sess' + (isPR ? ' pr' : ''));
-          var head = el('div', 'p-sess-h');
-          var dcell = el('span', 'p-sess-d', (isPR ? '⭐ ' : '') + fmtHistDate(day.date));
-          head.appendChild(dcell);
-          var st = el('span', 'p-sess-s');
-          if (isPR) st.appendChild(el('span', 'p-sess-1rm', (loaded ? pr[String(day.date).slice(0, 10)] + ' lb' : pr[String(day.date).slice(0, 10)] + ' reps') + ' best'));
-          st.appendChild(el('span', 'p-sess-vol', 'Vol ' + _sessVol(sets) + (loaded ? ' lb' : ' reps')));
-          head.appendChild(st);
-          c.appendChild(head);
-          // Set-by-set table (SET · LB · REPS for loaded; SET · REPS for bodyweight).
-          var tbl = el('table', 'p-sess-tbl');
-          var htr = el('tr', 'p-sess-thr');
-          htr.appendChild(el('th', '', 'Set'));
-          if (loaded) htr.appendChild(el('th', '', 'lb'));
-          htr.appendChild(el('th', '', 'reps'));
-          tbl.appendChild(htr);
-          sets.forEach(function (s, i) {
-            var l = Number(s.load), rp = Number(s.reps);
-            var tr = el('tr', '');
-            var setLbl = String(s.set || (i + 1)) + (s.side ? ' ' + s.side : '');
-            tr.appendChild(el('td', '', setLbl));
-            if (loaded) tr.appendChild(el('td', '', (s.load !== '' && s.load != null && !isNaN(l)) ? String(l) : '—'));
-            tr.appendChild(el('td', '', (s.reps !== '' && s.reps != null && !isNaN(rp)) ? String(rp) : '—'));
-            tbl.appendChild(tr);
-          });
-          c.appendChild(tbl);
-          panel.appendChild(c);
+          var badges = [];
+          if (hlLoad && day === hlLoad.d) badges.push('PR ' + hlLoad.v + ' lb');
+          if (hlE1 && day === hlE1.d) badges.push('⭐ best 1RM');
+          if (hlVol && day === hlVol.d) badges.push('◼ best volume');
+          panel.appendChild(sessionCard(day, unit, { badges: badges }));
         });
       })
       .catch(function () { panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Could not load history.')); });
@@ -3508,13 +3521,14 @@
 
   // A LARGER, labelled 1RM chart for the tap-open detail (Everfit-style): area fill, dots, the latest
   // value called out, and a date span + total gain caption. The point is progress you can't miss.
-  function bigChart(pts, unit, metric) {
+  function bigChart(pts, unit, metric, opts) {
+    opts = opts || {};
     var isLb = !/rep/i.test(String(unit || 'lb'));
     var u = isLb ? ' lb' : ' reps';
     var vs = pts.map(function (p) { return p.v; });
     var lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
     if (hi === lo) hi = lo + 1;
-    var W = 300, H = 150, PADX = 10, PADT = 24, PADB = 24, n = pts.length, NS = 'http://www.w3.org/2000/svg';
+    var W = 300, H = 150, PADX = 12, PADT = 24, PADB = 30, n = pts.length, NS = 'http://www.w3.org/2000/svg';
     var xy = pts.map(function (p, i) {
       return [PADX + (n === 1 ? 0 : (i * (W - PADX * 2) / (n - 1))), (H - PADB) - ((p.v - lo) / (hi - lo)) * (H - PADT - PADB)];
     });
@@ -3523,7 +3537,21 @@
     function add(tag, attrs, txt) { var e = document.createElementNS(NS, tag); Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); }); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; }
     add('path', { class: 'bc-area', d: d + ' L' + xy[n - 1][0].toFixed(1) + ' ' + (H - PADB) + ' L' + xy[0][0].toFixed(1) + ' ' + (H - PADB) + ' Z' });
     add('path', { class: 'bc-line', d: d });
-    xy.forEach(function (c, i) { add('circle', { class: i === n - 1 ? 'bc-dot bc-now' : 'bc-dot', cx: c[0].toFixed(1), cy: c[1].toFixed(1), r: i === n - 1 ? 4 : 2.4 }); });
+    xy.forEach(function (c, i) {
+      var p = pts[i];
+      // R639: shade = the best-volume session's round (filled marker under the dot); star = the
+      // best-e1RM session's round (a literal star above it). Independent — one point may hold both.
+      if (p.shade) add('rect', { class: 'bc-shadebox', x: (c[0] - 5).toFixed(1), y: (c[1] - 5).toFixed(1), width: 10, height: 10, rx: 2 });
+      add('circle', { class: (i === n - 1 ? 'bc-dot bc-now' : 'bc-dot') + (p.star ? ' bc-starpt' : ''), cx: c[0].toFixed(1), cy: c[1].toFixed(1), r: i === n - 1 ? 4 : 2.6 });
+      if (p.star) add('text', { class: 'bc-star', x: c[0].toFixed(1), y: Math.max(12, c[1] - 8).toFixed(1), 'text-anchor': 'middle' }, '★');
+      if (p.lbl && (n <= 8 || i % 2 === (n - 1) % 2)) add('text', { class: 'bc-xlbl', x: c[0].toFixed(1), y: (H - 4).toFixed(1), 'text-anchor': 'middle' }, p.lbl);
+      // EVERY point is tappable (spec: no number that can't be decomposed) — a wide invisible hit
+      // target over each dot, because a 2.6px circle is not a tap target on a phone.
+      if (opts.onTap) {
+        var hit = add('circle', { class: 'bc-hit', cx: c[0].toFixed(1), cy: c[1].toFixed(1), r: 13, fill: 'transparent' });
+        (function (idx) { hit.addEventListener('click', function () { opts.onTap(idx); }); })(i);
+      }
+    });
     add('text', { class: 'bc-val', x: (xy[n - 1][0] > W - 46 ? xy[n - 1][0] - 6 : xy[n - 1][0] + 6).toFixed(1),
       y: Math.max(13, xy[n - 1][1] - 7).toFixed(1), 'text-anchor': xy[n - 1][0] > W - 46 ? 'end' : 'start' }, vs[n - 1] + u);
     var wrap = el('div', 'bc-wrap'); wrap.appendChild(svg);

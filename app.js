@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639k';   // R639 C40-C42: column C parent at the first layer, clocks are their own two-row section (gate lift in tooltip); prev: r639j
+  var APP_BUILD = '20260827-r639l';   // R639 C8: 'Other work' section on the detail — every other performed variant, own numbers, tap = its own series; prev: r639k
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3550,6 +3550,45 @@
           if (days.length === 1) { hwrap.style.display = 'block'; htog.style.display = 'none'; }   // C20: one session = just that session
           panel.appendChild(htog);
           panel.appendChild(hwrap);
+          // C8 — OTHER VARIANTS GO AT THE BOTTOM (his spec verbatim; placement is the spec's own:
+          // "Below the session list, add an 'Other work' section: every other variant of this parent
+          // the athlete has performed, each with its last-performed date and its own best set and
+          // best session volume, each tappable to its own series with its own graph. No cross-variant
+          // math, no merged line, ever."). Each row is computed ONLY from its own variant's days;
+          // shorts hold no records (C13) and excluded days never reached the payload (C26). Volume
+          // prints bare per C5. Tap = renderSeries(v), the dropdown's own path — one mechanism.
+          var others = variants.filter(function (v2) { return String(v2).toLowerCase() !== sKey; });
+          if (others.length) {
+            var osec = el('div', 'p-dt-others');
+            osec.appendChild(el('div', 'p-dt-others-h', 'Other work'));
+            var oN = 0;
+            others.forEach(function (v2) {
+              var vKey = String(v2).toLowerCase();
+              var vdays = all.filter(function (day) {
+                return String(day.variant || '').trim().toLowerCase() === vKey && !day.short;
+              });
+              if (!vdays.length) return;   // all-short variants stay reachable via the dropdown, never a record row
+              var last = vdays[0].date;    // `all` is newest-first; the filter preserves order
+              var bestSet = null, bestE = 0, bestVol = 0;
+              vdays.forEach(function (day) {
+                bestVol = Math.max(bestVol, Number(day.vol) || 0);
+                (day.sets || []).forEach(function (s2) {
+                  var l = Number(s2.load), rp = Number(s2.reps) || 0;
+                  if (rp <= 0) return;
+                  var e9 = l > 0 ? l * (1 + rp / 30) : rp;   // loaded by Epley, reps-only by reps — never mixed
+                  if (e9 > bestE) { bestE = e9; bestSet = s2; }
+                });
+              });
+              var bs = bestSet ? (Number(bestSet.load) > 0 ? (bestSet.load + ' lb × ' + bestSet.reps) : (bestSet.reps + ' reps')) : '—';
+              var row = el('button', 'p-dt-other'); row.type = 'button';
+              row.appendChild(el('span', 'p-dt-other-n', titleName(v2)));
+              row.appendChild(el('span', 'p-dt-other-d',
+                fmtHistDate(last) + ' · best ' + bs + (bestVol > 0 ? ' · vol ' + Math.round(bestVol) : '')));
+              row.addEventListener('click', function () { renderSeries(v2); });
+              osec.appendChild(row); oN++;
+            });
+            if (oN) panel.appendChild(osec);
+          }
         }
         renderSeries(String((d && d.series_variant) || x.variant || '').trim());
       })

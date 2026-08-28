@@ -1139,6 +1139,13 @@ body #app { padding-bottom: 108px; }
 .p-dt-goaltxt { font-size: var(--fs-13); font-weight: 700; color: var(--ink); margin-bottom: 4px; }
 .p-dt-bar { height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line-soft); overflow: hidden; }
 .p-dt-fill { height: 100%; background: var(--bp); }
+/* C8 — Other work: every other performed variant of the parent, below the session list */
+.p-dt-others { margin-top: 16px; border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.p-dt-others-h { font-size: var(--fs-13); font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 4px; }
+.p-dt-other { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line-soft); padding: 8px 2px; font: inherit; color: var(--ink); }
+.p-dt-other:last-child { border-bottom: 0; }
+.p-dt-other-n { display: block; font-size: var(--fs-15); font-weight: 700; }
+.p-dt-other-d { display: block; font-size: var(--fs-12); color: var(--muted); margin-top: 1px; }
 .p-sess.short { opacity: .55; }
 .p-sess-short { font-size: var(--fs-10); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--muted); border: 1px solid var(--line-soft); border-radius: var(--r-8); padding: 1px 6px; }
 .p-sess-imported { font-size: var(--fs-10); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--bp); border: 1px solid var(--bp-line); border-radius: var(--r-8); padding: 1px 6px; }

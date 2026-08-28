@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260828-r606c';  // R606 s2-3: Begin Workout chain + Start Complex everywhere + transition excess; prev: r669
+  var APP_BUILD = '20260828-d11';  // D11: variant-regression line on detail history cards; prev: r606c (chain)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3517,6 +3517,15 @@
       tbl.appendChild(tr);
     });
     c.appendChild(tbl);
+    // D11 (R639, Phil's spec): a variant regression is VISIBLE — demotion, coach substitution and
+    // logging error no longer render identically. Server-stamped on the FIRST day of a
+    // below-earlier-best run (episode start), with the date the better variant was first reached.
+    // One muted line; C18f's no-badges law governs marks/PR text, D11 is the spec's own ordered
+    // addition. Placement staged for Phil's look (C29).
+    if (day.regress && day.regress.best) {
+      c.appendChild(el('div', 'p-sess-regress',
+        '↓ below earlier best: ' + titleName(day.regress.best) + ' · ' + fmtHistDate(day.regress.best_date)));
+    }
     // C9 (Phil): the arithmetic comes OFF the card face — no athlete reads sheet column letters.
     // It lives UNCHANGED behind the tap-through: tap the volume, see the math. Decomposable by
     // tapping was always the requirement; printing internals never was.

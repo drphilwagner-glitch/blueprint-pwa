@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260828-r661b';  // R661 items 1-4: instant history detail (cache-first), merit levels, one graph point per session; prev: r639l
+  var APP_BUILD = '20260828-r669';  // R669+D8: refused rows evict with a card; swaps take the alternate's own each_side; prev: r661b
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -346,6 +346,36 @@
       .then(function (d) { return (d && d.ok && d.present) ? d.present : []; })
       .catch(function () { return []; });
   }
+  // R669 — which queued log_ids did the server explicitly REFUSE (L161 impossible load, D8
+  // side-disagree)? `ackLogs` can only answer "present"; the POST is opaque no-cors, so a refusal
+  // ack never reaches the client. Without this read-back a refused row stayed queued FOREVER —
+  // retried every 15s, a permanent pending chip, sync_unconfirmed spam every 4th try.
+  function refusedLogs(ids) {
+    var url = cfg.WEBAPP_URL + '?action=logrefused&athlete=' + encodeURIComponent(athlete) +
+      '&token=' + encodeURIComponent(token) + '&ids=' + encodeURIComponent(ids.join(','));
+    return fetch(url).then(function (r) { return r.json(); })
+      .then(function (d) { return (d && d.ok && d.refused) ? d.refused : []; })
+      .catch(function () { return []; });
+  }
+  // L131 — a refused set is ANNOUNCED, never silently dropped. Fixed banner on body, not app, so a
+  // screen repaint cannot tear it out; the athlete dismisses it. Plain English, no mechanism: a typo
+  // is re-logged, anything else is "tell your coach" — the coach already has the ErrorLog row.
+  function showRefusedCard(refused) {
+    try {
+      var old = document.querySelector('.refused-card'); if (old) old.remove();
+      var card = el('div', 'refused-card');
+      refused.slice(0, 3).forEach(function (x) {
+        var who = x.ex ? ('A set of ' + x.ex) : 'A set';
+        card.appendChild(el('div', 'refused-line', x.reason === 'impossible_load'
+          ? who + ' couldn’t be saved — the weight looks like a typo. Log it again with the right number.'
+          : who + ' couldn’t be saved. Tell your coach.'));
+      });
+      var ok = el('button', 'refused-ok', 'OK'); ok.type = 'button';
+      ok.addEventListener('click', function () { card.remove(); });
+      card.appendChild(ok);
+      document.body.appendChild(card);
+    } catch (e) {}
+  }
   var draining = false;
   function drain() {
     if (draining || !navigator.onLine) return Promise.resolve();
@@ -360,20 +390,36 @@
         // set is sent twice, which hard rule 4 makes safe (idempotent via client log_id); losing one
         // is not recoverable.
         var tries = 0;
+        // R669: before parking leftovers for the next drain, ask whether the server REFUSED any of
+        // them. A refused id is EVICTED (qDel) and announced on a card; only rows neither appended
+        // nor refused stay queued and report sync_unconfirmed — so one bad row can no longer hold a
+        // permanent pending chip or spam the ErrorLog every 4th retry.
+        function giveUp(present) {
+          var left = ids.filter(function (id) { return present.indexOf(id) < 0; });
+          if (!left.length) { done(); return updateBadge(); }
+          return refusedLogs(left).then(function (refused) {
+            var rIds = refused.map(function (x) { return x.id; });
+            var park = left.filter(function (id) { return rIds.indexOf(id) < 0; });
+            var fin = function () {
+              if (park.length) reportError('sync_unconfirmed', 'logs sent but not confirmed by the server', '',
+                'ids=' + park.length + ' queued=' + park.join(','));
+              done(); return updateBadge();                                   // parked rows retry next drain
+            };
+            if (!rIds.length) return fin();
+            return qDel(rIds).then(function () { showRefusedCard(refused); return fin(); });
+          });
+        }
         function confirm() {
           tries += 1;
           return ackLogs(ids).then(function (present) {
             if (present.length) {
               return qDel(present).then(function () {
-                if (present.length === ids.length || tries >= 4) { done(); return updateBadge(); }
+                if (present.length === ids.length) { done(); return updateBadge(); }
+                if (tries >= 4) return giveUp(present);
                 return new Promise(function (r) { setTimeout(r, 2000); }).then(confirm);
               });
             }
-            if (tries >= 4) {
-              reportError('sync_unconfirmed', 'logs sent but not confirmed by the server', '',
-                'ids=' + ids.length + ' queued=' + ids.join(','));
-              done(); return updateBadge();                                   // keep them queued; retry next drain
-            }
+            if (tries >= 4) return giveUp([]);
             return new Promise(function (r) { setTimeout(r, 2000); }).then(confirm);
           });
         }
@@ -1285,7 +1331,11 @@
         wants_load: same ? (oEx.wants_load || (oT.target_load !== '' && oT.target_load != null))
                          : (a.wants_load === true),
         load_prefill: same ? oEx.load_prefill : (a.prefill_load != null ? a.prefill_load : undefined),
-        rest_s: oEx.rest_s, each_side: oEx.each_side,
+        // D8: the alternate's OWN sidedness wins when the payload states it (the server stamps
+        // each_side on searched swaps and, since @625, on slot alternates with an exact Exercise
+        // Library row). Inheriting the original's flag split a bilateral swap-in into phantom L/R
+        // rows and logged a two-sided swap-in as ONE row — half its evidence.
+        rest_s: oEx.rest_s, each_side: (a.each_side != null ? !!a.each_side : oEx.each_side),
         _alt_of: oEx, _alt_t: oT },
       t: { set_no: oT.set_no, kind: oT.kind,
         // A `same` alternate serves the CURRENT RUNG'S DOSE VERBATIM — reps, %BW load, ramp — per set

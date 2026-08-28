@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260828-r669';  // R669+D8: refused rows evict with a card; swaps take the alternate's own each_side; prev: r661b
+  var APP_BUILD = '20260828-r606c';  // R606 s2-3: Begin Workout chain + Start Complex everywhere + transition excess; prev: r669
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -625,6 +625,47 @@
     document.body.classList.remove('has-tbar');
   }
 
+  // R606 slices 2-3 — THE WORKOUT CHAIN (Phil's corrected UI ruling 2026-08-28). One "Begin
+  // Workout" tap runs the whole session unattended: each slot's own timer, then a transition
+  // countdown between complexes (the R606-s5 law: gap = MAX(Thresholds complex_switch, trailing
+  // rest of the outgoing complex's final set) — the trailing rest has already elapsed inside the
+  // outgoing timer, so the transition adds only the EXCESS; warm-up slots never take one). Chain
+  // state survives re-renders (module scope, session-checked); render() rebuilds the slot list.
+  // A manual "Start Complex" mid-chain never breaks it: advance keys off whichever timer finishes
+  // while the chain is on, and a manual start only cancels the pending transition it supersedes.
+  var CHAIN = { on: false, sid: null, list: [], switchS: 0, transT: null };
+  function chainCancelTransition() { if (CHAIN.transT) { clearTimeout(CHAIN.transT); CHAIN.transT = null; } }
+  function chainStop() { CHAIN.on = false; chainCancelTransition(); releaseWake(); }
+  // Screen Wake Lock while the chain runs: an unattended chain on a locked phone would suspend its
+  // timers (they self-correct on wake — st.end is wall-clock — but the cue would fire late, which
+  // is the one thing a rest timer must not do). Progressive: absent API = silently none.
+  var WAKE = null;
+  function requestWake() { try { if (navigator.wakeLock && !WAKE) navigator.wakeLock.request('screen').then(function (w) { WAKE = w; w.addEventListener('release', function () { WAKE = null; }); }).catch(function () {}); } catch (e) {} }
+  function releaseWake() { try { if (WAKE) { WAKE.release().catch(function () {}); WAKE = null; } } catch (e) {} }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && CHAIN.on) requestWake(); });
+  function chainTransition(gapS, next) {
+    chainCancelTransition();
+    var end = Date.now() + gapS * 1000;
+    (function tickT() {
+      if (!CHAIN.on) return;
+      var left = Math.max(0, Math.round((end - Date.now()) / 1000));
+      var b = tbar(); b.hidden = false; document.body.classList.add('has-tbar');
+      b._l.textContent = 'Next complex'; b._v.textContent = 'in ' + fmt(left); b._p.hidden = true;
+      if (left <= 0) { CHAIN.transT = null; beep(); timerAlert('Next complex', 'go', '', true); next.start(); return; }
+      CHAIN.transT = setTimeout(tickT, 250);
+    })();
+  }
+  function chainAdvance(key) {
+    if (!CHAIN.on) return;
+    if (!SESSION || CHAIN.sid !== (SESSION.session_id || SESSION.date)) return;
+    var i = -1;
+    for (var x = 0; x < CHAIN.list.length; x++) if (CHAIN.list[x].key === key) { i = x; break; }
+    if (i < 0) return;                                            // a timer outside the chain's list
+    var next = CHAIN.list[i + 1];
+    if (!next) { chainStop(); timerAlert('Workout done', 'all complexes run', '', true); return; }
+    var gap = (CHAIN.list[i].isComp && next.isComp) ? Math.max(0, (CHAIN.switchS || 0) - (CHAIN.list[i].trailing || 0)) : 0;
+    if (gap > 0) chainTransition(gap, next); else next.start();
+  }
   function makeTimer(node, pauseBtn, intervals, label, roundsOf, key) {
     var seq = (intervals && intervals.length) ? intervals.slice() : [120];
     var idx = 0;
@@ -671,6 +712,7 @@
           node.textContent = 'complex done'; pauseBtn.hidden = true;
           pub('complex done'); laterUnpub(8000);          // hold the last cue, then give the space back
           beep(); timerAlert('Complex done', 'move on', '', true);   // sticky — the last cue must not be missed
+          if (typeof chainAdvance === 'function') chainAdvance(key);   // R606: the chain rolls on
           return;
         }
         idx += 1;
@@ -691,6 +733,7 @@
         clearTimeout(st.t); st.running = false; st.t = null;
         node.textContent = 'complex done'; pauseBtn.hidden = true;
         pub('complex done'); laterUnpub(4000);
+        if (typeof chainAdvance === 'function') chainAdvance(key);   // R606: a skipped-out complex still chains
         return;
       }
       idx += 1;
@@ -744,6 +787,10 @@
         // one timer at a time — this is what lets the pinned bar be unambiguous
         if (ACTIVE_TIMER && ACTIVE_TIMER !== api) ACTIVE_TIMER.stop();
         cancelUnpub();                     // a restart cancels any pending "give the space back"
+        // R606: a manual start supersedes any pending between-complex transition — the chain then
+        // continues from THIS slot (advance keys off whichever timer finishes), never broken.
+        if (typeof chainCancelTransition === 'function') chainCancelTransition();
+        if (typeof CHAIN === 'object' && CHAIN.on) requestWake();
         ACTIVE_TIMER = api; TIMER_SID = SESSION && (SESSION.session_id || SESSION.date);
         primeAudio(); st.running = true; st.end = Date.now() + interval * 1000; pauseBtn.hidden = false; tick();
       }
@@ -2533,6 +2580,24 @@
     var back = el('button', 'back', '← Calendar'); back.type = 'button';
     back.addEventListener('click', function () { loadHome(); });
     app.appendChild(back);
+    // R606 slices 2-3: the chain belongs to ONE session; opening a different one ends it. The slot
+    // list is rebuilt every render (fresh start closures over fresh cards); on/sid survive, so a
+    // post-log refresh never kills a running chain (the R589 adoption keeps the live timer too).
+    if (CHAIN.on && CHAIN.sid !== (s.session_id || s.date)) chainStop();
+    CHAIN.list = [];
+    CHAIN.switchS = Number(s.switch_s || 0);   // older cached payloads: 0 = advance on the trailing rest
+    var beginWo = el('button', 'begin-wo', 'Begin Workout'); beginWo.type = 'button';
+    beginWo.addEventListener('click', function () {
+      if (!CHAIN.list.length) return;
+      CHAIN.on = true; CHAIN.sid = s.session_id || s.date; requestWake();
+      // start at the first slot with unlogged work, so a resumed workout begins where the athlete is
+      var target = null;
+      for (var ci = 0; ci < CHAIN.list.length; ci++) if (!CHAIN.list[ci].doneAll()) { target = CHAIN.list[ci]; break; }
+      (target || CHAIN.list[0]).start();
+      beginWo.hidden = true;
+    });
+    if (CHAIN.on && CHAIN.sid === (s.session_id || s.date)) beginWo.hidden = true;
+    app.appendChild(beginWo);
     // Moving a workout lives on the CALENDAR (S16), not here. Phil: "We don't need to move to
     // another day on the workout that's shown. I would remove it." You decide what to shuffle while
     // looking at the week, not while standing in the gym with the session open.
@@ -2552,7 +2617,11 @@
       // auto-start off one; it needs an explicit "I'm starting now". The label says what it does
       // and how long the complex runs, so it reads without a coach standing there.
       var ivs = (slot.round_intervals_s && slot.round_intervals_s.length) ? slot.round_intervals_s : [slot.interval_s || 300];
-      var startBtn = el('button', 'tstart', 'Begin complex · ' + fmt(ivs[0])); startBtn.type = 'button';
+      // R606 (Phil 2026-08-28): "Begin" alone is ambiguous next to Begin Workout — every complex's
+      // independent start is labeled "Start Complex"; a warm-up slot says what IT is.
+      var isComp = /^Comp\s*\d/i.test(String(slot.slot || ''));
+      var startWord = isComp ? 'Start Complex' : (/^W\s*U\s*p?\s*\d/i.test(String(slot.slot || '')) ? 'Start Warm Up' : 'Start');
+      var startBtn = el('button', 'tstart', startWord + ' · ' + fmt(ivs[0])); startBtn.type = 'button';
       var pauseBtn = el('button', 'pause', '⏸'); pauseBtn.type = 'button'; pauseBtn.hidden = true;
       head.appendChild(startBtn); head.appendChild(timerNode); head.appendChild(pauseBtn);
       card.appendChild(head);
@@ -2582,12 +2651,11 @@
       var slotSum = el('div', 'slot-sum');
       slotSum.appendChild(el('span', 'ss-t', slot.exercises.map(function (e) { return exLabel(e); }).join(' + ')));
       slotSum.appendChild(el('span', 'slot-state', ''));
-      // R589(b) — Phil's ruling 2026-08-26, "always show Begin on the LAST complex": Grace ended her
-      // session not knowing the last collapsed complex could start — the control existed one tap
-      // away and the summary read as a label, not a control. The LAST slot's collapsed summary now
-      // carries its own Begin (CSS shows it only on .slot-last.slot-later:not(.open)). It opens the
+      // R589(b) → R606 (Phil 2026-08-28, supersedes last-complex-only): EVERY collapsed later
+      // complex carries its own start, labeled "Start Complex" (the last-complex-only "Begin" chip
+      // was the interim oddity; "Begin" alone is ambiguous next to Begin Workout). It opens the
       // slot and starts through the SAME startBtn path — never a second timer authority.
-      var sumBegin = el('button', 'sum-begin', 'Begin');
+      var sumBegin = el('button', 'sum-begin', startWord);
       sumBegin.type = 'button';
       sumBegin.addEventListener('click', function (ev) {
         ev.stopPropagation();
@@ -2597,6 +2665,17 @@
       slotSum.appendChild(sumBegin);
       slotSum.addEventListener('click', function () { card.classList.toggle('open'); });
       card.appendChild(slotSum);
+      // R606: this slot's seat in the workout chain — start through the startBtn path (one timer
+      // authority), trailing = its final set's own rest (already elapsed when the chain advances,
+      // so the transition adds only the excess over it).
+      CHAIN.list.push({
+        key: slotKey, isComp: isComp, trailing: Number(ivs[ivs.length - 1] || 0),
+        start: function () { card.classList.add('open'); if (!startBtn.hidden) startBtn.click(); },
+        doneAll: function () {
+          var rows = card.querySelectorAll('.ex-row');
+          return rows.length > 0 && card.querySelectorAll('.ex-row:not(.done)').length === 0;
+        }
+      });
 
       var body = el('div', 'sets');
       var aSide = slot.exercises[0];

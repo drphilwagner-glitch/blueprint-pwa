@@ -58,13 +58,13 @@
   // reached nobody: the phone instant-paints the OLD session from localStorage and Phil sees the bug
   // he already reported, days after it was fixed. Bump this whenever the payload shape changes —
   // same discipline as sw.js's CACHE and the server's _PAYLOAD_SCHEMA_V.
-  var CACHE_V = 'c6';   // day-grid build   // bumped: cache-version handshake build; old cached weeks predate pwa_ver
+  var CACHE_V = 'c7';   // R661: profile levels are merit now — a cached c6 profile payload carries operating rungs
   // CACHE-VERSION HANDSHAKE (Phil P0 2026-08-12, the FOURTH stale-phone bite — permanent fix).
   // APP_BUILD is this bundle's stamp; the week payload carries the server's expected build
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260827-r639l';   // R639 C8: 'Other work' section on the detail — every other performed variant, own numbers, tap = its own series; prev: r639k
+  var APP_BUILD = '20260828-r661b';  // R661 items 1-4: instant history detail (cache-first), merit levels, one graph point per session; prev: r639l
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3410,21 +3410,18 @@
     return c;
   }
   function loadProfileDetail(x, panel) {
-    panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Loading…'));
-    // HISTORY P0 (Phil 2026-08-14, display lane item 0): this was a RAW single-attempt fetch — one
-    // Apps Script hiccup and the panel read "Could not load history" with no retry, which is the
-    // failure Phil and Grace both hit. fetchJson retries twice and classes server vs offline; the
-    // load-time stamp feeds the 2-second budget check (measured, never guessed).
-    var tH0 = Date.now();
-    fetchJson(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
-          '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(x.exercise))
-      .then(function (d) {
-        try { window.BP_lastHistMs = Date.now() - tH0; } catch (eT) {}
-        if (d && (d.error === 'server' || d.error === 'offline')) {
-          panel.innerHTML = '';
-          panel.appendChild(el('div', 'p-detail-note', d.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to see history.'));
-          return;
-        }
+    // R661 item 1 (Phil 2026-08-28: "bar tap → detail takes ~10s; near-instant, same
+    // optimistic/cache pattern as swaps"): the last payload for this exercise paints INSTANTLY
+    // from localStorage; the fresh fetch lands in the background and repaints only while the
+    // panel is UNTOUCHED (the D3 law — a late repaint must never tear an open panel out from
+    // under the athlete). The key carries CACHE_V so client cache bumps invalidate history too.
+    var hkey = 'bp_hist_' + CACHE_V + '_' + athlete + '_' + x.exercise;
+    var cachedStr = null;
+    try { var rawH = localStorage.getItem(hkey); if (rawH) cachedStr = JSON.stringify(JSON.parse(rawH).data); } catch (eC0) { cachedStr = null; }
+    var painted = false;
+    panel._touched = false;
+    panel.addEventListener('click', function () { panel._touched = true; }, true);
+    function renderPayload(d) {
         panel.innerHTML = '';
         var all = (d && d.ok && d.days) || [];   // newest-first; server already dropped flagged outliers
         // F-E (Phil 2026-08-12): ZERO-REP rows are not history.
@@ -3472,21 +3469,13 @@
           unit = unit || 'lb';
           var mk = (d && d.marks && d.marks[sKey]) || {};
           var live = days.filter(function (day) { return !day.short; });   // C13: shorts hold no records
-          // 2. THE GRAPH — volume per round, points CHRONOLOGICAL BY DATE (C21: the resurrected
-          // round re-done after a newer round made round-number order run backwards in time; the
-          // round is only the grouping), short sessions excluded, dates on the axis, no caption,
-          // no glyphs (marks live in the list), every point tappable to its sessions.
-          var byRn = {};
-          live.forEach(function (day) {
-            var rn = Number(day.round_n);
-            if (!rn) return;
-            var b = byRn[rn] = byRn[rn] || { n: rn, date: day.date, v: 0, days: [] };
-            b.v += Number(day.vol) || 0;
-            b.days.push(day);
-            if (String(day.date) > String(b.date)) b.date = day.date;
-          });
-          var rpts = Object.keys(byRn).map(function (n2) { return byRn[n2]; })
-            .filter(function (pp) { return pp.v > 0; })
+          // 2. THE GRAPH — ONE POINT PER SESSION at that session's own volume (R661 item 3, Phil
+          // 2026-08-28, superseding C19's "volume per round": on his own device Aug 22 (6,600) and
+          // Aug 24 (6,200) shared a round and rendered as one 12,800 point — "No summing, ever").
+          // Points chronological by date, short sessions excluded, dates on the axis, no caption,
+          // no glyphs (marks live in the list), every point tappable to its own session card.
+          var rpts = live.filter(function (day) { return Number(day.vol) > 0; })
+            .map(function (day) { return { date: day.date, v: Number(day.vol), days: [day] }; })
             .sort(function (a, b) { return String(a.date) < String(b.date) ? -1 : 1; })
             .slice(-12);
           var breakdown = el('div', 'p-dt-break');
@@ -3591,8 +3580,43 @@
           }
         }
         renderSeries(String((d && d.series_variant) || x.variant || '').trim());
+    }
+    if (cachedStr) { try { renderPayload(JSON.parse(cachedStr)); painted = true; } catch (eC1) { painted = false; } }
+    if (!painted) { panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Loading…')); }
+    // HISTORY P0 (Phil 2026-08-14, display lane item 0): this was a RAW single-attempt fetch — one
+    // Apps Script hiccup and the panel read "Could not load history" with no retry, which is the
+    // failure Phil and Grace both hit. fetchJson retries twice and classes server vs offline; the
+    // load-time stamp feeds the 2-second budget check (measured, never guessed).
+    var tH0 = Date.now();
+    fetchJson(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
+          '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(x.exercise))
+      .then(function (d) {
+        try { window.BP_lastHistMs = Date.now() - tH0; } catch (eT) {}
+        if (d && (d.error === 'server' || d.error === 'offline')) {
+          if (painted) return;   // the cached render stands; the athlete lost nothing
+          panel.innerHTML = '';
+          panel.appendChild(el('div', 'p-detail-note', d.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to see history.'));
+          return;
+        }
+        var freshStr = null; try { freshStr = JSON.stringify(d); } catch (eS) {}
+        try { if (freshStr) localStorage.setItem(hkey, JSON.stringify({ at: Date.now(), data: d })); }
+        catch (eW) {
+          // quota: shed only OUR history entries, then try once more — never touch other keys
+          try {
+            for (var iH = localStorage.length - 1; iH >= 0; iH--) {
+              var kH = localStorage.key(iH);
+              if (kH && kH.indexOf('bp_hist_') === 0) localStorage.removeItem(kH);
+            }
+            if (freshStr) localStorage.setItem(hkey, JSON.stringify({ at: Date.now(), data: d }));
+          } catch (eW2) {}
+        }
+        if (painted && (panel._touched || (freshStr && freshStr === cachedStr))) return;   // untouched-only repaint; identical payload repaints nothing
+        renderPayload(d);
       })
-      .catch(function () { panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Could not load history.')); });
+      .catch(function () {
+        if (painted) return;
+        panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Could not load history.'));
+      });
   }
 
 
@@ -3759,10 +3783,13 @@
         // C31/C40: the drill-down shows the column C parent + level per lift via the ONE row
         // component — same row, same tap, same detail page as Strongest/Needs. The leveling clocks
         // moved to their OWN section below Tell Coach (C42) — no clock renders in any drill-down.
+        // R661 item 4 (Phil 2026-08-28): drill rows carry NO bars (category bars are the only bars)
+        // and every exercise opens ALREADY EXPANDED to its line graph the moment the category opens.
+        var drillWraps = [];
         lifts.forEach(function (lift, i) {
-          var pr2 = profileRow(lift);
+          var pr2 = profileRow(lift, { drill: true });
           if (i === 0) pr2.insertBefore(el('div', 'pc-sets', 'sets your level'), pr2.firstChild);   // weakest = the floor
-          panel.appendChild(pr2);
+          panel.appendChild(pr2); drillWraps.push(pr2);
         });
         card.appendChild(panel);
         panels.push({ row: row, panel: panel });
@@ -3770,7 +3797,12 @@
         var toggle = function () {
           var willOpen = panel.hidden;
           panels.forEach(function (p) { p.panel.hidden = true; p.row.classList.remove('open'); p.row.setAttribute('aria-expanded', 'false'); });
-          if (willOpen) { panel.hidden = false; row.classList.add('open'); row.setAttribute('aria-expanded', 'true'); }
+          if (willOpen) {
+            panel.hidden = false; row.classList.add('open'); row.setAttribute('aria-expanded', 'true');
+            // R661 item 4: exercises open already expanded to their graphs (lazy — only on open)
+            drillWraps.forEach(function (w) { if (w._openDetail) w._openDetail(); });
+            
+          }
         };
         row.addEventListener('click', toggle);
         row.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
@@ -3995,8 +4027,12 @@
     // C38: every laddered row carries its OWN ladder bar — the Where You Stand track one level down.
     // Scale = this exercise's full ladder (top_level, never an assumed 9); ticks per rung, heavier at
     // level boundaries; fill = rung + clearance fraction, the same math the category bars use.
+    // R661 item 4 (Phil 2026-08-28): "Bars exist at category level only — never inside the drill,
+    // so category-bars and exercise-bars can't be confused." A drill row renders NO bar; the C38
+    // bars on Strongest/Needs stand (his sentence scopes the drill). Reversing line: drop `!drill`.
+    var drill = !!(opts && opts.drill);
     var ordR = levelOrderOf(x.level);
-    if (ordR != null) {
+    if (ordR != null && !drill) {
       var topR = levelOrderOf(x.top_level); if (topR == null || topR < ordR) topR = Math.max(ordR, 9);
       var trk = el('div', 'p-row-track');
       for (var ti = 1; ti < topR; ti++) {
@@ -4029,6 +4065,14 @@
       det.style.display = open ? 'none' : 'block';
       if (!open && !det._loaded) { det._loaded = true; loadProfileDetail(x, det); }
     });
+    // R661 item 4: inside the category drill an exercise opens ALREADY EXPANDED to its line graph
+    // (session lists stay collapsed — the detail's own default). The drill calls this on category
+    // open, so nothing fetches for categories never opened; item 1's cache makes re-opens instant.
+    wrap._openDetail = function () {
+      if (det.style.display !== 'none') return;
+      det.style.display = 'block';
+      if (!det._loaded) { det._loaded = true; loadProfileDetail(x, det); }
+    };
     wrap.appendChild(row); wrap.appendChild(det);
     return wrap;
   }

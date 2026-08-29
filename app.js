@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260828-d11';  // D11: variant-regression line on detail history cards; prev: r606c (chain)
+  var APP_BUILD = '20260828-r674';  // R674: a hiccuped profile detail re-arms on failure (tap-again is true again); prev: d11
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3734,6 +3734,10 @@
           if (painted) return;   // the cached render stands; the athlete lost nothing
           panel.innerHTML = '';
           panel.appendChild(el('div', 'p-detail-note', d.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to see history.'));
+          // R674 (L187's profile half, 2026-08-28): the note says "Tap again." but _loaded was set
+          // before the fetch and never reset, so no tap ever refetched — one transient hiccup killed
+          // this exercise's detail until a full profile reload. Failure-without-paint re-arms the row.
+          panel._loaded = false;
           return;
         }
         var freshStr = null; try { freshStr = JSON.stringify(d); } catch (eS) {}
@@ -3754,6 +3758,7 @@
       .catch(function () {
         if (painted) return;
         panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Could not load history.'));
+        panel._loaded = false;   // R674: same law as the server branch — a failed panel re-arms
       });
   }
 

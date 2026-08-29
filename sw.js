@@ -1,7 +1,7 @@
 /* Service worker: caches the app shell for offline + installability.
  * Cross-origin API calls (the Apps Script Web App) are left to the app / offline queue (S10).
  */
-var CACHE = 'bp-shell-v101';   // v101: R631 navigation-only fallback (below); prev v100 R607
+var CACHE = 'bp-shell-v102';   // v102: R674 hiccuped-detail re-arm; prev v101 R631 navigation-only fallback (below)
 var SHELL = ['./', './index.html', './app.js', './config.js', './tokens.css', './styles.css',
   './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 

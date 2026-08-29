@@ -1017,6 +1017,14 @@ body.has-tbar #app { padding-bottom: 128px; }
   border: 1px solid var(--line); border-radius: var(--r-8); background: none;
   color: var(--muted); font-size: var(--fs-13); font-weight: 600; }
 
+/* R635 redesign (Phil 2026-08-29): LEVELS lines — green when cleared/closed distance, amber with
+   the gap when short; the profile door is the footer's loud element (the theme, structural). */
+.sum-row.lvl-green { border-left: 4px solid var(--ok); background: var(--ok-bg); }
+.sum-row.lvl-amber { border-left: 4px solid var(--warn); }
+.sum-profile { display: block; margin: 18px auto 6px; padding: 10px 18px; min-height: 0;
+  border: 1px solid var(--ok-line); border-radius: var(--r-8); background: var(--ok-bg);
+  color: var(--ok); font-size: var(--fs-14); font-weight: 700; }
+
 /* Sparkline — one month of a single lift. Small enough to sit on every card without lengthening the
    scroll (Phil: "it makes scrolling too long"), loud enough to read the slope at arm's length. */
 /* A rule above it, so the sparkline reads as its own thing rather than as an extension of the level

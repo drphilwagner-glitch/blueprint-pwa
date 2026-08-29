@@ -2298,53 +2298,104 @@
       app.appendChild(back);
     }
     if (!d || !d.ok || !d.logged) { app.appendChild(el('p', 'empty', 'Nice work.')); backLink(); return; }
-    // MAIN LIFTS FIRST — the coach's headline. Every tested lift logged today shows what he did, so a
-    // main lift (Front Press 75×5) is never crowded out of the synopsis by a first-time accessory
-    // (Phil 2026-07-27). The highlight lists below stay a curated few; this one is complete.
-    if (d.mains && d.mains.length) {
-      app.appendChild(el('h3', 'sum-t main', 'Main lifts 🏋️'));
-      d.mains.forEach(function (m) {
-        // R635 L1 ITEM 4 (Phil 2026-08-29): NO GARBAGE STRINGS. A null half is DROPPED, never
-        // rendered as '?' — "? lb × ?" told a kid the app lost his lift. Both halves null: the name
-        // stands alone (the row still proves the lift happened; a fabricated number would not).
-        var result = m.loaded
-          ? (m.load != null && m.reps != null ? m.load + ' lb × ' + m.reps
-             : m.load != null ? m.load + ' lb'
-             : m.reps != null ? m.reps + ' reps' : '')
-          : (m.reps != null ? m.reps + ' reps' : '');
-        var tail = m.leveled ? ' · leveled up 🎉'
-          : (m.delta_pct != null && m.delta_pct > 0) ? ' · ▲ +' + m.delta_pct + '%' : '';
-        // HIT / SHORT vs today's prescription (Phil: the summary told him "nothing insightful" — this
-        // is the one feedback the rows already contain). Hit everything = a quiet check; short = the
-        // honest count, not a judgment.
-        // Deficit language dies on a celebration surface (Phil 2026-08-23): the honest count,
-        // never "short on N of 3".
-        // R635 L1 ITEM 3: BEAT-TARGET CELEBRATED WITH THE NUMBER — the server sends the best
-        // over-target set with its prescription; the quiet ✅ stays for a plain hit.
-        if (m.beat) {
-          var did = (m.beat.load != null ? m.beat.load + '×' + m.beat.reps : m.beat.reps + ' reps');
-          var asked = (m.beat.tl != null ? m.beat.tl + '×' + (m.beat.tr != null ? m.beat.tr : m.beat.reps)
-                       : (m.beat.tr != null ? m.beat.tr + ' reps' : ''));
-          tail += ' · beat target 🔥 ' + did + (asked ? ' (asked: ' + asked + ')' : '');
-        } else if (m.of) tail += ' · target ' + m.hit + '/' + m.of + (m.hit === m.of ? ' ✅' : '');
-        app.appendChild(el('div', 'sum-row main', titleName(m.name || m.exercise) + (result ? ' — ' + result : '') + tail));
+    // ══ THE FOUR-SECTION SHAPE (Phil 2026-08-29 redesign — his spec verbatim) ══════════════════
+    // HEADLINE (above) — trophy hierarchy, never repeated below (d.highlight_ex is the dedupe key).
+    // LEVELS — one line per hinge trained today: performed · verdict vs asked · distance to next
+    //   rung. Green when cleared/closed distance, amber with the gap when short. "This IS did-well
+    //   AND didn't-do-well, and it mirrors the profile's clocks."
+    // BEST WORK — non-hinge load/rep PRs only (server-filtered; volume-% on stability is banned).
+    // FOOTER — streak + "see your levels → Profile": the profile is the destination, this screen
+    //   is its front door (the theme, structural).
+    // NO GARBAGE STRINGS (his #3 defect 2): performed prints load×reps or reps; a null half drops;
+    // the verdict is +N over / met / −N short — never a bare fraction.
+    function performedStr(m) {
+      return m.loaded
+        ? (m.load != null && m.reps != null ? m.load + '×' + m.reps
+           : m.load != null ? m.load + ' lb' : m.reps != null ? m.reps + ' reps' : '')
+        : (m.reps != null ? m.reps + ' reps' : '');
+    }
+    function verdictStr(m) {
+      var v = m.verdict;
+      if (!v) return '';
+      if (v.kind === 'beat' && m.beat) {
+        var asked = (m.beat.tl != null ? m.beat.tl + '×' + (m.beat.tr != null ? m.beat.tr : m.beat.reps)
+                     : (m.beat.tr != null ? m.beat.tr + ' reps' : ''));
+        var by = (m.beat.tl != null && m.beat.load != null && m.beat.load > m.beat.tl) ? (m.beat.load - m.beat.tl)
+               : (m.beat.tr != null && m.beat.reps != null ? (m.beat.reps - m.beat.tr) : null);
+        return 'beat ' + asked + (by != null ? ' by ' + by : '') + ' 🔥';
+      }
+      if (v.kind === 'met') return 'met ✅';
+      if (v.kind === 'short') return '−' + v.n + ' ' + v.unit + (v.n === 1 ? '' : 's') + ' short';
+      return '';
+    }
+    // distance to the next rung, per exercise, from the session the athlete just finished — the
+    // same level_goal source rungProgress reads, keyed so each LEVELS line carries its own.
+    function rungGapOf(exName) {
+      try {
+        var hit = null;
+        ((SESSION && SESSION.slots) || []).forEach(function (sl) {
+          (sl.exercises || []).forEach(function (e2) {
+            if (!e2 || hit) return;
+            var names = [e2.exercise, e2.athlete_name, exLabel(e2)].map(function (s) { return String(s || '').toLowerCase(); });
+            if (names.indexOf(String(exName || '').toLowerCase()) < 0) return;
+            if (!e2.level_goal || e2.level_goal.load == null || !e2.level) return;
+            var top = null;
+            (e2.setPlan || []).forEach(function (st) { if (st.kind === 'work' && st.load != null && (top == null || st.load > top)) top = st.load; });
+            if (top == null && e2.today && e2.today.load != null) top = e2.today.load;
+            if (top == null) return;
+            hit = { gap: Math.round((Number(e2.level_goal.load) - Number(top)) * 2) / 2, level: e2.level };
+          });
+        });
+        return hit;
+      } catch (eRG) { return null; }
+    }
+    var hinges = (d.mains || []).filter(function (m) { return m.hinge !== false; });   // absent flag (old payload) = keep all
+    var others = (d.mains || []).filter(function (m) { return m.hinge === false; });
+    if (hinges.length) {
+      app.appendChild(el('h3', 'sum-t main', 'Levels 📊'));
+      hinges.forEach(function (m) {
+        var parts = [performedStr(m)].filter(Boolean);
+        var vs = verdictStr(m); if (vs) parts.push(vs);
+        if (m.leveled) parts.push('leveled up → L' + m.level + ' 🎉');
+        else {
+          var rg = rungGapOf(m.exercise) || rungGapOf(m.name);
+          if (rg && rg.gap > 0) parts.push(rg.gap + ' lb from L' + rg.level);
+          else if (rg) parts.push('L' + rg.level + ' cleared ✅');
+        }
+        var cls2 = (m.verdict && m.verdict.kind === 'short') ? 'sum-row main lvl-amber' : 'sum-row main lvl-green';
+        app.appendChild(el('div', cls2, titleName(m.name || m.exercise) + ' — ' + parts.join(' · ')));
       });
     }
-    if (d.level_ups && d.level_ups.length) {   // celebrate any rung the athlete passed this session
-      app.appendChild(el('h3', 'sum-t up', 'Leveled up! 🎉'));
+    if (d.level_ups && d.level_ups.length) {
       d.level_ups.forEach(function (u) {
-        app.appendChild(el('div', 'sum-row up levelup', titleName(u.exercise) + ' → level ' + u.level));
+        if (hinges.some(function (m) { return m.exercise === u.canonical || m.exercise === u.exercise; })) return;
+        app.appendChild(el('div', 'sum-row up levelup', titleName(u.exercise) + ' → level ' + u.level + ' 🎉'));
       });
     }
-    // THE BELOW-THE-HEADLINE STRUCTURE (Phil 2026-08-23): up to 2 secondary strength bests, one
-    // progress-to-rung line, one consistency line. 'Keep an eye on' (a deficit list) never renders
-    // on a celebration surface — the coach reads deficits in Coach View.
-    // d.secondary === [] means "nothing strength-class qualified" — honor it. Fall back to d.best
-    // only when the field is ABSENT (a pre-hierarchy payload).
-    block('Best work 🔺', (d.secondary != null ? d.secondary : (d.best || []).slice(0, 2)), 'up');
-    var rpLine = rungProgress();
-    if (rpLine && d.highlight) app.appendChild(el('div', 'sum-row up', '\ud83c\udfaf ' + rpLine));
-    if (d.sessions_n && d.highlight) app.appendChild(el('div', 'sum-row', '\u2705 Session #' + d.sessions_n + ' in the books'));
+    var bestRows = [];
+    (d.secondary != null ? d.secondary : []).forEach(function (c) {
+      if (d.highlight_ex && titleName(c.exercise) === d.highlight_ex) return;   // never repeat the headline
+      if (c.rep_pr) bestRows.push(titleName(c.exercise) + ' — ' + c.rep_pr.reps + ' reps (prev ' + c.rep_pr.prior + ') 🔺');
+      else if (c.intensity_pct != null && c.intensity_pct > 0) bestRows.push(titleName(c.exercise) + ' — load PR ▲ +' + c.intensity_pct + '%');
+      else if (c.first) bestRows.push(titleName(c.exercise) + ' — first time 🎉');
+    });
+    // a tested non-hinge lift still shows what was performed (the 2026-07-27 never-crowded-out law
+    // survives the redesign — verdict format, no PR required, riding under BEST WORK)
+    others.forEach(function (m) {
+      // the headline lift never repeats below (his rule) — its performance already leads the page
+      if (d.highlight_ex && (titleName(m.name || m.exercise) === d.highlight_ex || m.name === d.highlight_ex)) return;
+      var parts = [performedStr(m)].filter(Boolean); var vs = verdictStr(m); if (vs) parts.push(vs);
+      if (parts.length) bestRows.push(titleName(m.name || m.exercise) + ' — ' + parts.join(' · '));
+    });
+    if (bestRows.length) {
+      app.appendChild(el('h3', 'sum-t up', 'Best work 🔺'));
+      bestRows.forEach(function (t2) { app.appendChild(el('div', 'sum-row up', t2)); });
+    }
+    // FOOTER — streak, then the door to the profile (the theme, structural)
+    if (d.sessions_n) app.appendChild(el('div', 'sum-row', '\u2705 Session #' + d.sessions_n + ' in the books'));
+    var prof = el('button', 'sum-profile', 'See your levels → Profile 📈'); prof.type = 'button';
+    prof.addEventListener('click', function () { loadProfile(); });
+    app.appendChild(prof);
     backLink();                                  // small, and last — it is navigation, not the point
   }
 

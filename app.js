@@ -58,13 +58,13 @@
   // reached nobody: the phone instant-paints the OLD session from localStorage and Phil sees the bug
   // he already reported, days after it was fixed. Bump this whenever the payload shape changes —
   // same discipline as sw.js's CACHE and the server's _PAYLOAD_SCHEMA_V.
-  var CACHE_V = 'c7';   // R661: profile levels are merit now — a cached c6 profile payload carries operating rungs
+  var CACHE_V = 'c8';   // R685: session payloads gained switch_s @626 with NO bump — a cached c7 session read switchS 0 and Phil's whole 08-29 session ran trailing-rest-only. (c7 was R661: merit levels.)
   // CACHE-VERSION HANDSHAKE (Phil P0 2026-08-12, the FOURTH stale-phone bite — permanent fix).
   // APP_BUILD is this bundle's stamp; the week payload carries the server's expected build
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260828-r674';  // R674: a hiccuped profile detail re-arms on failure (tap-again is true again); prev: d11
+  var APP_BUILD = '20260829-r685';  // R685: chain survives reload + fresh switch_s adopted over a cached paint + CACHE_V c8; prev: r674
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -635,7 +635,25 @@
   // while the chain is on, and a manual start only cancels the pending transition it supersedes.
   var CHAIN = { on: false, sid: null, list: [], switchS: 0, transT: null };
   function chainCancelTransition() { if (CHAIN.transT) { clearTimeout(CHAIN.transT); CHAIN.transT = null; } }
-  function chainStop() { CHAIN.on = false; chainCancelTransition(); releaseWake(); }
+  function chainStop() { CHAIN.on = false; chainCancelTransition(); releaseWake(); chainForget(); }
+  // R685 (Phil's 2026-08-29 session): CHAIN.on was in-memory only, so an iOS memory-kill reload
+  // silently ended the chain and every gap became trailing-rest-only with no tell. The running
+  // chain now persists (localStorage — sessionStorage dies with the killed process, the exact
+  // event this survives) and render() re-adopts it for the same session within 3 hours. Only the
+  // ON/OFF state persists: the running slot timer is honestly gone after a reload; the athlete
+  // restarts the current complex and every advance chains again from there.
+  var CHAIN_PERSIST_MS = 3 * 60 * 60 * 1000;
+  function chainRemember() { try { localStorage.setItem('bp_chain_on', CHAIN.sid + '|' + Date.now()); } catch (e) {} }
+  function chainForget() { try { localStorage.removeItem('bp_chain_on'); } catch (e) {} }
+  function chainRecall(sid) {
+    try {
+      var v = localStorage.getItem('bp_chain_on'); if (!v) return false;
+      var p = v.split('|');
+      if (p[0] !== String(sid)) return false;
+      if (Date.now() - Number(p[1] || 0) > CHAIN_PERSIST_MS) { chainForget(); return false; }
+      return true;
+    } catch (e) { return false; }
+  }
   // Screen Wake Lock while the chain runs: an unattended chain on a locked phone would suspend its
   // timers (they self-correct on wake — st.end is wall-clock — but the cue would fire late, which
   // is the one thing a rest timer must not do). Progressive: absent API = silently none.
@@ -2652,10 +2670,15 @@
     if (CHAIN.on && CHAIN.sid !== (s.session_id || s.date)) chainStop();
     CHAIN.list = [];
     CHAIN.switchS = Number(s.switch_s || 0);   // older cached payloads: 0 = advance on the trailing rest
+    // R685: a reload killed the chain silently — re-adopt a remembered running chain for THIS
+    // session (bounded 3h; the athlete restarts the current complex, advances chain from there).
+    if (!CHAIN.on && chainRecall(s.session_id || s.date)) {
+      CHAIN.on = true; CHAIN.sid = s.session_id || s.date; requestWake();
+    }
     var beginWo = el('button', 'begin-wo', 'Begin Workout'); beginWo.type = 'button';
     beginWo.addEventListener('click', function () {
       if (!CHAIN.list.length) return;
-      CHAIN.on = true; CHAIN.sid = s.session_id || s.date; requestWake();
+      CHAIN.on = true; CHAIN.sid = s.session_id || s.date; requestWake(); chainRemember();
       // start at the first slot with unlogged work, so a resumed workout begins where the athlete is
       var target = null;
       for (var ci = 0; ci < CHAIN.list.length; ci++) if (!CHAIN.list[ci].doneAll()) { target = CHAIN.list[ci]; break; }
@@ -4539,6 +4562,14 @@
           return (sl.exercises || []).some(function (e) { return e.logged && Object.keys(e.logged).length; });
         });
         if (!painted || !screenTouched() || srvLogged) safeRender(data.session, sessionId);
+        else if (typeof CHAIN === 'object') {
+          // R685 (Phil's 2026-08-29 session): when the athlete is already logging over a cached
+          // paint, the fresh render is lawfully skipped — but the SCALARS the chain reads must not
+          // stay stale. His pre-@626 cached payload had no switch_s, so CHAIN.switchS held 0 for
+          // the whole session and every between-complex gap ran trailing-rest-only. Adopting the
+          // scalar is safe without a repaint: nothing rendered depends on it.
+          CHAIN.switchS = Number(data.session.switch_s || 0);
+        }
       });
   }
 

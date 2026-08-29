@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260829-r685';  // R685: chain survives reload + fresh switch_s adopted over a cached paint + CACHE_V c8; prev: r674
+  var APP_BUILD = '20260829-r686';  // R686: a blank-reps alternate reconciles to the INCOMING lift's own reps; prev: r685 (chain survives reload)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1369,6 +1369,16 @@
   // goal on the floor and demoted it to an accessory. Anything else really is a different movement
   // with its own rep scheme, and keeps the old behaviour.
   function altIsSame(a) { return String(a && a.reps || '').trim().toLowerCase() === 'same'; }
+  // R686 (Phil's Band Walks -> 90-90 SW swap, 2026-08-29): does this alternate arrive with NO rep
+  // prescription of its own? swapTarget's blank-reps branch falls back to the OUTGOING lift's reps
+  // (his 90-90 SW field read Band Walks' 15 against its own 5) — his law: a swap inherits the
+  // INCOMING exercise's full prescription. When this is true, the tap handler asks exscheme for the
+  // athlete's real prescription and reconciles, exactly like the searched path. Pure for the harness.
+  function altNeedsScheme(a) {
+    if (!a || a.main || altIsSame(a) || isMaxVal(a.reps)) return false;
+    if (a.duration_s != null) return false;                       // duration IS the prescription (L39)
+    return a.reps === '' || a.reps == null || isNaN(a.reps);
+  }
   function swapTarget(a, oEx, oT) {
     if (a.main) return { ex: oEx, t: oT };
     var same = altIsSame(a);
@@ -1592,7 +1602,36 @@
         // between "swap and keep your working weight" and "swap into an accessory".
         if (altIsSame(a)) b.appendChild(el('span', 'swap-same', 'same sets & reps'));
       }
-      b.addEventListener('click', function () { applySwapAll(origEx.exercise, a); });
+      b.addEventListener('click', function () {
+        applySwapAll(origEx.exercise, a);
+        // R686: a curated alternate with a blank reps cell applies instantly (above) but must not
+        // STAY on the outgoing lift's reps — fetch the incoming lift's own prescription and
+        // reconcile untouched rows, the searched path's proven pattern (R633/R634).
+        if (altNeedsScheme(a)) {
+          fetch(cfg.WEBAPP_URL + '?action=exscheme&athlete=' + encodeURIComponent(athlete) +
+                '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(a.name) + '&sets=3')
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              if (!d || !d.ok || d.reps == null) return;          // nothing better than what stands
+              var ents = ROW_REG[origEx.exercise] || [];
+              var touched = ents.some(function (en) {
+                return en.row.classList.contains('done') || en.row.querySelector('.stepper.confirmed');
+              });
+              if (touched) return;                                // the athlete's screen wins (R533)
+              applySwapAll(origEx.exercise, {
+                name: a.name, video_url: a.video_url || '', note: a.note || '', reason: a.reason,
+                best_reps: (d.best_reps != null ? d.best_reps : a.best_reps),
+                reps: d.reps,
+                wants_load: (a.wants_load === true) || !!d.wants_load,
+                prefill_load: (d.load != null ? d.load : (a.prefill_load != null ? a.prefill_load : null)),
+                level_goal: null,                                 // "no alternates have level goal" (Phil 2026-07-28)
+                duration_s: (d.duration_s != null ? d.duration_s : null),
+                each_side: a.each_side
+              });
+            })
+            .catch(function () {});
+        }
+      });
       panel.appendChild(b);
     });
 

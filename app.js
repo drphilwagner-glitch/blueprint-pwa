@@ -2391,11 +2391,13 @@
       app.appendChild(el('h3', 'sum-t up', 'Best work 🔺'));
       bestRows.forEach(function (t2) { app.appendChild(el('div', 'sum-row up', t2)); });
     }
-    // FOOTER — streak, then the door to the profile (the theme, structural)
-    if (d.sessions_n) app.appendChild(el('div', 'sum-row', '\u2705 Session #' + d.sessions_n + ' in the books'));
+    // FOOTER — the door to the profile FIRST (the theme, structural — and the pixels' lesson from
+    // the 08-29 bless pass: last-element placement put the door half-under the fixed nav, making
+    // the destination the easiest thing on the page to miss), then the streak.
     var prof = el('button', 'sum-profile', 'See your levels → Profile 📈'); prof.type = 'button';
     prof.addEventListener('click', function () { loadProfile(); });
     app.appendChild(prof);
+    if (d.sessions_n) app.appendChild(el('div', 'sum-row', '\u2705 Session #' + d.sessions_n + ' in the books'));
     backLink();                                  // small, and last — it is navigation, not the point
   }
 

@@ -2974,6 +2974,10 @@
               show('Nice work — you finished the round! 💪 Your next one is being built. Check back soon.');
             } else { show('No workouts scheduled yet.'); }
           }
+          // BW card renders on the pre-start screen TOO (found before it bit: Ryan opening his
+          // invite link SUNDAY would have hit this early return and never seen the card; the setup
+          // is one tap whenever he first opens, not gated on sessions existing).
+          if (data.bw_missing) renderBwIntake();
           return;
         }
         renderCalendar(data.sessions, data.next_round_preview, data.round_pending);

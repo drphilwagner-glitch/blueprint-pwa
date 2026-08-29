@@ -2975,7 +2975,38 @@
           return;
         }
         renderCalendar(data.sessions, data.next_round_preview, data.round_pending);
+        // BW SELF-ENTRY (Phil 2026-08-29 launch ruling: the athlete types their own body weight;
+        // the server writes BLANK cells only, so a coach-typed value is never touched). One quiet
+        // card above the calendar; it disappears on success and never returns (planver bump drops
+        // the flag from the next week payload).
+        if (data.bw_missing) renderBwIntake();
       });
+  }
+  function renderBwIntake() {
+    if (document.querySelector('.bw-intake')) return;
+    var card = el('section', 'slot open bw-intake');
+    card.appendChild(el('h2', 'slot-title', 'One-time setup'));
+    var body = el('div', 'sets');
+    body.appendChild(el('div', 'ex-note', 'Your body weight (lb) — your levels are computed from it:'));
+    var inp = document.createElement('input');
+    inp.type = 'number'; inp.inputMode = 'decimal'; inp.className = 'bw-in'; inp.min = 60; inp.max = 400; inp.placeholder = 'lb';
+    var save = el('button', 'roundlog', 'Save'); save.type = 'button';
+    var note = el('div', 'ex-note', '');
+    save.addEventListener('click', function () {
+      var v2 = Number(inp.value);
+      if (!v2 || v2 < 60 || v2 > 400) { note.textContent = 'Enter your weight in pounds (60–400).'; return; }
+      save.disabled = true; note.textContent = 'Saving…';
+      fetchJson(cfg.WEBAPP_URL + '?action=setbw&athlete=' + encodeURIComponent(athlete) +
+                '&token=' + encodeURIComponent(token) + '&bw=' + encodeURIComponent(v2))
+        .then(function (r2) {
+          if (r2 && r2.ok) { card.remove(); loadHome(); }
+          else { save.disabled = false; note.textContent = 'Could not save — try again.'; }
+        })
+        .catch(function () { save.disabled = false; note.textContent = 'Could not save — try again.'; });
+    });
+    body.appendChild(inp); body.appendChild(save); body.appendChild(note);
+    card.appendChild(body);
+    app.insertBefore(card, app.firstChild);
   }
   // Calendar = a CURRENT-WEEK strip + a day list. Phil, after using the month grid: "the list is
   // probably better than the calendar above. I don't know why we have the calendar above." He was

@@ -2304,8 +2304,14 @@
     if (d.mains && d.mains.length) {
       app.appendChild(el('h3', 'sum-t main', 'Main lifts 🏋️'));
       d.mains.forEach(function (m) {
-        var result = m.loaded ? ((m.load != null ? m.load : '?') + ' lb × ' + (m.reps != null ? m.reps : '?'))
-                              : ((m.reps != null ? m.reps : '?') + ' reps');
+        // R635 L1 ITEM 4 (Phil 2026-08-29): NO GARBAGE STRINGS. A null half is DROPPED, never
+        // rendered as '?' — "? lb × ?" told a kid the app lost his lift. Both halves null: the name
+        // stands alone (the row still proves the lift happened; a fabricated number would not).
+        var result = m.loaded
+          ? (m.load != null && m.reps != null ? m.load + ' lb × ' + m.reps
+             : m.load != null ? m.load + ' lb'
+             : m.reps != null ? m.reps + ' reps' : '')
+          : (m.reps != null ? m.reps + ' reps' : '');
         var tail = m.leveled ? ' · leveled up 🎉'
           : (m.delta_pct != null && m.delta_pct > 0) ? ' · ▲ +' + m.delta_pct + '%' : '';
         // HIT / SHORT vs today's prescription (Phil: the summary told him "nothing insightful" — this
@@ -2313,8 +2319,15 @@
         // honest count, not a judgment.
         // Deficit language dies on a celebration surface (Phil 2026-08-23): the honest count,
         // never "short on N of 3".
-        if (m.of) tail += ' · target ' + m.hit + '/' + m.of + (m.hit === m.of ? ' ✅' : '');
-        app.appendChild(el('div', 'sum-row main', titleName(m.name || m.exercise) + ' — ' + result + tail));
+        // R635 L1 ITEM 3: BEAT-TARGET CELEBRATED WITH THE NUMBER — the server sends the best
+        // over-target set with its prescription; the quiet ✅ stays for a plain hit.
+        if (m.beat) {
+          var did = (m.beat.load != null ? m.beat.load + '×' + m.beat.reps : m.beat.reps + ' reps');
+          var asked = (m.beat.tl != null ? m.beat.tl + '×' + (m.beat.tr != null ? m.beat.tr : m.beat.reps)
+                       : (m.beat.tr != null ? m.beat.tr + ' reps' : ''));
+          tail += ' · beat target 🔥 ' + did + (asked ? ' (asked: ' + asked + ')' : '');
+        } else if (m.of) tail += ' · target ' + m.hit + '/' + m.of + (m.hit === m.of ? ' ✅' : '');
+        app.appendChild(el('div', 'sum-row main', titleName(m.name || m.exercise) + (result ? ' — ' + result : '') + tail));
       });
     }
     if (d.level_ups && d.level_ups.length) {   // celebrate any rung the athlete passed this session

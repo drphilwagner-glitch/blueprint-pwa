@@ -707,6 +707,9 @@ span.ex-name { display: block; }
 .begin-wo { display: block; width: 100%; margin: 8px 0 10px; min-height: 38px; border: 0;
   border-radius: var(--r-9); background: var(--bp); color: var(--white);
   font-size: var(--fs-15); font-weight: 800; }
+/* R685 tell (staged): the armed chain shows as a quiet running strip in the SAME position —
+   "running" and "never started" must never look identical (the trailing-rest-only ambiguity). */
+.begin-wo.chain-on { background: var(--ok-bg-2); color: var(--ok); font-weight: 700; }
 .slot.slot-later:not(.open) > .sets,
 .slot.slot-done:not(.open) > .sets { display: none; }
 .slot.slot-later:not(.open) > .slot-sum,

@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260829-r686';  // R686: a blank-reps alternate reconciles to the INCOMING lift's own reps; prev: r685 (chain survives reload)
+  var APP_BUILD = '20260901-l301chain';  // L301/L311: chain transition = FULL cell at EVERY block boundary (excess/isComp readings dead) + R685 tell + R687 swap-restamp; prev: r686
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -681,7 +681,14 @@
     if (i < 0) return;                                            // a timer outside the chain's list
     var next = CHAIN.list[i + 1];
     if (!next) { chainStop(); timerAlert('Workout done', 'all complexes run', '', true); return; }
-    var gap = (CHAIN.list[i].isComp && next.isComp) ? Math.max(0, (CHAIN.switchS || 0) - (CHAIN.list[i].trailing || 0)) : 0;
+    // L301 (Phil 2026-08-29): the transition is the FULL complex_switch_min cell, ADDED per
+    // boundary — the excess-over-trailing reading is DEAD (the server's own reversing-line note
+    // names the old expression here as the thing that must never return). L311 (Phil 2026-08-30,
+    // "5 blocks = 4 transitions"): every rendered block takes one, warm-up blocks included — the
+    // isComp gate was the same dead 08-28 reading. Phil's 08-31 session convicted all three faces
+    // live: WUp1→Comp1 nothing, Comp1→Comp2 15s (150−135 excess), Comp2→Comp3 nothing (150−150).
+    var gap = (CHAIN.switchS || 0);
+
     if (gap > 0) chainTransition(gap, next); else next.start();
   }
   function makeTimer(node, pauseBtn, intervals, label, roundsOf, key) {
@@ -1387,8 +1394,17 @@
     // Phil's "single-leg calf raise bodyweight gave me 10 reps instead of max" (#29).
     var altMax = isMaxVal(a.reps);
     var numReps = (!altMax && a.reps !== '' && a.reps != null && !isNaN(a.reps)) ? Number(a.reps) : null;
+    // R687 PREVENTION (Phil's 08-23 variant-identity law; the 08-24 mislabel forensics): a swap to
+    // a sibling VARIANT restamps variant_name and keeps the ROOT as the exercise identity — never
+    // forking the variant into a new exercise name, which orphans its history/PRs from the variant
+    // grain AND its sets from the parent's weekly-cap fold. The search payload carries `root` for
+    // Exercise Videos variants only; alternates (genuinely different movements) have none and keep
+    // their own name with the blank variant stamp (the D-P3 rule, unchanged for them).
+    var vRoot = String(a.root || '').trim();
+    var isVariant = !!(vRoot && vRoot.toLowerCase() !== String(a.name || '').trim().toLowerCase());
     return {
-      ex: { exercise: a.name, display_name: a.name, athlete_name: a.name, variant_name: '',
+      ex: { exercise: isVariant ? vRoot : a.name, display_name: a.name, athlete_name: a.name,
+        variant_name: isVariant ? a.name : '',
         video_url: a.video_url || '', note: a.note || '', best_reps: a.best_reps,   // best_reps -> "Max" last+1 (#29)
         alternates: oEx.alternates,
         // NO ALTERNATE carries a level goal (Phil, 2026-07-28: "no alternates have level goal"). A
@@ -1677,7 +1693,7 @@
           // Whether a searched swap gets a weight field is DATA, not a guess: the Alternates 'weighted'
           // (Y/N) column and a variant's loaded root drive x.wants_load from the server (Phil, 2026-07-27:
           // "add a column G under Alternates for weighted exercises").
-          var fallback = { name: x.exercise, video_url: x.video_url || '', reps: x.default_reps,
+          var fallback = { name: x.exercise, root: x.root || '', video_url: x.video_url || '', reps: x.default_reps,
                            wants_load: x.wants_load === true, reason: 'searched' };
           // R633 (Grace's ~15s dips swap, on a cold just-deployed backend): the swap applies NOW,
           // from the library row the panel already holds — in-workout actions are <2s perceived.
@@ -1696,7 +1712,7 @@
               });
               if (touched) return;
               applySwapAll(origEx.exercise, {
-                name: x.exercise, video_url: x.video_url || '', reason: 'searched',
+                name: x.exercise, root: x.root || '', video_url: x.video_url || '', reason: 'searched',
                 best_reps: (d.best_reps != null ? d.best_reps : null),   // R634: the athlete's own variant basis rides the swap
                 reps: (d.reps != null ? d.reps : x.default_reps),
                 wants_load: (x.wants_load === true) || !!d.wants_load,   // weighted column OR Level Standards
@@ -2715,6 +2731,17 @@
       CHAIN.on = true; CHAIN.sid = s.session_id || s.date; requestWake();
     }
     var beginWo = el('button', 'begin-wo', 'Begin Workout'); beginWo.type = 'button';
+    // R685 tell (staged): an armed chain used to render as NOTHING (the button just hid), so
+    // "running" and "never started" looked identical — the exact ambiguity behind Phil's
+    // trailing-rest-only report. The button now becomes a quiet running strip instead of
+    // vanishing; when the chain dies (expiry, other session), the tappable button returns.
+    function chainTell() {
+      if (CHAIN.on && CHAIN.sid === (s.session_id || s.date)) {
+        beginWo.textContent = 'Workout running'; beginWo.classList.add('chain-on'); beginWo.disabled = true;
+      } else {
+        beginWo.textContent = 'Begin Workout'; beginWo.classList.remove('chain-on'); beginWo.disabled = false;
+      }
+    }
     beginWo.addEventListener('click', function () {
       if (!CHAIN.list.length) return;
       CHAIN.on = true; CHAIN.sid = s.session_id || s.date; requestWake(); chainRemember();
@@ -2722,9 +2749,9 @@
       var target = null;
       for (var ci = 0; ci < CHAIN.list.length; ci++) if (!CHAIN.list[ci].doneAll()) { target = CHAIN.list[ci]; break; }
       (target || CHAIN.list[0]).start();
-      beginWo.hidden = true;
+      chainTell();
     });
-    if (CHAIN.on && CHAIN.sid === (s.session_id || s.date)) beginWo.hidden = true;
+    chainTell();
     app.appendChild(beginWo);
     // Moving a workout lives on the CALENDAR (S16), not here. Phil: "We don't need to move to
     // another day on the workout that's shown. I would remove it." You decide what to shuffle while

@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260901-l301chain';  // L301/L311: chain transition = FULL cell at EVERY block boundary (excess/isComp readings dead) + R685 tell + R687 swap-restamp; prev: r686
+  var APP_BUILD = '20260902-r798sig';  // R798(b): completion_slow signal — the completion screen's summary upgrade reports itself when late (10s landed / 20s pending watchdog); prev: 20260901-l301chain (L301/L311 chain + R685 tell + R687 swap-restamp)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2968,8 +2968,28 @@
       renderSummary(n, null);
       var url = cfg.WEBAPP_URL + '?action=summary&athlete=' + encodeURIComponent(athlete) +
         '&session_id=' + encodeURIComponent(SESSION.session_id) + '&token=' + encodeURIComponent(token);
+      // R798(b) — completion_slow (Phil 2026-08-31: "add completion_slow and route it to the
+      // readiness row"). These are DETECTION thresholds, not the budget: completion_screen_max_s
+      // (Thresholds cell) is graded server-side by the speed gate (L326). The client's job is to
+      // report the athlete-felt fact — a summary upgrade that lands late (measured seconds in the
+      // message, so the report can grade it against the cell) or never lands at all (the 20-30s
+      // eyewitness class). Reports fire even if the athlete navigated away: leaving a slow screen
+      // IS the signal.
+      var COMPLETION_SLOW_MS = 10000, COMPLETION_WATCHDOG_MS = 20000;
+      var sumT0 = Date.now(), sumSettled = false, sumReported = false;
+      setTimeout(function () {
+        if (sumSettled || sumReported) return;
+        sumReported = true;
+        reportError('completion_slow', 'summary still pending after ' + COMPLETION_WATCHDOG_MS + 'ms', SESSION.session_id, '');
+      }, COMPLETION_WATCHDOG_MS);
       setTimeout(function () {
         fetchJson(url).then(function (d) {
+          sumSettled = true;
+          var sumMs = Date.now() - sumT0;
+          if (sumMs > COMPLETION_SLOW_MS && !sumReported) {
+            sumReported = true;
+            reportError('completion_slow', 'summary landed after ' + (Math.round(sumMs / 100) / 10) + 's', SESSION.session_id, '');
+          }
           if (!isCurrent(sumScreen)) return;             // the athlete moved on; leave their screen alone
           if (d && d.ok) renderSummary(n, d);            // any failure: the local completion stands
         });

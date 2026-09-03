@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260902-r798sig';  // R798(b): completion_slow signal — the completion screen's summary upgrade reports itself when late (10s landed / 20s pending watchdog); prev: 20260901-l301chain (L301/L311 chain + R685 tell + R687 swap-restamp)
+  var APP_BUILD = '20260903-r850skip';  // R850/L351: the between-complex transition is skippable (TRANS_SKIP — Grace's 09-02 trap); rider: R796 Half 2 intake screen (renders only for a missing-BW/sex/sport athlete); prev: 20260902-r798sig (completion_slow signal)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;

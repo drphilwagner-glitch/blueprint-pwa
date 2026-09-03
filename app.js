@@ -606,7 +606,12 @@
       TBAR._s = el('button', 'tb-s', '⏭'); TBAR._s.type = 'button'; TBAR._s.title = 'Skip to the next set';
       TBAR.appendChild(TBAR._l); TBAR.appendChild(TBAR._v); TBAR.appendChild(TBAR._p); TBAR.appendChild(TBAR._s);
       TBAR._p.addEventListener('click', function () { if (ACTIVE_TIMER) ACTIVE_TIMER.toggle(); });
-      TBAR._s.addEventListener('click', function () { if (ACTIVE_TIMER) ACTIVE_TIMER.skip(); });
+      TBAR._s.addEventListener('click', function () {
+        // R850: a running between-complex transition owns the ⏭ — ACTIVE_TIMER during a transition
+        // is the FINISHED previous complex (held for its "complex done" cue), whose skip() no-ops.
+        if (TRANS_SKIP) { TRANS_SKIP(); return; }
+        if (ACTIVE_TIMER) ACTIVE_TIMER.skip();
+      });
       document.body.appendChild(TBAR);
     }
     return TBAR;
@@ -634,7 +639,12 @@
   // A manual "Start Complex" mid-chain never breaks it: advance keys off whichever timer finishes
   // while the chain is on, and a manual start only cancels the pending transition it supersedes.
   var CHAIN = { on: false, sid: null, list: [], switchS: 0, transT: null };
-  function chainCancelTransition() { if (CHAIN.transT) { clearTimeout(CHAIN.transT); CHAIN.transT = null; } }
+  // R850 (Phil 2026-09-03, Grace 09-02): EVERY TRANSITION IS SKIPPABLE — the 2:30 between-complex
+  // countdown fired correctly but could not be skipped to keep moving (the bar's ⏭ was wired only
+  // to ACTIVE_TIMER, which during a transition is the FINISHED previous timer whose skip() no-ops).
+  // TRANS_SKIP is the transition's own skip hook: armed while a transition counts, cleared with it.
+  var TRANS_SKIP = null;
+  function chainCancelTransition() { if (CHAIN.transT) { clearTimeout(CHAIN.transT); CHAIN.transT = null; } TRANS_SKIP = null; }
   function chainStop() { CHAIN.on = false; chainCancelTransition(); releaseWake(); chainForget(); }
   // R685 (Phil's 2026-08-29 session): CHAIN.on was in-memory only, so an iOS memory-kill reload
   // silently ended the chain and every gap became trailing-rest-only with no tell. The running
@@ -664,12 +674,21 @@
   function chainTransition(gapS, next) {
     chainCancelTransition();
     var end = Date.now() + gapS * 1000;
+    // R850: arm the skip AFTER the cancel above (which clears any prior hook). Skipping cancels the
+    // pending tick first, so the transition can never re-fire behind the started block.
+    TRANS_SKIP = function () {
+      if (!CHAIN.transT) return;                     // stale hook (superseded/stopped): never double-start
+      chainCancelTransition();
+      beep(); timerAlert('Next complex', 'go', '', true);
+      next.start();
+    };
     (function tickT() {
-      if (!CHAIN.on) return;
+      if (!CHAIN.on) { TRANS_SKIP = null; return; }
       var left = Math.max(0, Math.round((end - Date.now()) / 1000));
       var b = tbar(); b.hidden = false; document.body.classList.add('has-tbar');
       b._l.textContent = 'Next complex'; b._v.textContent = 'in ' + fmt(left); b._p.hidden = true;
-      if (left <= 0) { CHAIN.transT = null; beep(); timerAlert('Next complex', 'go', '', true); next.start(); return; }
+      b._s.hidden = false;                           // R850: the same ⏭ affordance the rest timer has
+      if (left <= 0) { CHAIN.transT = null; TRANS_SKIP = null; beep(); timerAlert('Next complex', 'go', '', true); next.start(); return; }
       CHAIN.transT = setTimeout(tickT, 250);
     })();
   }
@@ -3086,7 +3105,7 @@
           // BW card renders on the pre-start screen TOO (found before it bit: Ryan opening his
           // invite link SUNDAY would have hit this early return and never seen the card; the setup
           // is one tap whenever he first opens, not gated on sessions existing).
-          if (data.bw_missing) renderBwIntake();
+          if (data.bw_missing) renderBwIntake(data);
           return;
         }
         renderCalendar(data.sessions, data.next_round_preview, data.round_pending);
@@ -3094,32 +3113,77 @@
         // the server writes BLANK cells only, so a coach-typed value is never touched). One quiet
         // card above the calendar; it disappears on success and never returns (planver bump drops
         // the flag from the next week payload).
-        if (data.bw_missing) renderBwIntake();
+        if (data.bw_missing) renderBwIntake(data);
       });
   }
-  function renderBwIntake() {
+  // R796 HALF 2 (2026-09-02): the THREE-FIELD intake screen — Phil's spec verbatim: BW (required,
+  // the overwrite door lives server-side and only while intake is incomplete) + Sex (M/F, blank-only
+  // server-side — a coach-typed value renders LOCKED here, never as an editable field whose entry
+  // would be discarded) + Sport/Position (picker; option list = Position Plan col A, riding the week
+  // payload — rule 16, never hardcoded). Falls back to the original one-field BW card when the
+  // payload predates the intake fields (older server), so no client/server deploy order can strand it.
+  function renderBwIntake(data) {
     if (document.querySelector('.bw-intake')) return;
+    data = data || {};
+    var pf = data.intake_prefill || {};
+    var sports = data.intake_sports || null;
+    var threeField = !!(data.intake_missing && sports);
     var card = el('section', 'slot open bw-intake');
     card.appendChild(el('h2', 'slot-title', 'One-time setup'));
     var body = el('div', 'sets');
     body.appendChild(el('div', 'ex-note', 'Your body weight (lb) — your levels are computed from it:'));
     var inp = document.createElement('input');
     inp.type = 'number'; inp.inputMode = 'decimal'; inp.className = 'bw-in'; inp.min = 60; inp.max = 400; inp.placeholder = 'lb';
+    if (threeField && pf.bw) inp.value = String(pf.bw);
+    body.appendChild(inp);   // the BW field sits under its own label, ahead of the sex/sport fields
+    var sexSel = null, sportSel = null;
+    if (threeField) {
+      body.appendChild(el('div', 'ex-note', 'Sex:'));
+      if (pf.sex) {
+        body.appendChild(el('div', 'ex-note', pf.sex === 'M' ? 'Male — set by your coach' : 'Female — set by your coach'));
+      } else {
+        sexSel = document.createElement('select'); sexSel.className = 'bw-in';
+        [['', 'Choose…'], ['M', 'Male'], ['F', 'Female']].forEach(function (o) {
+          var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; sexSel.appendChild(op);
+        });
+        body.appendChild(sexSel);
+      }
+      body.appendChild(el('div', 'ex-note', 'Sport & position:'));
+      if (pf.sport) {
+        body.appendChild(el('div', 'ex-note', pf.sport + ' — set by your coach'));
+      } else {
+        sportSel = document.createElement('select'); sportSel.className = 'bw-in';
+        var op0 = document.createElement('option'); op0.value = ''; op0.textContent = 'Choose…'; sportSel.appendChild(op0);
+        sports.forEach(function (s9) {
+          var op9 = document.createElement('option'); op9.value = s9; op9.textContent = s9; sportSel.appendChild(op9);
+        });
+        body.appendChild(sportSel);
+      }
+    }
     var save = el('button', 'roundlog', 'Save'); save.type = 'button';
     var note = el('div', 'ex-note', '');
     save.addEventListener('click', function () {
       var v2 = Number(inp.value);
       if (!v2 || v2 < 60 || v2 > 400) { note.textContent = 'Enter your weight in pounds (60–400).'; return; }
+      var sexV = pf.sex || (sexSel ? sexSel.value : '');
+      if (threeField && !sexV) { note.textContent = 'Choose Male or Female.'; return; }
+      var sportV = pf.sport ? '' : (sportSel ? sportSel.value : '');   // a coach-set sport is never re-sent
+      if (threeField && !pf.sport && !sportV) { note.textContent = 'Choose your sport & position.'; return; }
       save.disabled = true; note.textContent = 'Saving…';
-      fetchJson(cfg.WEBAPP_URL + '?action=setbw&athlete=' + encodeURIComponent(athlete) +
-                '&token=' + encodeURIComponent(token) + '&bw=' + encodeURIComponent(v2))
+      var url = threeField
+        ? cfg.WEBAPP_URL + '?action=setintake&athlete=' + encodeURIComponent(athlete) +
+          '&token=' + encodeURIComponent(token) + '&bw=' + encodeURIComponent(v2) +
+          '&sex=' + encodeURIComponent(sexV) + '&sport=' + encodeURIComponent(sportV)
+        : cfg.WEBAPP_URL + '?action=setbw&athlete=' + encodeURIComponent(athlete) +
+          '&token=' + encodeURIComponent(token) + '&bw=' + encodeURIComponent(v2);
+      fetchJson(url)
         .then(function (r2) {
           if (r2 && r2.ok) { card.remove(); loadHome(); }
           else { save.disabled = false; note.textContent = 'Could not save — try again.'; }
         })
         .catch(function () { save.disabled = false; note.textContent = 'Could not save — try again.'; });
     });
-    body.appendChild(inp); body.appendChild(save); body.appendChild(note);
+    body.appendChild(save); body.appendChild(note);
     card.appendChild(body);
     app.insertBefore(card, app.firstChild);
   }

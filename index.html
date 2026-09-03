@@ -10,6 +10,58 @@
   <link rel="icon" href="icon-192.png">
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="styles.css">
+  <!-- BOOT-WATCHDOG -->
+  <script>
+    // R847 (Grace 2026-09-02): new iPhone, blank screen for two minutes, reload after reload — and
+    // ZERO ErrorLog rows, because every reporter this app has lives in app.js, which never ran far
+    // enough to send one. The completion screen reports its own slowness (R798); the SHELL did not.
+    // This runs before config.js and app.js, depends on neither, and at N seconds reports from
+    // wherever the boot got to: html -> config (config.js ran) -> app (app.js ran) -> painted (#app
+    // shows something other than the Loading placeholder). A boot that cannot even reach the server
+    // is the absence detector's job (no device contact on a scheduled day) — nothing here can post.
+    window.__bpBoot = { t0: Date.now(), stage: 'html', err: '', report: '' };
+    window.addEventListener('error', function (e) {
+      try {
+        if (window.__bpBoot.err) return;
+        var m = (e && (e.message || (e.error && e.error.message))) || 'error';
+        var f = (e && e.filename) ? ' @' + String(e.filename).replace(/^.*\//, '') + ':' + (e.lineno || 0) : '';
+        window.__bpBoot.err = String(m).slice(0, 200) + f;
+      } catch (x) {}
+    }, true);
+    (function () {
+      var N = Number(window.__bpBootMs || 45000);   // a cold calendar is 20-36s measured (2026-09-03); 45s is a stall
+      function reached() {
+        var app = document.getElementById('app');
+        var txt = app ? String(app.textContent || '') : '';
+        if (app && app.children.length && !/^\s*Loading/.test(txt)) return 'painted';
+        if (window.BP_handshake) return 'app';
+        if (window.BP_CONFIG) return 'config';
+        return 'html';
+      }
+      setTimeout(function () {
+        var st = reached(); if (st === 'painted') return;
+        var b = window.__bpBoot;
+        var msg = 'no first paint after ' + Math.round((Date.now() - b.t0) / 1000) + 's; reached: ' + st +
+                  (b.err ? '; first error: ' + b.err : '') + '; online=' + String(navigator.onLine);
+        b.report = msg;
+        try { (window.__bpErrLog = window.__bpErrLog || []).push('boot_stall'); } catch (x) {}   // the journeys' seam (j34 precedent)
+        var cfg = window.BP_CONFIG || {};
+        if (!cfg.WEBAPP_URL || /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname)) return;   // errorhygiene: never from the harness
+        var athlete = '';
+        try { athlete = new URLSearchParams(location.search).get('athlete') || localStorage.getItem('bp_athlete') || ''; } catch (x) {}
+        var body = { action: 'clienterror', athlete: athlete || '(none)', kind: 'boot_stall', message: msg,
+          source: 'index.html watchdog', device: navigator.userAgent,
+          screen: window.innerWidth + 'x' + window.innerHeight +
+                  (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches ? ' standalone' : ' browser'),
+          app_version: 'shell', url: location.href.replace(/token=[^&]*/, 'token=***'), extra: '' };
+        try {
+          fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(body) }).catch(function () {});
+        } catch (x) {}
+      }, N);
+    })();
+  </script>
+  <!-- /BOOT-WATCHDOG -->
 </head>
 <body>
   <header id="hdr">

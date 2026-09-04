@@ -223,7 +223,9 @@
             var c = localStorage.getItem('bp_crumb');
             if (c) { var o = JSON.parse(c); ctx = ' WHILE: ' + (o.state || '') + ' ' + (o.extra || ''); }
           } catch (e) {}
-          return (String(extra || '') + ctx).slice(0, 900);
+          var tag = '';
+          try { if (localStorage.getItem('bp_journey') === '1') tag = '[source=journey] '; } catch (eJ) {}   // R875: a journey's row is never a kid's
+          return (tag + String(extra || '') + ctx).slice(0, 900);
         })()
       };
       fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors',

@@ -3478,12 +3478,36 @@
 
   // ---- bottom nav: Calendar / Workout / Profile, reachable from any screen (S18 AC1) ----
   var NAV = null;
+  // R704 (Phil's spec): ONE button reachable from ANY screen — athlete taps, types one free line,
+  // sends. The nav persists on every screen (it is appended to body once), so the button lives
+  // there; no categories, no forms — a single prompt, verbatim words to the coach. The screen it
+  // was sent from and the open session ride the request so the Coach View can tie it to the day.
+  function tellCoachNote() {
+    var words = window.prompt('Tell coach — one line, anything:');
+    if (!words || !words.trim()) return;
+    var scr = 'app';
+    try { var onB = NAV && NAV.querySelector('.nav-b.on'); if (onB && onB.dataset.k) scr = { cal: 'calendar', wo: 'workout', prof: 'profile' }[onB.dataset.k] || onB.dataset.k; } catch (e) {}
+    try { if (document.querySelector('.summary')) scr = 'completion'; } catch (e) {}
+    fetch(cfg.WEBAPP_URL + '?action=report&athlete=' + encodeURIComponent(athlete) +
+          '&token=' + encodeURIComponent(token) + '&kind=note&screen=' + encodeURIComponent(scr) +
+          '&detail=' + encodeURIComponent(words.trim()))
+      .then(function (r) { return r.json(); })
+      .then(function (d) { toast(d && d.ok ? 'Sent to coach 👍' : 'Could not send — try again'); })
+      .catch(function () { toast('Offline — try again when connected'); });
+  }
+  function toast(msg) {
+    // never show(): that replaces the whole screen mid-workout. A small self-removing chip.
+    var t = el('div', 'mini-toast', msg);   // the existing chip style — no new theme values (UI-gov rule 3)
+    document.body.appendChild(t);
+    setTimeout(function () { try { t.remove(); } catch (e) {} }, 2500);
+  }
   function renderNav(active) {
     if (!NAV) {
       NAV = el('nav', 'nav');
       [['cal', '📅', 'Calendar', function () { loadHome(); }],
        ['wo', '🏋️', 'Workout', function () { openToday(); }],
-       ['prof', '📈', 'Profile', function () { loadProfile(); }]].forEach(function (d) {
+       ['prof', '📈', 'Profile', function () { loadProfile(); }],
+       ['msg', '💬', 'Tell coach', function () { tellCoachNote(); }]].forEach(function (d) {
         var b = el('button', 'nav-b'); b.type = 'button'; b.dataset.k = d[0];
         b.appendChild(el('span', 'nav-i', d[1])); b.appendChild(el('span', 'nav-t', d[2]));
         b.addEventListener('click', d[3]);

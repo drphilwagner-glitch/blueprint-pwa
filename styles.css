@@ -323,7 +323,9 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
    Designed around DISTANCE-TO-NEXT-RUNG: a sub-level takes 3-12 weeks, so a table of
    bests would sit frozen for months. The bar is the unit of hope; bests are the record.
    ========================================================================== */
-.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(3, 1fr);
+/* R704: four columns — the 💬 Tell coach button joined the nav (the 3-col grid wrapped it onto a
+   second row on the first 390px look; rule 2 caught it before anyone shipped it). */
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(4, 1fr);
   background: var(--veil); border-top: 1px solid var(--line); backdrop-filter: blur(8px);
   padding-bottom: env(safe-area-inset-bottom); }
 .nav-b { border: 0; background: none; padding: 8px 4px 7px; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); color: var(--muted); }

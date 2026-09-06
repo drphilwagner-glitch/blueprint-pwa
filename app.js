@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260904-r704msg';  // R704: the 💬 Tell coach button — one free line from any screen (4-col nav); prev: 20260903-r850skip (transition skip + intake rider)
+  var APP_BUILD = '20260905-r884days';  // R884: 📅 Fewer days now rebuilds the week (pick 0-6 → confirm → server re-lays remaining days); prev: 20260904-r704msg (Tell coach button)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -4542,8 +4542,26 @@
     });
     var tb2 = el('button', 'tc-btn', '📅 Fewer days this week'); tb2.type = 'button';
     tb2.addEventListener('click', function () {
-      var n = window.prompt('How many days can you train this week?');
-      if (n && n.trim()) tcSend('days', 'can train ' + n.trim() + ' day(s) this week');
+      // R884 LIFE HAPPENS (Phil's ruled L319 exception — the athlete's own tap is the human word):
+      // this used to only send a note; it now REBUILDS the rest of the round at the new count on
+      // the server's judged path (done sessions untouched; a refused rebuild changes nothing and
+      // says so). Same prompt idiom as the rest of Tell Coach; the confirm carries Phil's own
+      // sheet wording.
+      var n = window.prompt('How many days can you train this week? (0 ends this round early)');
+      if (n == null || n.trim() === '') return;
+      var nd = parseInt(n.trim(), 10);
+      if (isNaN(nd) || nd < 0 || nd > 6) { show('Enter a number of days, 0-6.'); return; }
+      if (!window.confirm('Train ' + nd + ' day(s) this week? This rebuilds your remaining sessions. Workouts you already finished don’t change.')) return;
+      show('Rebuilding your week…');
+      fetch(cfg.WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'lifehappens', athlete: athlete, token: token, new_days: nd }) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.ok) { show('Done — your week is updated 👍'); setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
+          else if (d && d.result && /REFUSED/.test(d.result)) { show('Could not rebuild — nothing was changed. Your coach can see why.'); tcSend('days', 'asked for ' + nd + ' day(s); the rebuild refused'); }
+          else { show('Could not send — try again'); }
+        })
+        .catch(function () { show('Offline — try again when connected'); });
     });
     tcRow.appendChild(tb1); tcRow.appendChild(tb2);
     tc.appendChild(tcRow);

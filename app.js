@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260905-r884days';  // R884: 📅 Fewer days now rebuilds the week (pick 0-6 → confirm → server re-lays remaining days); prev: 20260904-r704msg (Tell coach button)
+  var APP_BUILD = '20260906-r928highlights';  // R928: the completion screen paints its highlights at once from the phone's own sets (his 'the highlights are the screen'); prev: 20260905-r884days (Fewer days)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2391,7 +2391,61 @@
       back.addEventListener('click', function () { loadHome(); });
       app.appendChild(back);
     }
-    if (!d || !d.ok || !d.logged) { app.appendChild(el('p', 'empty', 'Nice work.')); backLink(); return; }
+    // R928 (Phil 2026-09-06, his acceptance-NO on the completion screen, verbatim: "Two phases:
+    // 'completed,' then ~5 s later the highlights (best volume / best 1RM). The highlights are the
+    // screen. Paint them first; no wait state."): the immediate paint now computes the highlights
+    // from the phone's OWN data — this session's logged sets (COMMIT_SIG) against the payload's
+    // local history (SESSION.history, the same numbers the history panel shows at 0s) — with the
+    // history panel's own scoring (Epley for loaded sets, reps for reps-only, never mixed; zero
+    // reps are never evidence, rule 40). The server's richer summary still upgrades in place.
+    function localHighlights() {
+      var out = { top: null, rows: [] };
+      try {
+        var sid = SESSION && SESSION.session_id; if (!sid) return out;
+        var pref = sid + '|', today = {};
+        Object.keys(COMMIT_SIG).forEach(function (k) {
+          if (k.indexOf(pref) !== 0) return;
+          var kp = k.split('|'); if (kp.length < 4) return;
+          var ex = kp[kp.length - 2];             // complex names may carry '|'; the exercise is 2nd-from-end
+          var sv = String(COMMIT_SIG[k]).split('|');
+          var load = Number(sv[0]), reps = Number(sv[1]);
+          if (!(reps > 0)) return;
+          var t9 = (today[ex] = today[ex] || { vol: 0, bestE: 0, best: null });
+          if (load > 0) t9.vol += load * reps;
+          var e9 = load > 0 ? load * (1 + reps / 30) : reps;
+          if (e9 > t9.bestE) { t9.bestE = e9; t9.best = { load: load, reps: reps }; }
+        });
+        var prs = [], tops = [];
+        Object.keys(today).forEach(function (ex) {
+          var t9 = today[ex], hb = 0, hv = 0;
+          (((SESSION && SESSION.history) || {})[ex] || []).forEach(function (day) {
+            hv = Math.max(hv, Number(day.vol) || 0);
+            (day.sets || []).forEach(function (s2) {
+              var l = Number(s2.load), rp = Number(s2.reps) || 0; if (rp <= 0) return;
+              var e8 = l > 0 ? l * (1 + rp / 30) : rp;
+              if (e8 > hb) hb = e8;
+            });
+          });
+          var bs = t9.best ? (t9.best.load > 0 ? t9.best.load + ' lb × ' + t9.best.reps : t9.best.reps + ' reps') : null;
+          if (hb > 0 && t9.bestE > hb && bs) prs.push('🏆 ' + titleName(ex) + ' — new best set: ' + bs);
+          else if (hv > 0 && t9.vol > hv) prs.push('📈 ' + titleName(ex) + ' — best volume yet: ' + Math.round(t9.vol) + ' lb');
+          else if (bs) tops.push(titleName(ex) + ' — top set ' + bs + (t9.vol > 0 ? ' · vol ' + Math.round(t9.vol) : ''));
+        });
+        if (prs.length) { out.top = prs[0]; out.rows = prs.slice(1).concat(tops).slice(0, 4); }
+        else out.rows = tops.slice(0, 4);
+      } catch (eLH) {}
+      return out;
+    }
+    if (!d || !d.ok || !d.logged) {
+      var lh = localHighlights();
+      if (lh.top) app.appendChild(el('p', 'sum-highlight', lh.top));
+      if (lh.rows.length) {
+        app.appendChild(el('h3', 'sum-t up', 'Today’s best work'));
+        lh.rows.forEach(function (r9) { app.appendChild(el('div', 'sum-row up', r9)); });
+      }
+      if (!lh.top && !lh.rows.length) app.appendChild(el('p', 'empty', 'Nice work.'));
+      backLink(); return;
+    }
     // ══ THE FOUR-SECTION SHAPE (Phil 2026-08-29 redesign — his spec verbatim) ══════════════════
     // HEADLINE (above) — trophy hierarchy, never repeated below (d.highlight_ex is the dedupe key).
     // LEVELS — one line per hinge trained today: performed · verdict vs asked · distance to next

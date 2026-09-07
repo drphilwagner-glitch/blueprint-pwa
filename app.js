@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260906-r928highlights';  // R928: the completion screen paints its highlights at once from the phone's own sets (his 'the highlights are the screen'); prev: 20260905-r884days (Fewer days)
+  var APP_BUILD = '20260906-r929logged';  // R929: a logged session reads done on the calendar at once (the cached week adopts the status flip); prev: 20260906-r928highlights (completion highlights paint first), 20260905-r884days (Fewer days)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2643,6 +2643,17 @@
       return { card: card, rounds: rounds, done: doneCount, total: rounds.length,
                allDone: rounds.length > 0 && doneCount === rounds.length, anyDone: doneCount > 0 };
     });
+    // R929: tell the cached week what the calendar will show — 'started' once any row is checked,
+    // 'done' when every row is. Stricter than the server's own rule (a standing log per complex), so
+    // the phone never claims done before the server would. refocus() runs on every commit path.
+    try {
+      var allRowsR = [].slice.call(app.querySelectorAll('.ex-row'));
+      if (SESSION && SESSION.session_id && allRowsR.length) {
+        var doneRowsR = allRowsR.filter(function (r) { return r.classList.contains('done'); }).length;
+        if (doneRowsR === allRowsR.length) patchWeekCacheStatus(SESSION.session_id, 'done');
+        else if (doneRowsR > 0) patchWeekCacheStatus(SESSION.session_id, 'started');
+      }
+    } catch (eR9) {}
     // A collapsed, not-fully-logged complex: "X of Y done" if some sets landed (partial), else "not done"
     // (Phil, 2026-07-27: "five of the six were done… it shouldn't say not done").
     var partialLabel = function (x) { return x.done > 0 ? (x.done + ' of ' + x.total + ' done') : 'not done'; };
@@ -3111,6 +3122,22 @@
         if (String(s.session_id) === String(sessionId)) s.date = String(toDate);
       });
       localStorage.setItem(k, JSON.stringify(obj));
+    } catch (e) {}
+  }
+  // R929 (Phil 2026-09-06, "the lagging checkmark"): the phone's cached week adopts the status the
+  // server will report the instant a commit changes it — planned -> started on the first set, -> done
+  // when every row is checked — so the calendar's instant paint after Back is already right. The
+  // server kills its own week key on the same flip (_statusFlipKeys_); this is the phone's half.
+  // Never downgrades: a session the server already reports done stays done.
+  function patchWeekCacheStatus(sessionId, status) {
+    try {
+      var k = 'bp_week_' + CACHE_V + '_' + athlete;
+      var raw = localStorage.getItem(k); if (!raw) return;
+      var obj = JSON.parse(raw), changed = false;
+      (obj.sessions || []).forEach(function (s) {
+        if (String(s.session_id) === String(sessionId) && s.status !== 'done' && s.status !== status) { s.status = status; changed = true; }
+      });
+      if (changed) localStorage.setItem(k, JSON.stringify(obj));
     } catch (e) {}
   }
   function loadHome() {

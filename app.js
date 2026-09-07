@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260906-r929logged';  // R929: a logged session reads done on the calendar at once (the cached week adopts the status flip); prev: 20260906-r928highlights (completion highlights paint first), 20260905-r884days (Fewer days)
+  var APP_BUILD = '20260906-r904freshflags';  // R904: the fresh payload's each_side flags win over a stale cached paint at commit (Phil's refused Hanging Leg Raise); prev: 20260906-r929logged (a logged session reads done at once), 20260906-r928highlights (completion highlights paint first)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1929,7 +1929,7 @@
       l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';
       if (arguments.length > 1 && arguments[1] != null && arguments[1] > 0) l.duration_s2 = arguments[1];
       LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, ex.exercise, t.set_no)] = true;
-      logRows(splitSides(l, ex.each_side)); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
+      logRows(splitSides(l, freshEachSide(slot, ex.exercise, ex.each_side))); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
       // COLLAPSE. refocus() is what recomputes a round and folds it away once every row in it is done,
       // and the lifting commit() has always called it — this one never did. So a complex collapsed and
       // a warm-up containing a carry or a Depth Jump did not, which is exactly the split Phil saw:
@@ -2207,7 +2207,9 @@
       lastSig = sig;
       COMMIT_SIG[sigK] = sig; saveCommitSig();   // R381: outlives this render
       LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)] = true;
-      logRows(splitSides(log, cur.each_side));
+      // R904: the FRESH payload's flag wins over the render-time `cur` (a swapped alternate has no fresh
+      // entry under its own name and keeps the swap's flag)
+      logRows(splitSides(log, freshEachSide(slot, cur.exercise, cur.each_side)));
       row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
       refocus();   // rule 1: finishing a set advances what's in focus
     }
@@ -3637,6 +3639,28 @@
   function doneKey(sid, slot, exName, setNo) {
     return [sid, slot && slot.complex_name, exName, setNo].join('|');
   }
+  // R904 RE-OPENED (Phil 2026-09-06): his phone painted a CACHED session from before his 09-03 Workbook
+  // flip (Hanging Leg Raise each_side true) and, because he was already logging, the fresh payload's
+  // re-render was lawfully skipped (R685) — so every row he committed split L/R against a server that
+  // serves the lift bilateral, and the sets were refused. The fresh payload's FLAGS are adopted here
+  // even when its render is skipped, and every commit re-reads them before splitting sides. The server
+  // folds a stale pair regardless (rule 40); this half stops the phone sending one.
+  var FRESH_FLAGS = {};
+  function adoptFreshFlags(sess) {
+    if (!sess || !sess.session_id) return;
+    (sess.slots || []).forEach(function (sl) {
+      (sl.exercises || []).forEach(function (e) {
+        if (!e || !e.exercise) return;
+        FRESH_FLAGS[[sess.session_id, sl.complex_name, e.exercise].join('|')] = !!e.each_side;
+      });
+    });
+  }
+  function freshEachSide(slot, exName, fallback) {
+    var sid = SESSION && SESSION.session_id;
+    if (!sid) return fallback;
+    var v = FRESH_FLAGS[[sid, slot && slot.complex_name, exName].join('|')];
+    return v == null ? fallback : v;
+  }
   // R381 — THE L167 WRITER GUARD'S DURABLE HALF. `lastSig` (the per-row closure at the commit site)
   // only ever remembered what THIS render appended; a re-render re-armed every row and the round's
   // Update button re-committed the lot under fresh log_ids. Same key shape as `doneKey` — one entry
@@ -4822,7 +4846,7 @@
     fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))
       .then(function (data) {
         settled = true;
-        if (data && data.ok && data.session) cacheSession(sessionId, data.session);
+        if (data && data.ok && data.session) { cacheSession(sessionId, data.session); adoptFreshFlags(data.session); }   // R904: flags adopted even when the render below is skipped
         if (!isCurrent(_screen)) return;   // athlete moved on; the cache above still updated
         if (data && (data.error === 'offline' || data.error === 'server')) {
           if (!painted) show(data.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to open this workout.', 'err');

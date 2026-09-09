@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260906-r904freshflags';  // R904: the fresh payload's each_side flags win over a stale cached paint at commit (Phil's refused Hanging Leg Raise); prev: 20260906-r929logged (a logged session reads done at once), 20260906-r928highlights (completion highlights paint first)
+  var APP_BUILD = '20260908-r884refusal';  // R904: the fresh payload's each_side flags win over a stale cached paint at commit (Phil's refused Hanging Leg Raise); prev: 20260906-r929logged (a logged session reads done at once), 20260906-r928highlights (completion highlights paint first)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -4633,11 +4633,14 @@
     var tc = el('div', 'tellcoach');
     tc.appendChild(el('div', 'p-block-h', 'Tell coach'));
     var tcRow = el('div', 'tc-row');
-    function tcSend(kind, detail) {
+    // `quiet` (R884, j46 2026-09-08): a note sent BEHIND another message keeps that message on the screen —
+    // the refused rebuild's "nothing was changed" was being replaced by "Sent to coach 👍" a few ms later,
+    // so the athlete never read that nothing changed.
+    function tcSend(kind, detail, quiet) {
       fetch(cfg.WEBAPP_URL + '?action=report&athlete=' + encodeURIComponent(athlete) +
             '&token=' + encodeURIComponent(token) + '&kind=' + kind + '&detail=' + encodeURIComponent(detail))
         .then(function (r) { return r.json(); })
-        .then(function (d) { show(d && d.ok ? 'Sent to coach 👍' : 'Could not send — try again'); })
+        .then(function (d) { if (d && d.ok) { if (!quiet) show('Sent to coach 👍'); } else show('Could not send — try again'); })
         .catch(function () { show('Offline — try again when connected'); });
     }
     var tb1 = el('button', 'tc-btn', '🚑 New pain or injury'); tb1.type = 'button';
@@ -4663,7 +4666,7 @@
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d && d.ok) { show('Done — your week is updated 👍'); setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
-          else if (d && d.result && /REFUSED/.test(d.result)) { show('Could not rebuild — nothing was changed. Your coach can see why.'); tcSend('days', 'asked for ' + nd + ' day(s); the rebuild refused'); }
+          else if (d && d.result && /REFUSED/.test(d.result)) { show('Could not rebuild — nothing was changed. Your coach has been told why.'); tcSend('days', 'asked for ' + nd + ' day(s); the rebuild refused', true); }
           else { show('Could not send — try again'); }
         })
         .catch(function () { show('Offline — try again when connected'); });

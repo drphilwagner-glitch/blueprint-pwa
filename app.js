@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260912-r1003done4';  // shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set that never leaves the phone reports itself) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20260912-r1003done5';  // shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -440,17 +440,22 @@
     if (mean != null) sec.appendChild(el('div', 'regen-hist-mean', '4-week mean ' + mean));
     return sec;
   }
-  function qAdd(row) { return qStore('readwrite').then(function (s) { return new Promise(function (res) { s.put(row); s.transaction.oncomplete = res; }); }); }
+  function qAdd(row) { try { if (row && row._q_at == null) row._q_at = Date.now(); } catch (eQa) {}   // when it was queued — the beacon reports only what has sat unsent (Mason 09-12 15:0x: four reports of sets that drained seconds later)
+    return qStore('readwrite').then(function (s) { return new Promise(function (res) { s.put(row); s.transaction.oncomplete = res; }); }); }
   function qAll() { return qStore('readonly').then(function (s) { return new Promise(function (res) { var rq = s.getAll(); rq.onsuccess = function () { res(rq.result || []); }; }); }); }
   try { window.BP_qCount = function () { return qAll().then(function (r) { return r.length; }); }; } catch (e) {}   // j20 asserts a tap really queued
   // R1003 (Grace 2026-09-10): her third Pullups set never reached the Workbook — the server refused nothing, the phone wrote no
   // unconfirmed-send row, and the morning report said zero device errors. A set that never leaves the phone must report itself
   // (rule 14: Phil is never the sensor). When the page goes away with sets still queued, the phone reports `queue_pending` with
   // their coordinates, on a transport that survives the unload (sendBeacon / keepalive). Once per distinct set of ids per session.
+  var QUEUE_BEACON_MIN_AGE_MS = 45000;   // a row unsent this long at unload is a set the phone is failing to deliver, not a set between taps
   function queueBeacon(why) {
     try {
       qAll().then(function (rows) {
-        var sets = (rows || []).filter(function (r) { return r && r.exercise && String(r.flag || '') !== 'regen'; });
+        // Mason 2026-09-12 15:05–15:29: four reports of sets that drained seconds later — a set queued between two taps and a
+        // backgrounding is not a lost set. Only rows that have sat unsent past QUEUE_BEACON_MIN_AGE_MS are reported.
+        var nowQ = Date.now();
+        var sets = (rows || []).filter(function (r) { return r && r.exercise && String(r.flag || '') !== 'regen' && (r._q_at == null || (nowQ - Number(r._q_at)) >= QUEUE_BEACON_MIN_AGE_MS); });
         if (!sets.length) return;
         var ids = sets.map(function (r) { return String(r.log_id || '').slice(0, 8); }).sort().join(',');
         var what = sets.slice(0, 6).map(function (r) { return r.exercise + (r.set_no !== '' && r.set_no != null ? ' set ' + r.set_no : '') + (r.side ? ' ' + r.side : ''); }).join(', ');

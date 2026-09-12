@@ -245,6 +245,7 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 @media (prefers-color-scheme: dark){ .sum-row.levelup { background: var(--ok-deep); } }
 /* Main lifts — the coach's headline block; brand-blue accent, always present */
 .sum-t.main { color: var(--bp); }
+.sum-t.skip { color: var(--muted); } .sum-row.skip { color: var(--muted); }   /* R993: skipped lifts are named, never celebrated */
 .sum-row.main { border-left: 4px solid var(--bp); font-weight: 600; }
 
 /* rest-timer "up" alert — a half-screen banner that flashes then fades as the timer rolls on */

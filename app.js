@@ -1291,6 +1291,7 @@
           exercise: exName, set_no: (setNo == null ? '' : setNo), side: '', target_load: '', target_reps: '',
           actual_load: '', actual_reps: '', flag: 'uncheck', variant_name: '' }]);
       }
+      try { delete SKIPPED_LOCAL[exName]; } catch (eSL2) {}   // R993: un-skipped — eligible again
       skipRows(exName, setNo).forEach(function (en2) {
         en2.row.classList.remove('skipped');
         var l2 = en2.row.querySelector('.skiplab'); if (l2) l2.remove();
@@ -1314,6 +1315,7 @@
       exercise: exName, set_no: (setNo == null ? '' : setNo), side: '', target_load: '', target_reps: '',
       actual_load: '', actual_reps: '', flag: 'skip:' + reason };
     qAdd(marker).then(function () { drain(); }).catch(function () {});
+    try { SKIPPED_LOCAL[exName] = reason; } catch (eSL) {}   // R993: a skipped lift is never celebrated
     markRowsSkipped(exName, reason, slot, setNo);
   }
   function toggleSkip(row, ex, slot, setNo) {
@@ -2409,6 +2411,7 @@
           if (k.indexOf(pref) !== 0) return;
           var kp = k.split('|'); if (kp.length < 4) return;
           var ex = kp[kp.length - 2];             // complex names may carry '|'; the exercise is 2nd-from-end
+          if (SKIPPED_LOCAL[ex]) return;          // R993: a lift skipped this session is never celebrated
           var sv = String(COMMIT_SIG[k]).split('|');
           var load = Number(sv[0]), reps = Number(sv[1]);
           if (!(reps > 0)) return;
@@ -2438,6 +2441,26 @@
       } catch (eLH) {}
       return out;
     }
+    // R993 / L162 amended (Phil 2026-09-12, verbatim: "a skipped lift is never 'done'"): the lifts skipped this
+    // session print under their own heading, by name and reason, and never in a celebration list. The server
+    // names them (d.skipped); before it answers, or on an old payload, the phone's own skip map does.
+    function isSkipped(nm) {
+      var t = titleName(nm || '');
+      if (SKIPPED_LOCAL[nm] || SKIPPED_LOCAL[t]) return true;
+      return ((d && d.skipped) || []).some(function (k9) { return k9.exercise === nm || titleName(k9.exercise) === t; });
+    }
+    function skippedBlock() {
+      var items = ((d && d.skipped) || []).map(function (k9) { return { exercise: k9.exercise, reason: k9.reason }; });
+      Object.keys(SKIPPED_LOCAL).forEach(function (nm) {
+        if (!items.some(function (k9) { return k9.exercise === nm; })) items.push({ exercise: nm, reason: SKIPPED_LOCAL[nm] });
+      });
+      if (!items.length) return;
+      app.appendChild(el('h3', 'sum-t skip', 'Skipped'));
+      items.forEach(function (k9) {
+        var why = (k9.reason === 'pain') ? 'pain' : (k9.reason === 'mine') ? 'your choice' : (k9.reason === 'coach') ? 'coach said to' : String(k9.reason || 'skipped');
+        app.appendChild(el('div', 'sum-row skip', titleName(k9.exercise) + ' — skipped (' + why + ')'));
+      });
+    }
     if (!d || !d.ok || !d.logged) {
       var lh = localHighlights();
       if (lh.top) app.appendChild(el('p', 'sum-highlight', lh.top));
@@ -2446,6 +2469,7 @@
         lh.rows.forEach(function (r9) { app.appendChild(el('div', 'sum-row up', r9)); });
       }
       if (!lh.top && !lh.rows.length) app.appendChild(el('p', 'empty', 'Nice work.'));
+      skippedBlock();
       backLink(); return;
     }
     // ══ THE FOUR-SECTION SHAPE (Phil 2026-08-29 redesign — his spec verbatim) ══════════════════
@@ -2499,8 +2523,9 @@
         return hit;
       } catch (eRG) { return null; }
     }
-    var hinges = (d.mains || []).filter(function (m) { return m.hinge !== false; });   // absent flag (old payload) = keep all
-    var others = (d.mains || []).filter(function (m) { return m.hinge === false; });
+    var mainsK = (d.mains || []).filter(function (m) { return !isSkipped(m.exercise) && !isSkipped(m.name); });   // R993
+    var hinges = mainsK.filter(function (m) { return m.hinge !== false; });   // absent flag (old payload) = keep all
+    var others = mainsK.filter(function (m) { return m.hinge === false; });
     if (hinges.length) {
       app.appendChild(el('h3', 'sum-t main', 'Levels 📊'));
       hinges.forEach(function (m) {
@@ -2541,6 +2566,7 @@
       app.appendChild(el('h3', 'sum-t up', 'Best work 🔺'));
       bestRows.forEach(function (t2) { app.appendChild(el('div', 'sum-row up', t2)); });
     }
+    skippedBlock();
     // FOOTER — the door to the profile FIRST (the theme, structural — and the pixels' lesson from
     // the 08-29 bless pass: last-element placement put the door half-under the fixed nav, making
     // the destination the easiest thing on the page to miss), then the streak.
@@ -3669,6 +3695,9 @@
   // NOT seeded from the server's logged map: an extra append is lawful debris under hard rule 1,
   // while suppressing a real correction loses work the athlete performed (rule 40's direction).
   var SIG_STORE = 'bp_commit_sig';
+  // R993 (Phil 2026-09-12): the lifts skipped THIS session on this phone — the instant-paint highlights and the
+  // skipped line read it before the server answers; postSkip writes it, the skip label's undo clears it.
+  var SKIPPED_LOCAL = {};
   var COMMIT_SIG = (function () {
     try { return JSON.parse(sessionStorage.getItem(SIG_STORE) || '{}') || {}; } catch (e) { return {}; }
   })();

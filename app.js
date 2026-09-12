@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260908-r884refusal';  // R904: the fresh payload's each_side flags win over a stale cached paint at commit (Phil's refused Hanging Leg Raise); prev: 20260906-r929logged (a logged session reads done at once), 20260906-r928highlights (completion highlights paint first)
+  var APP_BUILD = '20260912-r993skipped';  // R993: a skipped lift is never celebrated — the completion screen names it under Skipped (Phil 2026-09-12); prev: 20260908-r884refusal — R904: the fresh payload's each_side flags win over a stale cached paint at commit (Phil's refused Hanging Leg Raise); prev: 20260906-r929logged (a logged session reads done at once), 20260906-r928highlights (completion highlights paint first)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;

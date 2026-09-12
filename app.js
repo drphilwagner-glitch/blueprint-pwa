@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260912-r1003done';  // shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card (behind REGEN_ON)
+  var APP_BUILD = '20260912-r1003done2';  // shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -320,7 +320,9 @@
   // Thresholds REGEN_ cells and writes the Regen Log. Nothing here touches the served workout. Behind REGEN_ON until his day.
   // OFF by default until the day he names; a journey (and a coach on Coach Test) can arm it with `&regen=1` on the link, or
   // localStorage bp_regen_on = '1' — the served workout is untouched either way (acceptance (a))
-  var REGEN_ON = (function () { try { return /[?&]regen=1(&|$)/.test(location.search) || localStorage.getItem('bp_regen_on') === '1'; } catch (e) { return false; } })();
+  // ON for every athlete since Phil's 09:47 acceptance ("Card: accepted WITH these changes, then re-shoot once and ship"); `&regen=0` on a
+  // link or localStorage bp_regen_on = '0' turns it off for one phone (a journey, a coach check). The served workout is untouched either way.
+  var REGEN_ON = (function () { try { if (/[?&]regen=0(&|$)/.test(location.search) || localStorage.getItem('bp_regen_on') === '0') return false; return true; } catch (e) { return true; } })();
   var REGEN_TODAY = {};   // date → {logged, skipped, score} known to this phone (localStorage-backed: 'bp_regen_<athlete>_<date>')
   function regenKey(d) { return 'bp_regen_' + athlete + '_' + d; }
   function regenRemember(d, st) { REGEN_TODAY[d] = st; try { localStorage.setItem(regenKey(d), JSON.stringify(st)); } catch (e) {} }

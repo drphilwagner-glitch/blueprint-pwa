@@ -245,6 +245,38 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 @media (prefers-color-scheme: dark){ .sum-row.levelup { background: var(--ok-deep); } }
 /* Main lifts — the coach's headline block; brand-blue accent, always present */
 .sum-t.main { color: var(--bp); }
+.sum-t.skip { color: var(--muted); } .sum-row.skip { color: var(--muted); }   /* R993: skipped lifts are named, never celebrated */
+/* R1001 — the pain score on the pain skip (Coach View v2 §3 PAIN "score \"note\""): a 1–10 chip row + a note, inside the skip panel */
+.pain-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--muted-soft); }
+.pain-h { font-size: var(--fs-13); color: var(--muted); margin-bottom: 6px; }
+.pain-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.pain-chip { min-width: 34px; padding: 6px 0; border-radius: var(--r-pill); border: 1px solid var(--muted-soft); background: transparent; color: inherit; font-size: var(--fs-14); }
+.pain-chip.on { background: var(--warn); border-color: var(--warn); color: var(--bg); }
+.pain-note { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--muted-soft); border-radius: 8px; font-size: var(--fs-14); background: var(--bg); color: var(--ink); margin-bottom: 8px; }   /* 8px: a structural corner */
+.pain-go { width: 100%; padding: 10px; border: 0; border-radius: var(--r-pill); background: var(--warn); color: var(--bg); font-weight: 700; }
+/* R1000 — REGEN v1 (his §2: no emoji, no color on the card, no praise/shame copy). The card floats over the workout, which stays visible
+   behind it; Skip is always visible; the strip is text only. */
+.regen-wrap { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.35); display: flex; align-items: flex-start; justify-content: center; padding: 12px; z-index: 40; }
+.regen-card { background: var(--bg); color: var(--ink); border-radius: 12px; padding: 14px; width: 100%; max-width: 380px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); margin-top: 8px; }   /* 12px: a structural corner (no card-radius token exists) */
+.regen-title { font-weight: 700; font-size: var(--fs-16); }
+.regen-sub { color: var(--muted); font-size: var(--fs-13); margin: 2px 0 10px; }
+.regen-q { margin: 10px 0; }
+.regen-qh { font-weight: 700; font-size: var(--fs-12); letter-spacing: 0.04em; }
+.regen-qt { font-size: var(--fs-14); margin: 2px 0 6px; }
+.regen-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.regen-chip { border: 1px solid var(--muted-soft); background: transparent; color: inherit; border-radius: 999px; padding: 6px 10px; font-size: var(--fs-13); }
+.regen-chip.on { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.regen-btns { display: flex; gap: 8px; margin-top: 12px; }
+.regen-start { flex: 1; padding: 10px; border-radius: var(--r-pill); border: 0; background: var(--bp); color: var(--bg); font-weight: 700; }
+.regen-skip { padding: 10px 14px; border-radius: var(--r-pill); border: 1px solid var(--muted-soft); background: transparent; color: inherit; }
+.regen-strip { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--muted-soft); color: var(--muted); font-size: var(--fs-13); padding: 6px 12px; }
+.p-block.regen .regen-hist-row { font-size: var(--fs-13); padding: 3px 0; }
+.p-block.regen .regen-hist-row.low { color: var(--warn); }
+.p-block.regen .regen-hist-mean { color: var(--muted); font-size: var(--fs-13); margin-top: 4px; }
+.sum-row.lift { border-left: 3px solid var(--muted-soft); }                  /* R995: one line per lift served, this session only */
+.sum-row.lift.done { border-left-color: var(--bp); }
+.sum-row.lift.met { border-left-color: var(--ok); color: var(--ok); }
+.sum-row.lift.skip { border-left-color: var(--muted-soft); color: var(--muted); }
 .sum-row.main { border-left: 4px solid var(--bp); font-weight: 600; }
 
 /* rest-timer "up" alert — a half-screen banner that flashes then fades as the timer rolls on */
@@ -1217,3 +1249,20 @@ body #app { padding-bottom: 108px; }
 /* C32a: content must clear the fixed bottom nav */
 .build-id { margin-bottom: 96px; }
 .p-rest { padding-bottom: 8px; }
+
+/* R1003 — a completed session opens read-only: what was logged, never the plan (Phil 2026-09-12). Tokens only; corners structural. */
+.done-note { margin: 8px 0 12px; padding: 8px 12px; border-radius: 12px; background: var(--muted-soft); color: var(--muted); font-size: var(--fs-sm); }
+.done-slot { margin: 10px 0 14px; }
+.done-slot-h { font-weight: 700; margin-bottom: 6px; }
+.done-ex { padding: 6px 0; border-top: 1px solid var(--muted-soft); }
+.done-ex-name { font-weight: 600; }
+.done-ex-as { color: var(--muted); font-size: var(--fs-sm); margin-left: 6px; }
+.done-sets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.done-set { padding: 3px 8px; border-radius: var(--r-pill); background: var(--muted-soft); font-size: var(--fs-sm); }
+.done-set.skip { background: transparent; border: 1px dashed var(--muted); color: var(--muted); }
+.done-none { color: var(--muted); font-size: var(--fs-sm); }
+
+/* Phil 2026-09-12 09:47 — card change #2: a little more space above the bed/wake toggle; the pain "Where?" chips */
+.regen-row.toggle-row { margin-top: 12px; }
+.pain-chips.areas .pain-chip, .pain-chips.sides .pain-chip { min-width: 0; padding: 6px 10px; }
+.pain-chips.sides { margin-top: 2px; }

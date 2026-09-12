@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260908-r884refusal';  // R904: the fresh payload's each_side flags win over a stale cached paint at commit (Phil's refused Hanging Leg Raise); prev: 20260906-r929logged (a logged session reads done at once), 20260906-r928highlights (completion highlights paint first)
+  var APP_BUILD = '20260912-r1003done';  // shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card (behind REGEN_ON)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -313,6 +313,125 @@
     });
   }
   function qStore(mode) { return idb().then(function (db) { return db.transaction('queue', mode).objectStore('queue'); }); }
+  // ══ R1000 — REGEN v1 (Phil's BUILD ORDER 2026-09-12 06:45, ITEM 2 — RECORD-AND-SHOW ONLY; the copy below is his §2 verbatim). ══
+  // The card appears once per athlete per date at workout open, before the first set is tapped; the workout renders behind it;
+  // Skip is one tap, always visible; a reopen of the same date shows the strip, never the card. Start-with-taps or Skip queues
+  // ONE row through the existing session-save path (qAdd → drain → the log POST; flag 'regen'); the server scores it from the
+  // Thresholds REGEN_ cells and writes the Regen Log. Nothing here touches the served workout. Behind REGEN_ON until his day.
+  // OFF by default until the day he names; a journey (and a coach on Coach Test) can arm it with `&regen=1` on the link, or
+  // localStorage bp_regen_on = '1' — the served workout is untouched either way (acceptance (a))
+  var REGEN_ON = (function () { try { return /[?&]regen=1(&|$)/.test(location.search) || localStorage.getItem('bp_regen_on') === '1'; } catch (e) { return false; } })();
+  var REGEN_TODAY = {};   // date → {logged, skipped, score} known to this phone (localStorage-backed: 'bp_regen_<athlete>_<date>')
+  function regenKey(d) { return 'bp_regen_' + athlete + '_' + d; }
+  function regenRemember(d, st) { REGEN_TODAY[d] = st; try { localStorage.setItem(regenKey(d), JSON.stringify(st)); } catch (e) {} }
+  function regenKnown(d) { if (REGEN_TODAY[d]) return REGEN_TODAY[d]; try { var v = localStorage.getItem(regenKey(d)); if (v) return (REGEN_TODAY[d] = JSON.parse(v)); } catch (e) {} return null; }
+  function regenStripText(st) {
+    if (!st || !st.logged) return '';
+    if (st.skipped) return 'REGEN — skipped';
+    var s = st.score || {};
+    return 'REGEN ' + s.total + ' · S' + s.S + ' N' + s.N + ' T' + s.T + ' D' + s.D;
+  }
+  function regenStrip(d) {
+    var st = regenKnown(d); if (!st || !st.logged) return;
+    var old = app.querySelector('.regen-strip'); if (old) old.remove();
+    var strip = el('button', 'regen-strip', regenStripText(st)); strip.type = 'button';
+    strip.addEventListener('click', function () { loadProfile(); });   // tap → profile history
+    var hdr = app.querySelector('.wo-head, .head, h2'); if (hdr && hdr.parentNode === app) app.insertBefore(strip, hdr.nextSibling); else app.insertBefore(strip, app.firstChild);
+  }
+  function regenQueue(d, taps, skipped) {
+    var sid = SESSION && SESSION.session_id;
+    var row = { log_id: uuid(), session_id: sid || '', complex_name: '', exercise: '', set_no: '', side: '', target_load: '', target_reps: '',
+                actual_load: '', actual_reps: '', flag: 'regen', regen_date: d, regen: JSON.stringify(skipped ? { skipped: true } : taps), app_ver: APP_VERSION };
+    qAdd(row).then(function () { drain(); }).catch(function () {});
+  }
+  // the card — his copy verbatim; per-athlete numbers from the server's targets (the BW cell, live)
+  function regenCard(d, targets) {
+    var wrap = el('div', 'regen-wrap');
+    var card = el('div', 'regen-card');
+    card.appendChild(el('div', 'regen-title', 'REGEN — last night + yesterday'));
+    card.appendChild(el('div', 'regen-sub', 'Coach sees this. Skip if you don\'t know.'));
+    // Phil 2026-09-12 09:47 — the card ACCEPTED WITH five changes (each verbatim below): 1 sleep chips in hours; 2 the toggle's
+    // copy + more space above it; 3 the plants chip names fruit + veg; 4 tissue is SESSIONS (chips 1 · 2, points = sessions,
+    // max 2, any region); 5 the reset copy names the practices, cold plunge included.
+    var taps = { prot: false, hyd: false, plant: false, sleep_h: null, same: false, tissue_sessions: 0, downreg: false }, tapCount = 0;
+    function chip(label, on, cls) { var b = el('button', 'regen-chip' + (cls ? ' ' + cls : ''), label); b.type = 'button'; b.addEventListener('click', function () { var was = b.classList.contains('on'); on(!was); b.classList.toggle('on', !was); tapCount++; }); return b; }
+    function q(title, text) { var s = el('div', 'regen-q'); s.appendChild(el('div', 'regen-qh', title)); if (text) s.appendChild(el('div', 'regen-qt', text)); card.appendChild(s); return s; }
+    var q1 = q('SLEEP', 'How long did you sleep last night?');
+    var sleepRow = el('div', 'regen-row'), sleepChips = [];
+    [['<8h', 7.5], ['8h', 8], ['9h', 9], ['9½h+', 9.5]].forEach(function (o) {   // #1 "<8h · 8h · 9h · 9½h+"
+      var b = chip(o[0], function (on) { sleepChips.forEach(function (x) { if (x !== b) x.classList.remove('on'); }); taps.sleep_h = on ? o[1] : null; }, 'one');
+      sleepChips.push(b); sleepRow.appendChild(b);
+    });
+    q1.appendChild(sleepRow);
+    var same = el('div', 'regen-row toggle-row'); same.appendChild(chip('Bed/wake time within 30 min of the night before', function (on) { taps.same = on; }, 'toggle')); q1.appendChild(same);   // #2 (the row's own space above)
+    var q2 = q('FUEL', 'Yesterday — tap everything you hit:');
+    var fuel = el('div', 'regen-row');
+    var fists = targets && targets.fists != null ? targets.fists : '?', oz = targets && targets.oz != null ? targets.oz : '?', plants = targets && targets.plants != null ? targets.plants : 8;
+    fuel.appendChild(chip('Protein ≈ ' + fists + ' fists', function (on) { taps.prot = on; }));
+    fuel.appendChild(chip('Water ≈ ' + oz + ' oz', function (on) { taps.hyd = on; }));
+    fuel.appendChild(chip('Plants (fruit + veg) — ' + plants + ' servings', function (on) { taps.plant = on; }));   // #3
+    q2.appendChild(fuel);
+    var q3 = q('TISSUE', 'Yesterday — 5 min stretch or rollout sessions:');   // #4 sessions, any region
+    var tis = el('div', 'regen-row'), tisChips = [];
+    [1, 2].forEach(function (n) {
+      var b = chip(String(n), function (on) { tisChips.forEach(function (x) { if (x !== b) x.classList.remove('on'); }); taps.tissue_sessions = on ? n : 0; }, 'one');
+      tisChips.push(b); tis.appendChild(b);
+    });
+    q3.appendChild(tis);
+    var q4 = q('RESET', 'Yesterday — 10+ min reset (breathwork, meditation, sauna/hot tub, cold plunge, visualization):');   // #5
+    var rs = el('div', 'regen-row'); rs.appendChild(chip('Yes', function (on) { taps.downreg = on; })); q4.appendChild(rs);
+    var btns = el('div', 'regen-btns');
+    var start = el('button', 'regen-start', 'Start workout'); start.type = 'button';
+    var skip = el('button', 'regen-skip', 'Skip'); skip.type = 'button';
+    function close(skipped) {
+      var any = taps.prot || taps.hyd || taps.plant || taps.sleep_h != null || taps.same || taps.tissue_sessions > 0 || taps.downreg;
+      var isSkip = skipped || !any;   // no taps + Start = skipped (never a recorded 0)
+      regenQueue(d, taps, isSkip);
+      // the strip shows what the phone knows now; the server's scored row replaces it on the next status read
+      regenRemember(d, { logged: true, skipped: isSkip, score: isSkip ? null : regenLocalScore(taps) });
+      wrap.remove(); regenStrip(d);
+    }
+    start.addEventListener('click', function () { close(false); });
+    skip.addEventListener('click', function () { close(true); });
+    btns.appendChild(start); btns.appendChild(skip); card.appendChild(btns);
+    wrap.appendChild(card);
+    return wrap;
+  }
+  // the phone's own score for the strip until the server's row is read back (the same rules as _regenScore_ with the defaults;
+  // the server's cells win on the next regen_status read)
+  function regenLocalScore(t) {
+    var N = (t.prot ? 1 : 0) + (t.hyd ? 1 : 0) + (t.plant ? 1 : 0);
+    var h = Number(t.sleep_h), Sb = !(h >= 0) ? 0 : (h < 8 ? 0 : (h < 9 ? 1 : (h < 9.5 ? 2 : 3))), S = Sb + (t.same ? 1 : 0);
+    var T = Math.min(Number(t.tissue_sessions) || 0, 2), D = t.downreg ? 1 : 0, total = N + S + T + D;   // #4: points = sessions, max 2
+    return { N: N, S: S, T: T, D: D, total: total, low: (total < 5 || S < 2) ? 1 : 0 };
+  }
+  // at workout open: once per athlete per date — the server's row wins (another device may have answered); the card only when
+  // no row exists; the workout is already painted behind it
+  function regenCardMaybe(s) {
+    if (!REGEN_ON || !s || !s.date) return;
+    var d = String(s.date).slice(0, 10);
+    var known = regenKnown(d);
+    if (known && known.logged) { regenStrip(d); return; }
+    if (app.querySelector('.regen-wrap')) return;
+    fetchJson(cfg.WEBAPP_URL + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
+      .then(function (st) {
+        if (!(SESSION && String(SESSION.date || '').slice(0, 10) === d)) return;   // the athlete moved on
+        if (st && st.ok && st.logged) { regenRemember(d, { logged: true, skipped: !!st.skipped, score: st.score }); regenStrip(d); return; }
+        if (app.querySelector('.regen-wrap') || !document.querySelector('.ex-row')) return;
+        app.appendChild(regenCard(d, st && st.targets));
+      }).catch(function () {});   // offline: no card, no state change — the workout stands
+  }
+  function regenProfileBlock(hist, mean) {
+    var sec = el('section', 'p-block regen');
+    sec.appendChild(el('div', 'p-block-h', 'REGEN'));
+    if (!hist || !hist.length) { sec.appendChild(el('div', 'regen-hist-row', '—')); return sec; }
+    hist.slice(0, 10).forEach(function (h) {
+      var t = h.skipped ? (h.date + ' · —') : (h.date + ' · ' + h.total + ' · S' + h.S + ' N' + h.N + ' T' + h.T + ' D' + h.D + (Number(h.low) === 1 ? ' · LOW' : ''));
+      sec.appendChild(el('div', 'regen-hist-row' + (Number(h.low) === 1 ? ' low' : ''), t));
+    });
+    if (mean != null) sec.appendChild(el('div', 'regen-hist-mean', '4-week mean ' + mean));
+    return sec;
+  }
   function qAdd(row) { return qStore('readwrite').then(function (s) { return new Promise(function (res) { s.put(row); s.transaction.oncomplete = res; }); }); }
   function qAll() { return qStore('readonly').then(function (s) { return new Promise(function (res) { var rq = s.getAll(); rq.onsuccess = function () { res(rq.result || []); }; }); }); }
   try { window.BP_qCount = function () { return qAll().then(function (r) { return r.length; }); }; } catch (e) {}   // j20 asserts a tap really queued
@@ -1273,7 +1392,7 @@
   function attachSkipLabel(row, exName, reason, slot, setNo) {
     if (row.querySelector('.skiplab')) return;
     var words = (reason === 'coach' || reason === 'coach said to') ? 'coach said to'
-              : (reason === 'pain') ? 'pain'
+              : (reason === 'pain') ? ('pain' + (PAIN_SCORE[exName] ? ' ' + PAIN_SCORE[exName] : ''))
               : (reason === 'mine') ? 'your choice' : reason;
     var lab = el('div', 'skiplab', 'skipped — ' + words + ' · tap to undo');
     // UNSKIP (Phil 2026-08-17 URGENT: a stray skip killed his whole complex's logging with no way
@@ -1291,6 +1410,7 @@
           exercise: exName, set_no: (setNo == null ? '' : setNo), side: '', target_load: '', target_reps: '',
           actual_load: '', actual_reps: '', flag: 'uncheck', variant_name: '' }]);
       }
+      try { delete SKIPPED_LOCAL[exName]; } catch (eSL2) {}   // R993: un-skipped — eligible again
       skipRows(exName, setNo).forEach(function (en2) {
         en2.row.classList.remove('skipped');
         var l2 = en2.row.querySelector('.skiplab'); if (l2) l2.remove();
@@ -1309,12 +1429,32 @@
       attachSkipLabel(en.row, exName, reason, slot, setNo);
     });
   }
-  function postSkip(slot, exName, reason, setNo) {
+  function postSkip(slot, exName, reason, setNo, pain) {
+    // R1001 (Coach View v2 §3 PAIN "score \"note\""): a pain skip carries the athlete's 1–10 score and note in the marker's
+    // flag as `skip:pain:<score>:<note>` — the reason token stays the second field, so every existing reader is untouched
+    var flag = 'skip:' + reason;
+    if (reason === 'pain' && pain && pain.score >= 1) flag += ':' + pain.score + ':' + String(pain.note || '').replace(/[:|\r\n]+/g, ' ').trim().slice(0, 120);
     var marker = { log_id: uuid(), session_id: SESSION ? SESSION.session_id : '', complex_name: slot.complex_name,
       exercise: exName, set_no: (setNo == null ? '' : setNo), side: '', target_load: '', target_reps: '',
-      actual_load: '', actual_reps: '', flag: 'skip:' + reason };
+      actual_load: '', actual_reps: '', flag: flag };
     qAdd(marker).then(function () { drain(); }).catch(function () {});
+    try { SKIPPED_LOCAL[exName] = reason; } catch (eSL) {}   // R993: a skipped lift is never celebrated
+    try { PAIN_SCORE[exName] = (reason === 'pain' && pain && pain.score >= 1) ? pain.score : null; } catch (ePS) {}   // R1001: the label shows "pain 7"
     markRowsSkipped(exName, reason, slot, setNo);
+    // R997 (Phil 2026-09-12, red 3: "a … skip must never write the prescribed sets as logged"): a PAIN skip on this
+    // lift also voids every row of it in this session that a round tap committed at its prescription WITHOUT the
+    // athlete touching the row (his Friday: six 1 Leg Leg Press rows at the prescribed 10 reps, then the pain skip on
+    // set 3 alone). Each voided row's own undo runs — uncheck markers at its coordinates (R016), the row re-armed.
+    // A row the athlete touched keeps its numbers: that is evidence, not an echo.
+    if (reason === 'pain') {
+      try {
+        (ROW_REG[exName] || []).forEach(function (en) {
+          var r = en && en.row; if (!r || !r.classList.contains('done') || !r._uncheck) return;
+          if (r._touched && r._touched()) return;
+          r._uncheck();
+        });
+      } catch (eVoid) {}
+    }
   }
   function toggleSkip(row, ex, slot, setNo) {
     var old = row.querySelector('.skip-panel');
@@ -1328,7 +1468,37 @@
       // ROW_REG (keyed by original — nothing grayed, the tap looked dead) and wrote a marker the
       // payload's skipped_sets (keyed by prescribed name) could never match, so the skip vanished
       // on every reload. Her 02:18Z uncheck/skip thrash is this exact seam.
-      b.addEventListener('click', function () { p.remove(); postSkip(slot, (ex._alt_of || ex).exercise, o[0], setNo); });
+      b.addEventListener('click', function () {
+        if (o[0] !== 'pain') { p.remove(); postSkip(slot, (ex._alt_of || ex).exercise, o[0], setNo); return; }
+        // R1001 — the pain skip asks for a 1–10 score and a note (the Coach View's PAIN flag reads them); "Skip it" posts;
+        // a tap on Pain again without a score still posts a plain pain skip (the pre-score shape, never blocked)
+        var old2 = p.querySelector('.pain-row'); if (old2) { p.remove(); postSkip(slot, (ex._alt_of || ex).exercise, 'pain', setNo); return; }
+        var pr = el('div', 'pain-row'), score = null;
+        pr.appendChild(el('div', 'pain-h', 'How bad? 1 = a twinge · 10 = can\'t move'));
+        var chips = el('div', 'pain-chips');
+        for (var i = 1; i <= 10; i++) (function (n) { var c = el('button', 'pain-chip', String(n)); c.type = 'button'; c.addEventListener('click', function () { score = n; [].slice.call(chips.children).forEach(function (x) { x.classList.toggle('on', x === c); }); }); chips.appendChild(c); })(i);
+        pr.appendChild(chips);
+        // Phil 2026-09-12 09:47 ("Where?" is not free text): chips from the Athletes tab's injury-region vocabulary — the payload's
+        // pain_areas, read live from his tab at every session build — then L · R, then an "other" field. One vocabulary in, one
+        // vocabulary on the Coach View: the note reads "Knee L", the way the coach already writes it.
+        pr.appendChild(el('div', 'pain-h', 'Where?'));
+        var area = null, sideP = null, areas = (SESSION && SESSION.pain_areas && SESSION.pain_areas.length) ? SESSION.pain_areas : [];
+        var achips = el('div', 'pain-chips areas');
+        areas.forEach(function (nm) { var c = el('button', 'pain-chip area', nm); c.type = 'button'; c.addEventListener('click', function () { area = (area === nm) ? null : nm; [].slice.call(achips.children).forEach(function (x) { x.classList.toggle('on', x.textContent === area); }); }); achips.appendChild(c); });
+        if (areas.length) pr.appendChild(achips);
+        var schips = el('div', 'pain-chips sides');
+        ['L', 'R'].forEach(function (sd) { var c = el('button', 'pain-chip side', sd); c.type = 'button'; c.addEventListener('click', function () { sideP = (sideP === sd) ? null : sd; [].slice.call(schips.children).forEach(function (x) { x.classList.toggle('on', x.textContent === sideP); }); }); schips.appendChild(c); });
+        pr.appendChild(schips);
+        var note = el('input', 'pain-note'); note.type = 'text'; note.placeholder = 'other'; note.maxLength = 120; note.setAttribute('enterkeyhint', 'done');
+        pr.appendChild(note);
+        var go = el('button', 'pain-go', 'Skip it'); go.type = 'button';
+        go.addEventListener('click', function () {
+          var where = [area, sideP].filter(Boolean).join(' '), other = String(note.value || '').trim();
+          p.remove(); postSkip(slot, (ex._alt_of || ex).exercise, 'pain', setNo, { score: score, note: where + (other ? (where ? ' · ' : '') + other : '') });
+        });
+        pr.appendChild(go);
+        p.appendChild(pr);
+      });
       p.appendChild(b);
     });
     // The whole-complex skip button is GONE (Phil 2026-08-17 URGENT, after it ate his Bent Row +
@@ -1501,6 +1671,12 @@
     } catch (eSw) {}
     ROW_REG[key] = [];                      // the rebuilt rows re-register themselves
     entries.forEach(function (en) {
+      // R997 (Phil 2026-09-12, red 3: "a swap … must never write the prescribed sets as logged"): a set the athlete
+      // ALREADY LOGGED before the swap stays exactly as logged, under the lift they performed — it is never rebuilt
+      // under the new name as a not-done row the round button would then commit at its prefill (his Friday: BSS 55×5
+      // real at 21:52, swapped 21:53, the rebuilt set-1 row committed as a second pair at 21:54). The swapped-in lift
+      // starts at the first set not yet done.
+      if (en.row.classList.contains('done')) { ROW_REG[key].push(en); return; }
       var oEx = en.ex._alt_of || en.ex, oT = en.ex._alt_t || en.t;   // each set keeps its own set_no
       var tgt = swapTarget(a, oEx, oT);
       var newRow = exerciseRow(en.slot, tgt.ex, tgt.t, en.timer, en.isASide);
@@ -2249,6 +2425,10 @@
     // What the collapsed one-line form of this row says (rule 1). Reads live state, so a correction
     // shows the corrected numbers without a re-render.
     row._commit = commit; row._isDur = isDur;   // the round-level Log button drives these (rule 2b)
+    // R997: a pain skip voids this row when it was committed by a round tap WITHOUT a real touch — the stepper's
+    // `.confirmed` class is set only by the athlete's own tap (touched()), never by the round button's accept-on-tap.
+    row._uncheck = uncheck;
+    row._touched = function () { return !!row.querySelector('.stepper.confirmed'); };
     row._critVal = function () { return critical === 'reps' ? state.reps : (critical === 'load' ? state.load : 1); };
     row._confirmActual = confirmActual;         // round-level accept-on-tap (2026-08-06)
     row._sum = function () {
@@ -2335,7 +2515,56 @@
     // specific lifts that improved." The finish screen's job is to tell you what the session DID; a
     // full-width navigation control at the top was the loudest thing on a page about achievement.
     app.appendChild(el('h2', 'sum-h', 'Workout complete 💪'));
-    app.appendChild(el('p', 'sum-sub', n + ' set' + (n === 1 ? '' : 's') + ' logged'));
+    // R995: the server's count of THIS session's sets (each-side collapsed, echoes voided) when it has answered
+    var nShown = (d && d.lifts && d.sets_logged != null) ? d.sets_logged : n;
+    app.appendChild(el('p', 'sum-sub', nShown + ' set' + (nShown === 1 ? '' : 's') + ' logged'));
+    // R995 — the per-lift list (this session only). `lifts` come from the server (every device's rows) or, before it
+    // answers, from this phone's own commits/skips/swaps. One line per lift served, in board order; nothing else.
+    function setsText(sets) {
+      if (!sets || !sets.length) return '';
+      var parts = sets.map(function (s) { return (s.load != null && s.load > 0) ? (s.load + '×' + s.reps) : ((s.reps != null ? s.reps : '') + ' reps'); });
+      var uniq = parts.filter(function (p, i) { return parts.indexOf(p) === i; });
+      return uniq.length === 1 ? uniq[0] : parts.join(', ');
+    }
+    function liftLine(l) {
+      var name = titleName(l.exercise), why = (l.reason === 'pain') ? 'pain' : (l.reason === 'mine') ? 'your choice' : (l.reason === 'coach') ? 'coach said to' : String(l.reason || 'skipped');
+      var altN = l.alt_sets ? l.alt_sets.length : 0, own = l.sets ? l.sets.length : 0;
+      // an alternate shows when it carries sets, or when the lift itself has none (chosen, 0 sets); a variant swap
+      // whose sets were logged under the lift's own name is not a separate alternate
+      var altPart = (l.alt_name && (altN || !own)) ? ('alternate ' + titleName(l.alt_name) + ' · ' + altN + ' set' + (altN === 1 ? '' : 's') + (altN ? ' · ' + setsText(l.alt_sets) : '') + ' · no target') : '';
+      var onVar = l.variant ? ' on the ' + titleName(l.variant) : '';
+      if (l.state === 'skipped') return { cls: 'skip', text: name + ' — skipped (' + why + ')' + (own ? ' · ' + own + ' set' + (own === 1 ? '' : 's') + onVar + ' logged before the skip (' + setsText(l.sets) + ')' : '') + (altPart ? ' · ' + altPart : '') };
+      if (l.state === 'done') {
+        // a verdict only where BOTH halves of a target exist; a reps-only target is stated, never judged (his rule)
+        var tgt = l.target ? ' (target ' + (l.target.load != null ? l.target.load + '×' + l.target.reps + (l.met ? ' — met ✅' : ' — not met') : l.target.reps + ' reps') + ')' : '';
+        return { cls: l.met ? 'met' : 'done', text: name + ' — done · ' + own + ' set' + (own === 1 ? '' : 's') + ' · ' + setsText(l.sets) + tgt + (altPart ? ' · then ' + altPart : '') };
+      }
+      if (l.state === 'alternate') return { cls: 'done', text: name + ' — ' + altPart };
+      return { cls: 'skip', text: name + ' — not logged' };
+    }
+    function renderLifts(lifts, setsLogged, hl) {
+      if (hl) app.appendChild(el('p', 'sum-highlight', hl));
+      lifts.forEach(function (l) { var ln = liftLine(l); app.appendChild(el('div', 'sum-row lift ' + ln.cls, ln.text)); });
+    }
+    function localLifts() {
+      var out = [], sid = SESSION && SESSION.session_id; if (!sid) return { lifts: out, sets: 0 };
+      var pref = sid + '|', setsBy = {};
+      Object.keys(COMMIT_SIG).forEach(function (k) {
+        if (k.indexOf(pref) !== 0) return; var kp = k.split('|'); if (kp.length < 4) return;
+        var ex = kp[kp.length - 2], setNo = Number(kp[kp.length - 1]), sv = String(COMMIT_SIG[k]).split('|');
+        (setsBy[ex] = setsBy[ex] || []).push({ set_no: setNo, load: Number(sv[0]) || null, reps: Number(sv[1]) || null });
+      });
+      var altOf = {};
+      Object.keys(ROW_REG || {}).forEach(function (k0) { (ROW_REG[k0] || []).forEach(function (en) { var o = en && en.ex && en.ex._alt_of; if (o && en.ex.exercise !== o.exercise) altOf[o.exercise] = en.ex.exercise; }); });
+      var total = 0;
+      ((SESSION && SESSION.slots) || []).forEach(function (sl) { (sl.exercises || []).forEach(function (e2) {
+        var ex = e2.exercise, own = (setsBy[ex] || []).sort(function (a, b) { return a.set_no - b.set_no; }), alt = altOf[ex] || '', altSets = alt ? (setsBy[alt] || []) : [];
+        var state = SKIPPED_LOCAL[ex] ? 'skipped' : (own.length ? 'done' : (alt ? 'alternate' : 'open'));
+        total += own.length + altSets.length;
+        out.push({ exercise: ex, state: state, reason: SKIPPED_LOCAL[ex] || '', sets: own, target: null, met: false, alt_name: alt, alt_sets: altSets });
+      }); });
+      return { lifts: out, sets: total };
+    }
     // Something is ALWAYS shown as the day's best (Phil 2026-08-05) — the server picks the first
     // true thing: level-up > tonnage PR > best session > strongest set > session count.
     // PROGRESS TO THE NEXT RUNG (Phil 2026-08-23 design order): computed from the session the
@@ -2359,7 +2588,7 @@
       return null;
     }
     if (d && d.highlight) app.appendChild(el('p', 'sum-highlight', d.highlight));
-    else if (d && d.ok) {
+    else if (d && d.ok && !d.lifts) {   // R995: with the per-lift list, nothing cleared → "N sets logged" and nothing else
       // No PR today — the filler is a streak + the distance to the next rung, never a deficit.
       var rp0 = rungProgress();
       app.appendChild(el('p', 'sum-highlight', '\u2705 Session #' + (d.sessions_n || '?') + ' in the books' + (rp0 ? ' \u2014 ' + rp0 : '')));
@@ -2409,6 +2638,7 @@
           if (k.indexOf(pref) !== 0) return;
           var kp = k.split('|'); if (kp.length < 4) return;
           var ex = kp[kp.length - 2];             // complex names may carry '|'; the exercise is 2nd-from-end
+          if (SKIPPED_LOCAL[ex]) return;          // R993: a lift skipped this session is never celebrated
           var sv = String(COMMIT_SIG[k]).split('|');
           var load = Number(sv[0]), reps = Number(sv[1]);
           if (!(reps > 0)) return;
@@ -2438,6 +2668,30 @@
       } catch (eLH) {}
       return out;
     }
+    // R993 / L162 amended (Phil 2026-09-12, verbatim: "a skipped lift is never 'done'"): the lifts skipped this
+    // session print under their own heading, by name and reason, and never in a celebration list. The server
+    // names them (d.skipped); before it answers, or on an old payload, the phone's own skip map does.
+    function isSkipped(nm) {
+      var t = titleName(nm || '');
+      if (SKIPPED_LOCAL[nm] || SKIPPED_LOCAL[t]) return true;
+      return ((d && d.skipped) || []).some(function (k9) { return k9.exercise === nm || titleName(k9.exercise) === t; });
+    }
+    function skippedBlock() {
+      var items = ((d && d.skipped) || []).map(function (k9) { return { exercise: k9.exercise, reason: k9.reason }; });
+      Object.keys(SKIPPED_LOCAL).forEach(function (nm) {
+        if (!items.some(function (k9) { return k9.exercise === nm; })) items.push({ exercise: nm, reason: SKIPPED_LOCAL[nm] });
+      });
+      if (!items.length) return;
+      app.appendChild(el('h3', 'sum-t skip', 'Skipped'));
+      items.forEach(function (k9) {
+        var why = (k9.reason === 'pain') ? 'pain' : (k9.reason === 'mine') ? 'your choice' : (k9.reason === 'coach') ? 'coach said to' : String(k9.reason || 'skipped');
+        app.appendChild(el('div', 'sum-row skip', titleName(k9.exercise) + ' — skipped (' + why + ')'));
+      });
+    }
+    if (!d) {   // R995: before the server answers, this phone's own rows render the same per-lift model — nothing else
+      var ll = localLifts();
+      if (ll.lifts.length) { renderLifts(ll.lifts, ll.sets, null); backLink(); return; }
+    }
     if (!d || !d.ok || !d.logged) {
       var lh = localHighlights();
       if (lh.top) app.appendChild(el('p', 'sum-highlight', lh.top));
@@ -2446,8 +2700,16 @@
         lh.rows.forEach(function (r9) { app.appendChild(el('div', 'sum-row up', r9)); });
       }
       if (!lh.top && !lh.rows.length) app.appendChild(el('p', 'empty', 'Nice work.'));
+      skippedBlock();
       backLink(); return;
     }
+    // ══ R995 — THIS SESSION ONLY, PER LIFT SERVED (Phil 2026-09-12 06:2x standing, verbatim: "the completion screen
+    // renders THIS session only. Per lift served: done (load x reps), skipped (reason), or alternate (name · sets · no
+    // target). No number from any other session. 'met' only when reps and load both meet a target that exists; a
+    // reps-only alternate never says met. The highlight line reads only from a lift logged today; if none cleared
+    // anything, it says 'N sets logged' and nothing else."). The server's `lifts` is the truth (every device's rows);
+    // the four-section body below serves only an OLD payload without it.
+    if (d.lifts) { renderLifts(d.lifts, d.sets_logged, d.highlight); backLink(); return; }
     // ══ THE FOUR-SECTION SHAPE (Phil 2026-08-29 redesign — his spec verbatim) ══════════════════
     // HEADLINE (above) — trophy hierarchy, never repeated below (d.highlight_ex is the dedupe key).
     // LEVELS — one line per hinge trained today: performed · verdict vs asked · distance to next
@@ -2499,8 +2761,9 @@
         return hit;
       } catch (eRG) { return null; }
     }
-    var hinges = (d.mains || []).filter(function (m) { return m.hinge !== false; });   // absent flag (old payload) = keep all
-    var others = (d.mains || []).filter(function (m) { return m.hinge === false; });
+    var mainsK = (d.mains || []).filter(function (m) { return !isSkipped(m.exercise) && !isSkipped(m.name); });   // R993
+    var hinges = mainsK.filter(function (m) { return m.hinge !== false; });   // absent flag (old payload) = keep all
+    var others = mainsK.filter(function (m) { return m.hinge === false; });
     if (hinges.length) {
       app.appendChild(el('h3', 'sum-t main', 'Levels 📊'));
       hinges.forEach(function (m) {
@@ -2541,6 +2804,7 @@
       app.appendChild(el('h3', 'sum-t up', 'Best work 🔺'));
       bestRows.forEach(function (t2) { app.appendChild(el('div', 'sum-row up', t2)); });
     }
+    skippedBlock();
     // FOOTER — the door to the profile FIRST (the theme, structural — and the pixels' lesson from
     // the 08-29 bless pass: last-element placement put the door half-under the fixed nav, making
     // the destination the easiest thing on the page to miss), then the streak.
@@ -2778,8 +3042,62 @@
     });
   }
 
+  // R1003 (Phil 2026-09-12 09:5x, standing, verbatim: "a completed session opens read-only from the Sessions rows — what was
+  // logged, never the plan. A past date with rows never reads 'no workout'."). A DONE session (the server's `readonly`, or
+  // every slot's status done — older cached payloads) renders what the athlete DID: each logged set, each skip by reason,
+  // a swap under the name performed; never the plan's unlogged sets as sets to log (Grace's third Pullups set), never a
+  // stepper, a timer or a Log button. Reversing line: delete the dispatch below and the DONE session renders as before.
+  function isDoneSession(s) {
+    if (!s || s.baseline) return false;
+    if (s.readonly) return true;
+    var sl = s.slots || []; return sl.length > 0 && sl.every(function (x) { return String(x.status || '').toLowerCase() === 'done'; });
+  }
+  function renderDone(s) {
+    clearTimerBar(s && (s.session_id || s.date));
+    SESSION = s; ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};
+    renderNav('wo');
+    meta.textContent = (s.from_rows ? 'Completed' : woTitle(s)) + ' · ' + s.date;
+    if (meta.parentNode) Array.prototype.forEach.call(meta.parentNode.querySelectorAll('.hdr-dur'), function (n) { n.remove(); });
+    app.innerHTML = '';
+    var back = el('button', 'back', '← Calendar'); back.type = 'button';
+    back.addEventListener('click', function () { loadHome(); });
+    app.appendChild(back);
+    app.appendChild(el('div', 'done-note', 'Completed — what you logged.'));
+    var compSeen = 0, anySet = false;
+    (s.slots || []).forEach(function (slot) {
+      var sec = el('section', 'done-slot');
+      var label = s.from_rows ? (String(slot.complex_name || slot.slot || '') || 'Session') : slotLabel(slot.slot);
+      if (!s.from_rows && /^Comp\s*\d/i.test(String(slot.slot || ''))) { compSeen += 1; label = 'Complex ' + compSeen; }
+      sec.appendChild(el('div', 'done-slot-h', label));
+      (slot.exercises || []).forEach(function (ex) {
+        var row = el('div', 'done-ex');
+        var nm = el('div', 'done-ex-name', titleName(ex.logged_as || ex.athlete_name || ex.display_name || ex.exercise));
+        if (ex.logged_as) nm.appendChild(el('span', 'done-ex-as', '(swapped from ' + titleName(ex.display_name || ex.exercise) + ')'));
+        row.appendChild(nm);
+        var sets = el('div', 'done-sets'), lg = ex.logged || {}, keys = Object.keys(lg);
+        keys.sort(function (a, b) { var pa = a.split('|'), pb = b.split('|'); return (Number(pa[0]) - Number(pb[0])) || String(pa[1]).localeCompare(String(pb[1])); });
+        keys.forEach(function (k) {
+          var p = k.split('|'), v = lg[k] || {}, hasL = v.load !== '' && v.load != null && Number(v.load) > 0;
+          var txt = 'set ' + p[0] + (p[1] ? ' ' + p[1] : '') + ' · ' + (hasL ? v.load + ' × ' : '') + (v.reps === '' || v.reps == null ? '—' : v.reps);
+          sets.appendChild(el('span', 'done-set', txt)); anySet = true;
+        });
+        var sk = ex.skipped_sets || {};
+        Object.keys(sk).sort(function (a, b) { return Number(a) - Number(b); }).forEach(function (n) { sets.appendChild(el('span', 'done-set skip', 'set ' + n + ' · skipped (' + sk[n] + ')')); });
+        if (!keys.length && ex.skipped) sets.appendChild(el('span', 'done-set skip', 'skipped (' + ex.skipped + ')'));
+        if (!sets.childNodes.length) sets.appendChild(el('span', 'done-none', 'no sets logged'));
+        row.appendChild(sets);
+        sec.appendChild(row);
+      });
+      app.appendChild(sec);
+    });
+    if (!anySet) app.appendChild(el('div', 'done-none', 'No sets were logged in this session.'));
+    var back2 = el('button', 'back', '← Calendar'); back2.type = 'button';
+    back2.addEventListener('click', function () { loadHome(); });
+    app.appendChild(back2);
+  }
   function render(s) {
     if (s && s.baseline) return renderBaseline(s);
+    if (isDoneSession(s)) return renderDone(s);
     clearTimerBar(s && (s.session_id || s.date));   // same session re-rendering keeps its live timer
     SESSION = s;
     ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};   // fresh registries per session render
@@ -3669,6 +3987,10 @@
   // NOT seeded from the server's logged map: an extra append is lawful debris under hard rule 1,
   // while suppressing a real correction loses work the athlete performed (rule 40's direction).
   var SIG_STORE = 'bp_commit_sig';
+  // R993 (Phil 2026-09-12): the lifts skipped THIS session on this phone — the instant-paint highlights and the
+  // skipped line read it before the server answers; postSkip writes it, the skip label's undo clears it.
+  var SKIPPED_LOCAL = {};
+  var PAIN_SCORE = {};   // R1001: exercise → the 1–10 score the athlete tapped on this phone's pain skip (the label shows it)
   var COMMIT_SIG = (function () {
     try { return JSON.parse(sessionStorage.getItem(SIG_STORE) || '{}') || {}; } catch (e) { return {}; }
   })();
@@ -4721,6 +5043,12 @@
     var ckSec = el('section', 'p-block clocks');
     (clocks || []).forEach(function (c) { var r = clockRowFor(c); if (r) ckSec.appendChild(r); });
     if (ckSec.children.length) app.appendChild(ckSec);
+    // R1000 §6: the REGEN block under Levels — date · total · S N T D · LOW, last 10 rows + the 4-week mean (logged rows only)
+    if (REGEN_ON) {
+      var regenSec = regenProfileBlock([], null); app.appendChild(regenSec);
+      fetchJson(cfg.WEBAPP_URL + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+        .then(function (st) { if (st && st.ok && regenSec.parentNode) regenSec.replaceWith(regenProfileBlock(st.history || [], st.mean4w)); }).catch(function () {});
+    }
 
     // ── 2. WHERE YOU STAND — the quality-ladder BARS, restored exactly (C30: they were never on
     // the delete list; unnamed is unbuilt applies to deletions too). The bars are the whole block;
@@ -4831,21 +5159,31 @@
   // and still bounds the minutes-long hang Grace hit. The pending fetch stays alive under the card:
   // a late success repaints the workout (screenTouched is false on the card).
   var OPEN_WATCHDOG_MS = 20000;
+  // R996 (Phil 2026-09-12, verbatim: "'Try again': the number is workout open under 8 s warm. The morning report counts
+  // opens over 8 s per real athlete, every day."): the phone TIMES the tap-to-first-paint and reports an open that passed
+  // 8 s as `workout_open_slow` with the measured seconds — detection only; the budget is Thresholds!workout_open_max_s
+  // (8), graded by the report's SLOW OPENS line (the L326 pattern). A cached instant paint is a fast open; the 20 s
+  // watchdog above still owns the still-pending case and an open it already reported is not reported twice.
+  var OPEN_SLOW_REPORT_MS = 8000;
   function openSession(sessionId) {
     var _screen = newScreen();   // claims the screen: a pending calendar/profile draw must not win
     primeAudio();                // the session-start TAP is the gesture iOS unlocks audio on (L124)
     try { sessionStorage.setItem('bp_open_session', sessionId); } catch (e) {}
+    var t0Open = Date.now(), openReported = false;
     var cached = cachedSession(sessionId);
     var painted = cached ? safeRender(cached, sessionId) : false;
+    if (painted) { try { regenCardMaybe(cached); } catch (eRc) {} }   // R1000: the card over the cached paint, once per date
     if (!cached) show('Loading…');
     var settled = false;
     if (!painted) {
       setTimeout(function () {
         if (settled || !isCurrent(_screen)) return;
+        openReported = true;
         reportError('workout_open_slow', 'session fetch still pending after ' + OPEN_WATCHDOG_MS + 'ms', sessionId, '');
         showRetryCard(sessionId, 'Your workout is taking too long to load.');
       }, OPEN_WATCHDOG_MS);
     }
+    var firstPaintWasCached = painted;
     fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))
       .then(function (data) {
         settled = true;
@@ -4855,7 +5193,10 @@
           if (!painted) show(data.error === 'server' ? SERVER_HICCUP : 'Offline — reconnect to open this workout.', 'err');
           return;
         }
-        if (!data.ok || !data.session) { if (!painted) show('No workout that day.'); return; }
+        // R1003 (Phil 2026-09-12: "A timeout says 'Try again', never 'no workout'"): this open was tapped from a calendar
+        // tile the server itself listed, so an answer without a session is a transient — a Plan mid-write, a refusal — not
+        // an empty day. Mason's DONE 08-31 session read "No workout that day." after a 20 s stall. The card re-fetches.
+        if (!data.ok || !data.session) { if (!painted) showRetryCard(sessionId, 'This workout did not load.' + (data && data.error ? ' (' + data.error + ')' : '')); return; }
         // Re-render unless the athlete is actively logging over a cached paint. BUT a reopened session
         // the SERVER already has logged sets for must always show its review state — the stale cached
         // paint (from before those sets landed) is why 7/27 opened blank after logging (Phil, 2026-07-27).
@@ -4863,7 +5204,18 @@
         var srvLogged = (data.session.slots || []).some(function (sl) {
           return (sl.exercises || []).some(function (e) { return e.logged && Object.keys(e.logged).length; });
         });
-        if (!painted || !screenTouched() || srvLogged) safeRender(data.session, sessionId);
+        if (!painted || !screenTouched() || srvLogged) {
+          var okPaint = safeRender(data.session, sessionId);
+          if (okPaint) { try { regenCardMaybe(data.session); } catch (eRc2) {} }   // R1000: the card over the network paint, once per date
+          // R996: the first paint of this open came from the network — time it against the 8 s line
+          if (okPaint && !firstPaintWasCached && !openReported) {
+            var msOpen = Date.now() - t0Open;
+            if (msOpen > OPEN_SLOW_REPORT_MS) {
+              openReported = true;
+              reportError('workout_open_slow', 'opened after ' + (msOpen / 1000).toFixed(1) + 's (over the 8 s cell workout_open_max_s)', sessionId, 'open_ms=' + msOpen);
+            }
+          }
+        }
         else if (typeof CHAIN === 'object') {
           // R685 (Phil's 2026-08-29 session): when the athlete is already logging over a cached
           // paint, the fresh render is lawfully skipped — but the SCALARS the chain reads must not

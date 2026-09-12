@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260912-r1003done3';  // shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set that never leaves the phone reports itself)
+  var APP_BUILD = '20260912-r1003done4';  // shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set that never leaves the phone reports itself) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -628,7 +628,11 @@
     // later with no gesture anywhere near it.
     function primeAudio() {
       try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
-      try { _ac = _ac || new (window.AudioContext || window.webkitAudioContext)(); if (_ac.state === 'suspended') _ac.resume(); } catch (e) {}
+      // Grace 2026-09-12 10:48, mid-session: iOS refused the audio device ("Failed to start the audio device") and the
+      // unhandled promise landed in her ErrorLog as a rule-25 P0. It is a phone capability limit, not an app fault: the
+      // chime cannot play on that open; nothing else is affected. Caught here, reported once as `audio_unavailable` (a
+      // benign kind on the KIDS line), never an unhandled rejection.
+      try { _ac = _ac || new (window.AudioContext || window.webkitAudioContext)(); if (_ac.state === 'suspended') { var _pr = _ac.resume(); if (_pr && _pr.catch) _pr.catch(function (eA) { try { reportError('audio_unavailable', String((eA && eA.message) || eA || 'resume refused'), 'primeAudio', ''); } catch (eQ) {} }); } } catch (e) {}
       try {
         if (!_cueEl) {
           _cueEl = document.createElement('audio');
@@ -670,7 +674,7 @@
       try {
         if (!_ac) primeAudio();
         if (!_ac) return;
-        if (_ac.state === 'suspended') { try { _ac.resume().then(function () { _tone(); }); } catch (eR) { _tone(); } }
+        if (_ac.state === 'suspended') { try { _ac.resume().then(function () { _tone(); }).catch(function () { try { _tone(); } catch (eT) {} }); } catch (eR) { _tone(); } }
         else _tone();
       } catch (e) {}
     }

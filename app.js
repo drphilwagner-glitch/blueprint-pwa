@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260912-r1003done5';  // shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20260913-r1032altload';  // 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1648,7 +1648,12 @@
         // would read as a bodyweight lift and show reps where the load stepper belongs.
         wants_load: same ? (oEx.wants_load || (oT.target_load !== '' && oT.target_load != null))
                          : (a.wants_load === true),
-        load_prefill: same ? oEx.load_prefill : (a.prefill_load != null ? a.prefill_load : undefined),
+        // R1032 (Phil's Friday 09-11, the Athlete Review §4: DB Walking Lunge swapped in for the split squat): the
+        // server stamps `best_load` on every curated alternate (the athlete's own memory of THAT movement — R116,
+        // 2026-07-24) and this read only `prefill_load`, which a numeric-reps alternate never fetches (R686). So the
+        // curated path forgot the athlete every time: his lunge carried best_load 35 and prefilled 0. The exscheme
+        // answer still wins when it exists; the memory is next; blank the first time (R116's second half).
+        load_prefill: same ? oEx.load_prefill : (a.prefill_load != null ? a.prefill_load : (a.best_load != null ? a.best_load : undefined)),
         // D8: the alternate's OWN sidedness wins when the payload states it (the server stamps
         // each_side on searched swaps and, since @625, on slot alternates with an exact Exercise
         // Library row). Inheriting the original's flag split a bilateral swap-in into phantom L/R

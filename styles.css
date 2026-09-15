@@ -267,6 +267,30 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 .regen-chip { border: 1px solid var(--muted-soft); background: transparent; color: inherit; border-radius: 999px; padding: 6px 10px; font-size: var(--fs-13); }
 .regen-chip.on { border-color: var(--ink); background: var(--ink); color: var(--bg); }
 .regen-btns { display: flex; gap: 8px; margin-top: 12px; }
+/* REGEN v1.1 (R1071, Phil 09-15): the overlay sits UNDER the bottom nav (z 30 < 40) so Tell Coach stays tappable from the card;
+   Start is disabled until every question present has a tap; the unlock line, the None chip and the three strip lines. */
+/* Phil 06:0x change 1: THE CARD IS THE WHOLE SCREEN — opaque, the workout hidden until Start; three stacked rows with one icon each,
+   bigger pills, a filled selected state; the nav stays above it (z 30 < 40) so Tell Coach is reachable. */
+.regen-wrap { z-index: 30; background: var(--bg); align-items: stretch; padding: 0 0 64px; overflow-y: auto; }
+.regen-card { max-width: none; border-radius: 0; box-shadow: none; padding: 18px 16px 24px; min-height: 100%; }
+.regen-title { font-size: var(--fs-20, 20px); }
+.regen-q { margin: 16px 0; padding: 12px; border: 1px solid var(--muted-soft); border-radius: 12px; }
+.regen-qh { display: flex; align-items: center; gap: 8px; font-size: var(--fs-14); }
+.regen-qi { font-size: 22px; line-height: 1; }
+.regen-row { gap: 8px; margin-top: 8px; }
+.regen-chip { padding: 12px 16px; font-size: var(--fs-16, 16px); border-width: 2px; }
+.regen-chip.on { border-color: var(--bp); background: var(--bp); color: var(--bg); }
+.regen-start { padding: 14px; font-size: var(--fs-17, 17px); }
+.regen-start:disabled { opacity: .45; filter: grayscale(1); }
+.regen-start.ready { opacity: 1; filter: none; }
+.regen-unlock { background: var(--bp); color: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: var(--fs-13); font-weight: 700; margin-bottom: 8px; }
+.regen-chip.none { border-style: dashed; }
+.regen-tell { color: var(--muted); font-size: var(--fs-12); margin-top: 8px; text-align: center; }
+/* change 2: the pre-workout strip is ONE line */
+.regen-strip { padding: 6px 0; }
+.regen-l1 { display: block; width: 100%; text-align: left; background: transparent; border: 0; padding: 2px 0; color: inherit; font-size: var(--fs-13); font-weight: 700; }
+/* change 3: the pairing line lives on the completion screen, directly under the highlight line */
+.sum-regen-pair { color: var(--bp); font-size: var(--fs-14); margin: 4px 0 10px; }
 .regen-start { flex: 1; padding: 10px; border-radius: var(--r-pill); border: 0; background: var(--bp); color: var(--bg); font-weight: 700; }
 .regen-skip { padding: 10px 14px; border-radius: var(--r-pill); border: 1px solid var(--muted-soft); background: transparent; color: inherit; }
 .regen-strip { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--muted-soft); color: var(--muted); font-size: var(--fs-13); padding: 6px 12px; }

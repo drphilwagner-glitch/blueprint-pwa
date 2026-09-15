@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260913-r1032altload';  // 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20260915-r1071regen';  // 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -333,18 +333,43 @@
   function regenKey(d) { return 'bp_regen_' + athlete + '_' + d; }
   function regenRemember(d, st) { REGEN_TODAY[d] = st; try { localStorage.setItem(regenKey(d), JSON.stringify(st)); } catch (e) {} }
   function regenKnown(d) { if (REGEN_TODAY[d]) return REGEN_TODAY[d]; try { var v = localStorage.getItem(regenKey(d)); if (v) return (REGEN_TODAY[d] = JSON.parse(v)); } catch (e) {} return null; }
-  function regenStripText(st) {
+  // ══ REGEN v1.1 (Phil's BUILD ORDER 2026-09-13, amended 2026-09-15 04:5x — R1071; the copy below is his, verbatim). ══
+  // RECORD-AND-SHOW ONLY: nothing here touches the served workout. CHANGED 09-15 (amends R1000): Skip is REMOVED — the card is
+  // answered before Start; Start enables only when every question present has a tap; Tell Coach stays reachable (the nav sits
+  // above the overlay, z-index 40 over 30); the card is inside the workout-open number (R996: a card that pushes an open past
+  // 8 s reports itself on the slow-open line). §1 STAGES come from the server (regen_status.stage/questions/unlock): stage 1 =
+  // sleep + fuel + tissue (max 8); stage 2 adds the consistency toggle (9); stage 3 adds reset (10). The unlock line prints once,
+  // at the first card of a new stage. §5 THE STRIP: three text lines above the workout — "REGEN total/max trend", the pairing
+  // line, the Coach note (dismissible; back next session if still non-blank) — tap → profile history.
+  var REGEN_MAX_DEFAULT = { 1: 8, 2: 9, 3: 10 };
+  function regenStripLine1(st) {
     if (!st || !st.logged) return '';
-    if (st.skipped) return 'REGEN — skipped';
-    var s = st.score || {};
-    return 'REGEN ' + s.total + ' · S' + s.S + ' N' + s.N + ' T' + s.T + ' D' + s.D;
+    if (st.skipped) return 'REGEN —';
+    var s = st.score || {}, mx = st.max || (s.max) || REGEN_MAX_DEFAULT[st.stage || 3] || 10;
+    return 'REGEN ' + s.total + '/' + mx + (st.trend ? ' ' + st.trend : '');
   }
+  // Phil 06:0x change 2: the pre-workout strip is ONE line — "REGEN {total}/{max} {trend}", nothing else above the workout; the
+  // pairing line waits for the completion screen (change 3); the Coach note is gone (change 4: nothing AI-written reaches a kid).
   function regenStrip(d) {
     var st = regenKnown(d); if (!st || !st.logged) return;
     var old = app.querySelector('.regen-strip'); if (old) old.remove();
-    var strip = el('button', 'regen-strip', regenStripText(st)); strip.type = 'button';
-    strip.addEventListener('click', function () { loadProfile(); });   // tap → profile history
+    var strip = el('div', 'regen-strip');
+    var l1 = el('button', 'regen-l1', regenStripLine1(st)); l1.type = 'button';
+    l1.addEventListener('click', function () { loadProfile(); });   // tap → profile history
+    strip.appendChild(l1);
     var hdr = app.querySelector('.wo-head, .head, h2'); if (hdr && hdr.parentNode === app) app.insertBefore(strip, hdr.nextSibling); else app.insertBefore(strip, app.firstChild);
+  }
+  // after Start: the server scores the row and computes trend + pairing on the second pass — read them back into the strip
+  function regenRefresh(d, tries) {
+    fetchJson(cfg.WEBAPP_URL + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
+      .then(function (st) {
+        if (!(st && st.ok && st.logged)) { if (tries > 0) setTimeout(function () { regenRefresh(d, tries - 1); }, 3500); return; }
+        var sc = st.score || {};
+        regenRemember(d, { logged: true, skipped: !!st.skipped, score: sc, stage: sc.stage || st.stage, max: sc.max || st.max, trend: sc.trend || '',
+                           pair: sc.pair_text ? { area: sc.pair_area, item: sc.pair_item, mode: sc.pair_mode, text: sc.pair_text } : null });
+        if (SESSION && String(SESSION.date || '').slice(0, 10) === d) regenStrip(d);
+        if (!sc.pair_text && tries > 0) setTimeout(function () { regenRefresh(d, tries - 1); }, 3500);   // the second pass may land a beat later
+      }).catch(function () { if (tries > 0) setTimeout(function () { regenRefresh(d, tries - 1); }, 3500); });
   }
   function regenQueue(d, taps, skipped) {
     var sid = SESSION && SESSION.session_id;
@@ -352,95 +377,146 @@
                 actual_load: '', actual_reps: '', flag: 'regen', regen_date: d, regen: JSON.stringify(skipped ? { skipped: true } : taps), app_ver: APP_VERSION };
     qAdd(row).then(function () { drain(); }).catch(function () {});
   }
-  // the card — his copy verbatim; per-athlete numbers from the server's targets (the BW cell, live)
-  function regenCard(d, targets) {
+  // the card — his copy verbatim for the questions present; per-athlete numbers from the server's targets (the BW cell, live)
+  function regenCard(d, st) {
+    var targets = st && st.targets, q9 = (st && st.questions) || { sleep: true, fuel: true, tissue: true, same: true, reset: true }, stage = (st && st.stage) || 1;
     var wrap = el('div', 'regen-wrap');
     var card = el('div', 'regen-card');
+    if (st && st.unlock) card.appendChild(el('div', 'regen-unlock', st.unlock));   // §1: one line, once, at the first card of the new stage
     card.appendChild(el('div', 'regen-title', 'REGEN — last night + yesterday'));
-    card.appendChild(el('div', 'regen-sub', 'Coach sees this. Skip if you don\'t know.'));
+    card.appendChild(el('div', 'regen-sub', 'Coach sees this.'));
     // Phil 2026-09-12 09:47 — the card ACCEPTED WITH five changes (each verbatim below): 1 sleep chips in hours; 2 the toggle's
     // copy + more space above it; 3 the plants chip names fruit + veg; 4 tissue is SESSIONS (chips 1 · 2, points = sessions,
     // max 2, any region); 5 the reset copy names the practices, cold plunge included.
-    var taps = { prot: false, hyd: false, plant: false, sleep_h: null, same: false, tissue_sessions: 0, downreg: false }, tapCount = 0;
-    function chip(label, on, cls) { var b = el('button', 'regen-chip' + (cls ? ' ' + cls : ''), label); b.type = 'button'; b.addEventListener('click', function () { var was = b.classList.contains('on'); on(!was); b.classList.toggle('on', !was); tapCount++; }); return b; }
-    function q(title, text) { var s = el('div', 'regen-q'); s.appendChild(el('div', 'regen-qh', title)); if (text) s.appendChild(el('div', 'regen-qt', text)); card.appendChild(s); return s; }
-    var q1 = q('SLEEP', 'How long did you sleep last night?');
-    var sleepRow = el('div', 'regen-row'), sleepChips = [];
-    [['<8h', 7.5], ['8h', 8], ['9h', 9], ['9½h+', 9.5]].forEach(function (o) {   // #1 "<8h · 8h · 9h · 9½h+"
-      var b = chip(o[0], function (on) { sleepChips.forEach(function (x) { if (x !== b) x.classList.remove('on'); }); taps.sleep_h = on ? o[1] : null; }, 'one');
-      sleepChips.push(b); sleepRow.appendChild(b);
-    });
-    q1.appendChild(sleepRow);
-    var same = el('div', 'regen-row toggle-row'); same.appendChild(chip('Bed/wake time within 30 min of the night before', function (on) { taps.same = on; }, 'toggle')); q1.appendChild(same);   // #2 (the row's own space above)
-    var q2 = q('FUEL', 'Yesterday — tap everything you hit:');
-    var fuel = el('div', 'regen-row');
-    var fists = targets && targets.fists != null ? targets.fists : '?', oz = targets && targets.oz != null ? targets.oz : '?', plants = targets && targets.plants != null ? targets.plants : 8;
-    fuel.appendChild(chip('Protein ≈ ' + fists + ' fists', function (on) { taps.prot = on; }));
-    fuel.appendChild(chip('Water ≈ ' + oz + ' oz', function (on) { taps.hyd = on; }));
-    fuel.appendChild(chip('Plants (fruit + veg) — ' + plants + ' servings', function (on) { taps.plant = on; }));   // #3
-    q2.appendChild(fuel);
-    var q3 = q('TISSUE', 'Yesterday — 5 min stretch or rollout sessions:');   // #4 sessions, any region
-    var tis = el('div', 'regen-row'), tisChips = [];
-    [1, 2].forEach(function (n) {
-      var b = chip(String(n), function (on) { tisChips.forEach(function (x) { if (x !== b) x.classList.remove('on'); }); taps.tissue_sessions = on ? n : 0; }, 'one');
-      tisChips.push(b); tis.appendChild(b);
-    });
-    q3.appendChild(tis);
-    var q4 = q('RESET', 'Yesterday — 10+ min reset (breathwork, meditation, sauna/hot tub, cold plunge, visualization):');   // #5
-    var rs = el('div', 'regen-row'); rs.appendChild(chip('Yes', function (on) { taps.downreg = on; })); q4.appendChild(rs);
-    var btns = el('div', 'regen-btns');
-    var start = el('button', 'regen-start', 'Start workout'); start.type = 'button';
-    var skip = el('button', 'regen-skip', 'Skip'); skip.type = 'button';
-    function close(skipped) {
-      var any = taps.prot || taps.hyd || taps.plant || taps.sleep_h != null || taps.same || taps.tissue_sessions > 0 || taps.downreg;
-      var isSkip = skipped || !any;   // no taps + Start = skipped (never a recorded 0)
-      regenQueue(d, taps, isSkip);
-      // the strip shows what the phone knows now; the server's scored row replaces it on the next status read
-      regenRemember(d, { logged: true, skipped: isSkip, score: isSkip ? null : regenLocalScore(taps) });
-      wrap.remove(); regenStrip(d);
+    // 09-15 (v1.1 §0 "Start enables only when every question present on the card has a tap"): each question carries an explicit
+    // "no" answer — fuel "None", tissue "0", the toggle and reset "No" — so an answer is always a tap, never an absence.
+    var taps = { prot: false, hyd: false, plant: false, sleep_h: null, same: null, tissue_sessions: null, downreg: null, fuel_none: false }, tapCount = 0;
+    var start = el('button', 'regen-start', 'Start workout'); start.type = 'button'; start.disabled = true;
+    function answered() {
+      if (q9.sleep && taps.sleep_h == null) return false;
+      if (q9.fuel && !(taps.prot || taps.hyd || taps.plant || taps.fuel_none)) return false;
+      if (q9.tissue && taps.tissue_sessions == null) return false;
+      if (q9.same && taps.same == null) return false;
+      if (q9.reset && taps.downreg == null) return false;
+      return true;
     }
-    start.addEventListener('click', function () { close(false); });
-    skip.addEventListener('click', function () { close(true); });
-    btns.appendChild(start); btns.appendChild(skip); card.appendChild(btns);
+    function arm() { start.disabled = !answered(); start.classList.toggle('ready', answered()); }
+    function chip(label, on, cls) { var b = el('button', 'regen-chip' + (cls ? ' ' + cls : ''), label); b.type = 'button'; b.addEventListener('click', function () { var was = b.classList.contains('on'); on(!was, b); b.classList.toggle('on', !was); tapCount++; arm(); }); return b; }
+    function one(row, chips, b) { chips.forEach(function (x) { if (x !== b) x.classList.remove('on'); }); }
+    var ICON = { SLEEP: '🌙', FUEL: '🥗', TISSUE: '🧘', RESET: '🫧' };   // change 1: one icon each
+    function q(title, text) { var s = el('div', 'regen-q'); var h = el('div', 'regen-qh'); h.appendChild(el('span', 'regen-qi', ICON[title] || '')); h.appendChild(el('span', 'regen-qh-t', title)); s.appendChild(h); if (text) s.appendChild(el('div', 'regen-qt', text)); card.appendChild(s); return s; }
+    if (q9.sleep) {
+      var q1 = q('SLEEP', 'How long did you sleep last night?');
+      var sleepRow = el('div', 'regen-row'), sleepChips = [];
+      [['<8h', 7.5], ['8h', 8], ['9h', 9], ['9½h+', 9.5]].forEach(function (o) {   // #1 "<8h · 8h · 9h · 9½h+"
+        var b = chip(o[0], function (on, me) { one(sleepRow, sleepChips, me); taps.sleep_h = on ? o[1] : null; }, 'one');
+        sleepChips.push(b); sleepRow.appendChild(b);
+      });
+      q1.appendChild(sleepRow);
+      if (q9.same) {   // stage 2+: the consistency toggle — Yes / No (a tap either way)
+        var same = el('div', 'regen-row toggle-row'), sameChips = [];
+        same.appendChild(el('div', 'regen-qt', 'Bed/wake time within 30 min of the night before'));   // #2 (the row's own space above)
+        [['Yes', true], ['No', false]].forEach(function (o) { var b = chip(o[0], function (on, me) { one(same, sameChips, me); taps.same = on ? o[1] : null; }, 'one'); sameChips.push(b); same.appendChild(b); });
+        q1.appendChild(same);
+      }
+    }
+    if (q9.fuel) {
+      var q2 = q('FUEL', 'Yesterday — tap everything you hit:');
+      var fuel = el('div', 'regen-row'), fuelChips = [];
+      var fists = targets && targets.fists != null ? targets.fists : '?', oz = targets && targets.oz != null ? targets.oz : '?', plants = targets && targets.plants != null ? targets.plants : 8;
+      var noneB = null;
+      function fuelOn(k) { return function (on) { taps[k] = on; if (on && noneB) { noneB.classList.remove('on'); taps.fuel_none = false; } }; }
+      fuel.appendChild(chip('Protein ≈ ' + fists + ' fists', fuelOn('prot')));
+      fuel.appendChild(chip('Water ≈ ' + oz + ' oz', fuelOn('hyd')));
+      fuel.appendChild(chip('Plants (fruit + veg) — ' + plants + ' servings', fuelOn('plant')));   // #3
+      noneB = chip('None', function (on) { taps.fuel_none = on; if (on) { taps.prot = taps.hyd = taps.plant = false; fuelChips.forEach(function (x) { x.classList.remove('on'); }); } }, 'none');
+      fuelChips = [].slice.call(fuel.querySelectorAll('.regen-chip'));
+      fuel.appendChild(noneB); q2.appendChild(fuel);
+    }
+    if (q9.tissue) {
+      var q3 = q('TISSUE', 'Yesterday — 5 min stretch or rollout sessions:');   // #4 sessions, any region
+      var tis = el('div', 'regen-row'), tisChips = [];
+      [0, 1, 2].forEach(function (n) {
+        var b = chip(String(n), function (on, me) { one(tis, tisChips, me); taps.tissue_sessions = on ? n : null; }, 'one');
+        tisChips.push(b); tis.appendChild(b);
+      });
+      q3.appendChild(tis);
+    }
+    if (q9.reset) {   // stage 3: reset — Yes / No
+      var q4 = q('RESET', 'Yesterday — 10+ min reset (breathwork, meditation, sauna/hot tub, cold plunge, visualization):');   // #5
+      var rs = el('div', 'regen-row'), rsChips = [];
+      [['Yes', true], ['No', false]].forEach(function (o) { var b = chip(o[0], function (on, me) { one(rs, rsChips, me); taps.downreg = on ? o[1] : null; }, 'one'); rsChips.push(b); rs.appendChild(b); });
+      q4.appendChild(rs);
+    }
+    var btns = el('div', 'regen-btns');
+    function close() {
+      if (!answered()) return;   // §0: no path from the card to the workout without a log
+      var out = { prot: !!taps.prot, hyd: !!taps.hyd, plant: !!taps.plant, sleep_h: taps.sleep_h, same: !!taps.same, tissue_sessions: taps.tissue_sessions || 0, downreg: !!taps.downreg, stage: stage };
+      regenQueue(d, out, false);
+      // the strip shows what the phone knows now; the server's scored row (trend + pairing) replaces it on the read-back
+      regenRemember(d, { logged: true, skipped: false, score: regenLocalScore(out, stage), stage: stage, max: (st && st.max) || REGEN_MAX_DEFAULT[stage] || 10, trend: '', pair: null });
+      wrap.remove(); regenStrip(d); regenRefresh(d, 3);
+    }
+    start.addEventListener('click', close);
+    btns.appendChild(start); card.appendChild(btns);
+    var tell = el('div', 'regen-tell', 'Your workout opens when you tap Start. Tell coach stays open below.'); card.appendChild(tell);
+    try { wrap.dataset.taps = '0'; card.addEventListener('click', function () { wrap.dataset.taps = String(tapCount); }); } catch (e) {}
     wrap.appendChild(card);
+    arm();
     return wrap;
   }
-  // the phone's own score for the strip until the server's row is read back (the same rules as _regenScore_ with the defaults;
-  // the server's cells win on the next regen_status read)
-  function regenLocalScore(t) {
+  // the phone's own score for the strip until the server's row is read back (the same rules as _regenScore_ with the defaults and the
+  // stage; the server's cells win on the next regen_status read)
+  function regenLocalScore(t, stage) {
+    var s = Number(stage) >= 1 ? Number(stage) : 3;
     var N = (t.prot ? 1 : 0) + (t.hyd ? 1 : 0) + (t.plant ? 1 : 0);
-    var h = Number(t.sleep_h), Sb = !(h >= 0) ? 0 : (h < 8 ? 0 : (h < 9 ? 1 : (h < 9.5 ? 2 : 3))), S = Sb + (t.same ? 1 : 0);
-    var T = Math.min(Number(t.tissue_sessions) || 0, 2), D = t.downreg ? 1 : 0, total = N + S + T + D;   // #4: points = sessions, max 2
-    return { N: N, S: S, T: T, D: D, total: total, low: (total < 5 || S < 2) ? 1 : 0 };
+    var h = Number(t.sleep_h), Sb = !(h >= 0) ? 0 : (h < 8 ? 0 : (h < 9 ? 1 : (h < 9.5 ? 2 : 3))), S = Sb + (s >= 2 && t.same ? 1 : 0);
+    var T = Math.min(Number(t.tissue_sessions) || 0, 2), D = s >= 3 && t.downreg ? 1 : 0, total = N + S + T + D;   // #4: points = sessions, max 2
+    var max = REGEN_MAX_DEFAULT[s] || 10;
+    return { N: N, S: S, T: T, D: D, total: total, max: max, stage: s, low: (total < Math.ceil(max / 2) || S < 2) ? 1 : 0 };
   }
   // at workout open: once per athlete per date — the server's row wins (another device may have answered); the card only when
-  // no row exists; the workout is already painted behind it
+  // no row exists; the workout is already painted behind it. The card is INSIDE the open number (R996): a card painted past 8 s
+  // from the tap reports itself.
+  var REGEN_OPEN_T0 = 0, REGEN_OPEN_REPORTED = false;
   function regenCardMaybe(s) {
     if (!REGEN_ON || !s || !s.date) return;
     var d = String(s.date).slice(0, 10);
     var known = regenKnown(d);
-    if (known && known.logged) { regenStrip(d); return; }
+    if (known && known.logged) { regenStrip(d); regenRefresh(d, 0); return; }
     if (app.querySelector('.regen-wrap')) return;
     fetchJson(cfg.WEBAPP_URL + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
       .then(function (st) {
         if (!(SESSION && String(SESSION.date || '').slice(0, 10) === d)) return;   // the athlete moved on
-        if (st && st.ok && st.logged) { regenRemember(d, { logged: true, skipped: !!st.skipped, score: st.score }); regenStrip(d); return; }
+        if (st && st.ok && st.logged) {
+          var sc = st.score || {};
+          regenRemember(d, { logged: true, skipped: !!st.skipped, score: sc, stage: sc.stage || st.stage, max: sc.max || st.max, trend: sc.trend || '',
+                             pair: sc.pair_text ? { area: sc.pair_area, item: sc.pair_item, mode: sc.pair_mode, text: sc.pair_text } : null });
+          regenStrip(d); return;
+        }
         if (app.querySelector('.regen-wrap') || !document.querySelector('.ex-row')) return;
-        app.appendChild(regenCard(d, st && st.targets));
+        app.appendChild(regenCard(d, st));
+        try {
+          var msCard = REGEN_OPEN_T0 ? (Date.now() - REGEN_OPEN_T0) : 0;
+          if (msCard > OPEN_SLOW_REPORT_MS && !REGEN_OPEN_REPORTED) { REGEN_OPEN_REPORTED = true; reportError('workout_open_slow', 'REGEN card painted after ' + (msCard / 1000).toFixed(1) + 's (over the 8 s cell workout_open_max_s)', s.session_id || '', 'card_ms=' + msCard); }
+        } catch (eT) {}
       }).catch(function () {});   // offline: no card, no state change — the workout stands
   }
-  function regenProfileBlock(hist, mean) {
+  function regenProfileBlock(hist, mean, meta) {
     var sec = el('section', 'p-block regen');
-    sec.appendChild(el('div', 'p-block-h', 'REGEN'));
+    var m = meta || {};
+    sec.appendChild(el('div', 'p-block-h', 'REGEN — stage ' + (m.stage || 1) + ' · ' + (m.logs || 0) + ' logged · next unlock at ' + (m.next_unlock != null ? m.next_unlock : '—')));
     if (!hist || !hist.length) { sec.appendChild(el('div', 'regen-hist-row', '—')); return sec; }
     hist.slice(0, 10).forEach(function (h) {
-      var t = h.skipped ? (h.date + ' · —') : (h.date + ' · ' + h.total + ' · S' + h.S + ' N' + h.N + ' T' + h.T + ' D' + h.D + (Number(h.low) === 1 ? ' · LOW' : ''));
+      var t = h.skipped ? (h.date + ' · —')
+        : (h.date + ' · ' + h.total + '/' + (h.max || REGEN_MAX_DEFAULT[h.stage || 3] || 10) + ' · S' + h.S + ' N' + h.N + ' T' + h.T + ' D' + h.D + (h.trend ? ' · ' + h.trend : '') + (Number(h.low) === 1 ? ' · LOW' : '') + (h.pair_area ? ' · ' + h.pair_area + '→' + h.pair_item : ''));
       sec.appendChild(el('div', 'regen-hist-row' + (Number(h.low) === 1 ? ' low' : ''), t));
     });
-    if (mean != null) sec.appendChild(el('div', 'regen-hist-mean', '4-week mean ' + mean));
+    if (m.window_mean != null) sec.appendChild(el('div', 'regen-hist-mean', 'mean over last ' + (m.window_n || '') + ': ' + m.window_mean));
+    else if (mean != null) sec.appendChild(el('div', 'regen-hist-mean', '4-week mean ' + mean));
     return sec;
   }
-  function qAdd(row) { try { if (row && row._q_at == null) row._q_at = Date.now(); } catch (eQa) {}   // when it was queued — the beacon reports only what has sat unsent (Mason 09-12 15:0x: four reports of sets that drained seconds later)
+  function qAdd(row) { try { if (row && row._q_at == null) row._q_at = Date.now(); if (row && row.log_id) qMirrorAdd(row.log_id); } catch (eQa) {}   // when it was queued — the beacon reports only what has sat unsent (Mason 09-12 15:0x: four reports of sets that drained seconds later); the mirror (L381 as amended 09-15) records every id that entered
     return qStore('readwrite').then(function (s) { return new Promise(function (res) { s.put(row); s.transaction.oncomplete = res; }); }); }
   function qAll() { return qStore('readonly').then(function (s) { return new Promise(function (res) { var rq = s.getAll(); rq.onsuccess = function () { res(rq.result || []); }; }); }); }
   try { window.BP_qCount = function () { return qAll().then(function (r) { return r.length; }); }; } catch (e) {}   // j20 asserts a tap really queued
@@ -481,7 +557,50 @@
       });
     };
   } catch (e) {}
-  function qDel(ids) { return qStore('readwrite').then(function (s) { ids.forEach(function (id) { s['delete'](id); }); return new Promise(function (res) { s.transaction.oncomplete = res; }); }); }
+  function qDel(ids) { qMirrorDrop(ids); return qStore('readwrite').then(function (s) { ids.forEach(function (id) { s['delete'](id); }); return new Promise(function (res) { s.transaction.oncomplete = res; }); }); }
+  // L381 AS AMENDED (Phil 2026-09-15 04:4x, answering NEEDS PHIL 14 "yes, report and amend": "A queued row that leaves for any
+  // reason but landing: the phone sends one line naming the door, and the athlete sees it — rule 25's shape."). Born from Mason's
+  // Sunday Regen answer, which left the queue without reaching the Workbook and without a record (R1019). Every queued log_id is
+  // MIRRORED in localStorage; a row that leaves the store by any door but landing reports ONE ErrorLog line `queue_dropped`
+  // (id · door · why) and the athlete sees a line. Doors: refused (the server said no — the refused card already shows it),
+  // uncheck (the athlete's own undo — nothing to show), vanished (the store lost it between drains — the R1019 shape; a card).
+  function qMirror() { try { return JSON.parse(localStorage.getItem('bp_qmirror') || '[]'); } catch (e) { return []; } }
+  function qMirrorSet(a) { try { localStorage.setItem('bp_qmirror', JSON.stringify(a.slice(-400))); } catch (e) {} }
+  function qMirrorAdd(id) { if (!id) return; var m = qMirror(); if (m.indexOf(id) < 0) { m.push(id); qMirrorSet(m); } }
+  function qMirrorDrop(ids) { try { var m = qMirror().filter(function (x) { return (ids || []).indexOf(x) < 0; }); qMirrorSet(m); } catch (e) {} }
+  function queueDropped(id, door, why, ex) {
+    // reportError dedupes on kind|message — the id makes every drop a distinct message, so each one lands
+    reportError('queue_dropped', 'id=' + String(id || '').slice(0, 8) + ' door=' + door + ' why=' + why + (ex ? ' ex=' + ex : ''), 'queue', 'id=' + id);
+    if (door === 'vanished') showDroppedCard(ex);
+  }
+  function showDroppedCard(ex) {
+    try {
+      var old = document.querySelector('.dropped-card'); if (old) old.remove();
+      var card = el('div', 'refused-card dropped-card');
+      card.appendChild(el('div', 'refused-line', (ex ? 'A set of ' + ex : 'A set') + ' left your phone’s queue before it was saved. Log it again if you did it — your coach has been told.'));
+      var ok = el('button', 'refused-ok', 'OK'); ok.type = 'button';
+      ok.addEventListener('click', function () { card.remove(); });
+      card.appendChild(ok);
+      document.body.appendChild(card);
+    } catch (e) {}
+  }
+  // vanished-row detection at every drain: a mirrored id the store no longer holds left without a door of ours
+  function qVanishedCheck(rows) {
+    try {
+      var have = {}; (rows || []).forEach(function (r) { if (r && r.log_id) have[r.log_id] = 1; });
+      var lost = qMirror().filter(function (id) { return !have[id]; });
+      if (!lost.length) return;
+      lost.forEach(function (id) { queueDropped(id, 'vanished', 'the queue store no longer holds it'); });
+      qMirrorDrop(lost);
+    } catch (e) {}
+  }
+  try {   // j46 seams: queue a row the mirrored way, lose it the RAW way (no door of ours), then run the check
+    window.BP_qMirror = qMirror;
+    window.BP_qVanishedCheck = function () { return qAll().then(qVanishedCheck); };
+    window.BP_qAddSim = function (row) { return qAdd(row); };
+    window.BP_qRawLose = function (id) { return qStore('readwrite').then(function (s) { s['delete'](id); return new Promise(function (res) { s.transaction.oncomplete = res; }); }); };
+    window.BP_qLandSim = function (ids) { return qDel(ids); };   // the landing door — never reports
+  } catch (e) {}
   function updateBadge() {
     return qAll().then(function (rows) {
       if (rows.length) { syncEl.hidden = false; syncEl.className = 'sync pending'; syncEl.textContent = rows.length + ' pending'; }
@@ -535,6 +654,7 @@
     draining = true;
     var done = function () { draining = false; };
     return qAll().then(function (rows) {
+      qVanishedCheck(rows);   // L381 as amended 09-15: a mirrored id the store no longer holds reports itself before this drain
       if (!rows.length) { done(); return; }
       var ids = rows.map(function (x) { return x.log_id; });
       return sendLog(rows).then(function () {
@@ -559,6 +679,7 @@
               done(); return updateBadge();                                   // parked rows retry next drain
             };
             if (!rIds.length) return fin();
+            refused.forEach(function (x) { queueDropped(x.id, 'refused', String(x.reason || 'the server refused it'), x.ex); });   // L381 as amended 09-15: the door is named
             return qDel(rIds).then(function () { showRefusedCard(refused); return fin(); });
           });
         }
@@ -2431,7 +2552,7 @@
       refocus();   // rule 1: finishing a set advances what's in focus
     }
     function uncheck() {   // undo an accidental check — and the undo must REACH THE SHEET (R016, j30)
-      if (lastLogId) qDel([lastLogId]).then(updateBadge).catch(function () {});
+      if (lastLogId) { queueDropped(lastLogId, 'uncheck', 'the athlete undid the check'); qDel([lastLogId]).then(updateBadge).catch(function () {}); }   // L381 as amended 09-15
       // Sessions is append-only (hard rule 1): once the row has drained, pulling it back is
       // impossible — the undo is a CORRECTION APPEND. A marker row (flag 'uncheck', same set, blank
       // actuals) voids the set at every server intake, newest-wins, so a genuine re-log wins the set
@@ -2583,8 +2704,19 @@
       if (l.state === 'alternate') return { cls: 'done', text: name + ' — ' + altPart };
       return { cls: 'skip', text: name + ' — not logged' };
     }
+    // REGEN v1.1 change 3 (Phil 06:0x): the pairing line renders on THIS screen, directly under the highlight line (highlights paint
+    // first, R928), as a statement-question, no tap — the phone's own record of today's row (regen_status read-back), never a fetch here
+    function regenPairLine() {
+      try {
+        var d9 = SESSION && String(SESSION.date || '').slice(0, 10); if (!d9) return;
+        var st9 = regenKnown(d9); if (!st9 || !st9.logged || !st9.pair || !st9.pair.text) return;
+        if (app.querySelector('.sum-regen-pair')) return;
+        app.appendChild(el('p', 'sum-regen-pair', st9.pair.text));
+      } catch (e9) {}
+    }
     function renderLifts(lifts, setsLogged, hl) {
-      if (hl) app.appendChild(el('p', 'sum-highlight', hl));
+      if (hl && !app.querySelector('.sum-highlight')) app.appendChild(el('p', 'sum-highlight', hl));   // once — the headline above may already carry it (seen on the 09-15 shot: twice)
+      regenPairLine();
       lifts.forEach(function (l) { var ln = liftLine(l); app.appendChild(el('div', 'sum-row lift ' + ln.cls, ln.text)); });
     }
     function localLifts() {
@@ -2628,11 +2760,12 @@
       } catch (eRP) {}
       return null;
     }
-    if (d && d.highlight) app.appendChild(el('p', 'sum-highlight', d.highlight));
+    if (d && d.highlight) { app.appendChild(el('p', 'sum-highlight', d.highlight)); regenPairLine(); }
     else if (d && d.ok && !d.lifts) {   // R995: with the per-lift list, nothing cleared → "N sets logged" and nothing else
       // No PR today — the filler is a streak + the distance to the next rung, never a deficit.
       var rp0 = rungProgress();
       app.appendChild(el('p', 'sum-highlight', '\u2705 Session #' + (d.sessions_n || '?') + ' in the books' + (rp0 ? ' \u2014 ' + rp0 : '')));
+      regenPairLine();
     }
     function block(title, items, cls) {
       if (!items || !items.length) return;
@@ -2736,6 +2869,7 @@
     if (!d || !d.ok || !d.logged) {
       var lh = localHighlights();
       if (lh.top) app.appendChild(el('p', 'sum-highlight', lh.top));
+      regenPairLine();
       if (lh.rows.length) {
         app.appendChild(el('h3', 'sum-t up', 'Today’s best work'));
         lh.rows.forEach(function (r9) { app.appendChild(el('div', 'sum-row up', r9)); });
@@ -5088,7 +5222,7 @@
     if (REGEN_ON) {
       var regenSec = regenProfileBlock([], null); app.appendChild(regenSec);
       fetchJson(cfg.WEBAPP_URL + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
-        .then(function (st) { if (st && st.ok && regenSec.parentNode) regenSec.replaceWith(regenProfileBlock(st.history || [], st.mean4w)); }).catch(function () {});
+        .then(function (st) { if (st && st.ok && regenSec.parentNode) regenSec.replaceWith(regenProfileBlock(st.history || [], st.mean4w, { stage: st.stage, logs: st.logs, next_unlock: st.next_unlock, window_mean: st.window_mean, window_n: st.window_n })); }).catch(function () {});
     }
 
     // ── 2. WHERE YOU STAND — the quality-ladder BARS, restored exactly (C30: they were never on
@@ -5211,6 +5345,7 @@
     primeAudio();                // the session-start TAP is the gesture iOS unlocks audio on (L124)
     try { sessionStorage.setItem('bp_open_session', sessionId); } catch (e) {}
     var t0Open = Date.now(), openReported = false;
+    REGEN_OPEN_T0 = t0Open; REGEN_OPEN_REPORTED = false;   // R1071 §0: the REGEN card is inside the open number
     var cached = cachedSession(sessionId);
     var painted = cached ? safeRender(cached, sessionId) : false;
     if (painted) { try { regenCardMaybe(cached); } catch (eRc) {} }   // R1000: the card over the cached paint, once per date

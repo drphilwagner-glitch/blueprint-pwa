@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260915-r1071regen';  // 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20260915-r1077drain';  // 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -95,9 +95,20 @@
   function show(msg, cls) { app.innerHTML = ''; app.appendChild(el('p', cls || 'empty', msg)); }
 
   // ---- offline queue (IndexedDB): fire-and-forget idempotent POST + retry; badge never sticks ----
+  // R1077 (Grace 2026-09-15 16:36–16:57): a fetch that never settles wedged the drain for the rest of her session — 26 sets
+  // tapped after it never left the phone, and nothing reported it (the beacon counted them, the drain never ran again). Every
+  // fetch the drain waits on now carries a deadline: an aborted fetch is a failed try, never a held lock.
+  var SEND_TIMEOUT_MS = 20000, ACK_TIMEOUT_MS = 8000;
+  function fetchT(url, opts, ms) {
+    opts = opts || {};
+    if (typeof AbortController !== 'function') return fetch(url, opts);
+    var ac = new AbortController(); opts.signal = ac.signal;
+    var t = setTimeout(function () { try { ac.abort(); } catch (eA) {} }, ms);
+    return fetch(url, opts).then(function (r) { clearTimeout(t); return r; }, function (err) { clearTimeout(t); throw err; });
+  }
   function sendLog(rows) {
-    return fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: rows }) });
+    return fetchT(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: rows }) }, SEND_TIMEOUT_MS);
   }
   // Mark this session done on Finish so reopening advances to the next planned session.
   //
@@ -525,9 +536,27 @@
   // (rule 14: Phil is never the sensor). When the page goes away with sets still queued, the phone reports `queue_pending` with
   // their coordinates, on a transport that survives the unload (sendBeacon / keepalive). Once per distinct set of ids per session.
   var QUEUE_BEACON_MIN_AGE_MS = 45000;   // a row unsent this long at unload is a set the phone is failing to deliver, not a set between taps
+  // R1077: the page going away is the last chance to DELIVER, not only to report. Every queued row rides out with the unload
+  // (fetch keepalive — the transport the report itself uses) so a wedged drain still hands the sets to the Workbook; the
+  // server's log_id idempotence (hard rule 4) makes a second copy harmless. Chunked under the keepalive body cap.
+  var QUEUE_DELIVER_CHUNK = 24;
+  function deliverQueued(rows, why) {
+    try {
+      var live = (rows || []).filter(function (r) { return r && r.log_id; });
+      if (!live.length || !cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return;
+      var ids = live.map(function (r) { return String(r.log_id || '').slice(0, 8); });
+      try { (window.__bpQueueSent = window.__bpQueueSent || []).push({ why: why, ids: ids }); } catch (eS) {}   // j48 seam
+      for (var i = 0; i < live.length; i += QUEUE_DELIVER_CHUNK) {
+        var payload = JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: live.slice(i, i + QUEUE_DELIVER_CHUNK), via: 'unload' });
+        fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', keepalive: true,
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: payload }).catch(function () {});
+      }
+    } catch (e) {}
+  }
   function queueBeacon(why) {
     try {
       qAll().then(function (rows) {
+        deliverQueued(rows, why);
         // Mason 2026-09-12 15:05–15:29: four reports of sets that drained seconds later — a set queued between two taps and a
         // backgrounding is not a lost set. Only rows that have sat unsent past QUEUE_BEACON_MIN_AGE_MS are reported.
         var nowQ = Date.now();
@@ -611,10 +640,12 @@
   // promise resolves whether or not a row was written — the old drain then deleted the queue entry
   // regardless, which silently lost sets (the durability journey logged 2 and the Workbook gained 1).
   // A set is only forgotten once the server says it has it.
+  var ackTimedOut = false;   // R1077: set when the read-back hit its deadline — the confirm loop stops polling instead of holding the drain
   function ackLogs(ids) {
     var url = cfg.WEBAPP_URL + '?action=logack&athlete=' + encodeURIComponent(athlete) +
       '&token=' + encodeURIComponent(token) + '&ids=' + encodeURIComponent(ids.join(','));
-    return fetch(url).then(function (r) { return r.json(); })
+    ackTimedOut = false;
+    return fetchT(url, {}, ACK_TIMEOUT_MS).then(function (r) { return r.json(); }, function (err) { if (err && err.name === 'AbortError') ackTimedOut = true; throw err; })
       .then(function (d) { return (d && d.ok && d.present) ? d.present : []; })
       .catch(function () { return []; });
   }
@@ -625,7 +656,7 @@
   function refusedLogs(ids) {
     var url = cfg.WEBAPP_URL + '?action=logrefused&athlete=' + encodeURIComponent(athlete) +
       '&token=' + encodeURIComponent(token) + '&ids=' + encodeURIComponent(ids.join(','));
-    return fetch(url).then(function (r) { return r.json(); })
+    return fetchT(url, {}, ACK_TIMEOUT_MS).then(function (r) { return r.json(); })
       .then(function (d) { return (d && d.ok && d.refused) ? d.refused : []; })
       .catch(function () { return []; });
   }
@@ -648,11 +679,21 @@
       document.body.appendChild(card);
     } catch (e) {}
   }
-  var draining = false;
+  var draining = false, drainingSince = 0, drainAgain = false;
+  var DRAIN_WEDGE_MS = 60000;   // R1077: a drain older than this is a wedge (a fetch that never settled), not a drain in progress
   function drain() {
-    if (draining || !navigator.onLine) return Promise.resolve();
-    draining = true;
-    var done = function () { draining = false; };
+    if (draining) {
+      drainAgain = true;   // rows queued while a drain runs are sent the moment it ends, not on the next 15 s tick
+      if (!(drainingSince && (Date.now() - drainingSince) > DRAIN_WEDGE_MS)) return Promise.resolve();
+      reportError('drain_wedged', 'the send/confirm loop did not settle in ' + Math.round((Date.now() - drainingSince) / 1000) + 's — reset and re-sent (R1077)', 'drain', '');
+      draining = false;   // the wedged cycle's own callbacks are dead or will find nothing to do; the queue is the truth
+    }
+    if (!navigator.onLine) return Promise.resolve();
+    draining = true; drainingSince = Date.now(); drainAgain = false;
+    var done = function () {
+      draining = false; drainingSince = 0;
+      if (drainAgain) { drainAgain = false; setTimeout(function () { drain(); }, 50); }
+    };
     return qAll().then(function (rows) {
       qVanishedCheck(rows);   // L381 as amended 09-15: a mirrored id the store no longer holds reports itself before this drain
       if (!rows.length) { done(); return; }
@@ -689,11 +730,11 @@
             if (present.length) {
               return qDel(present).then(function () {
                 if (present.length === ids.length) { done(); return updateBadge(); }
-                if (tries >= 4) return giveUp(present);
+                if (tries >= 4 || ackTimedOut) return giveUp(present);
                 return new Promise(function (r) { setTimeout(r, 2000); }).then(confirm);
               });
             }
-            if (tries >= 4) return giveUp([]);
+            if (tries >= 4 || ackTimedOut) return giveUp([]);   // R1077: a read-back past its deadline ends the cycle; the rows retry next drain
             return new Promise(function (r) { setTimeout(r, 2000); }).then(confirm);
           });
         }

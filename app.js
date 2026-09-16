@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260916-r1078regenlate';  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20260916-r1083regendate';   // morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -344,6 +344,10 @@
   function regenKey(d) { return 'bp_regen_' + athlete + '_' + d; }
   function regenRemember(d, st) { REGEN_TODAY[d] = st; try { localStorage.setItem(regenKey(d), JSON.stringify(st)); } catch (e) {} }
   function regenKnown(d) { if (REGEN_TODAY[d]) return REGEN_TODAY[d]; try { var v = localStorage.getItem(regenKey(d)); if (v) return (REGEN_TODAY[d] = JSON.parse(v)); } catch (e) {} return null; }
+  // Phil 2026-09-16 item 16: "A log row is dated the day it was logged, my clock." The regen date is the phone's own calendar date at
+  // the tap — never the session's date (a Thursday board opened on Tuesday logged a Thursday row). The server accepts a date within a
+  // day of its own today and otherwise stamps today; the card/strip/pair line all key on this date. j42 arm L1.
+  function regenToday() { var t = new Date(); return t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2); }
   // ══ REGEN v1.1 (Phil's BUILD ORDER 2026-09-13, amended 2026-09-15 04:5x — R1071; the copy below is his, verbatim). ══
   // RECORD-AND-SHOW ONLY: nothing here touches the served workout. CHANGED 09-15 (amends R1000): Skip is REMOVED — the card is
   // answered before Start; Start enables only when every question present has a tap; Tell Coach stays reachable (the nav sits
@@ -378,7 +382,7 @@
         var sc = st.score || {};
         regenRemember(d, { logged: true, skipped: !!st.skipped, score: sc, stage: sc.stage || st.stage, max: sc.max || st.max, trend: sc.trend || '',
                            pair: sc.pair_text ? { area: sc.pair_area, item: sc.pair_item, mode: sc.pair_mode, text: sc.pair_text } : null });
-        if (SESSION && String(SESSION.date || '').slice(0, 10) === d) regenStrip(d);
+        if (SESSION && regenToday() === d) regenStrip(d);   // item 16: the strip is today's row, whatever board is open
         if (!sc.pair_text && tries > 0) setTimeout(function () { regenRefresh(d, tries - 1); }, 3500);   // the second pass may land a beat later
       }).catch(function () { if (tries > 0) setTimeout(function () { regenRefresh(d, tries - 1); }, 3500); });
   }
@@ -498,13 +502,13 @@
   var REGEN_LOGS_SINCE_OPEN = 0;
   function regenCardMaybe(s) {
     if (!REGEN_ON || !s || !s.date) return;
-    var d = String(s.date).slice(0, 10);
+    var d = regenToday(), sid0 = String(s.session_id || '');   // item 16 (Phil 2026-09-16): the row is dated the day it is logged, not the board's date
     var known = regenKnown(d);
     if (known && known.logged) { regenStrip(d); regenRefresh(d, 0); return; }
     if (app.querySelector('.regen-wrap')) return;
     fetchJson(cfg.WEBAPP_URL + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
       .then(function (st) {
-        if (!(SESSION && String(SESSION.date || '').slice(0, 10) === d)) return;   // the athlete moved on
+        if (!(SESSION && String(SESSION.session_id || '') === sid0)) return;   // the athlete moved on (to another board)
         if (st && st.ok && st.logged) {
           var sc = st.score || {};
           regenRemember(d, { logged: true, skipped: !!st.skipped, score: sc, stage: sc.stage || st.stage, max: sc.max || st.max, trend: sc.trend || '',
@@ -2763,7 +2767,7 @@
     // first, R928), as a statement-question, no tap — the phone's own record of today's row (regen_status read-back), never a fetch here
     function regenPairLine() {
       try {
-        var d9 = SESSION && String(SESSION.date || '').slice(0, 10); if (!d9) return;
+        var d9 = regenToday();   // item 16: today's row, the day it was logged
         var st9 = regenKnown(d9); if (!st9 || !st9.logged || !st9.pair || !st9.pair.text) return;
         if (app.querySelector('.sum-regen-pair')) return;
         app.appendChild(el('p', 'sum-regen-pair', st9.pair.text));

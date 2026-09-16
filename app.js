@@ -64,7 +64,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260915-r1077drain';  // 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20260916-r1078regenlate';  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -490,6 +490,12 @@
   // no row exists; the workout is already painted behind it. The card is INSIDE the open number (R996): a card painted past 8 s
   // from the tap reports itself.
   var REGEN_OPEN_T0 = 0, REGEN_OPEN_REPORTED = false;
+  // R1078 (Grace 2026-09-15 16:02–16:05): the regen_status read hung 187 s; the card is "answered before Start" (Phil, R1071),
+  // but a read-back that settles AFTER the athlete has logged a set paints the full-screen card OVER a workout in progress —
+  // Grace logged Curtsy set 1 at 16:05:35 and the card covered her screen at 16:05:39. A card that arrives after the first
+  // logged set of this open is SKIPPED (reported on the slow-open line, never painted); one that arrives before any set is
+  // still the card, however late. REGEN is record-and-show only (§9a), so a skipped card changes nothing served.
+  var REGEN_LOGS_SINCE_OPEN = 0;
   function regenCardMaybe(s) {
     if (!REGEN_ON || !s || !s.date) return;
     var d = String(s.date).slice(0, 10);
@@ -506,6 +512,14 @@
           regenStrip(d); return;
         }
         if (app.querySelector('.regen-wrap') || !document.querySelector('.ex-row')) return;
+        if (REGEN_LOGS_SINCE_OPEN > 0) {   // R1078: the athlete has started — a late card never covers a workout in progress
+          try {
+            var msLate = REGEN_OPEN_T0 ? (Date.now() - REGEN_OPEN_T0) : 0;
+            try { (window.__bpErrLog = window.__bpErrLog || []).push('regen_card_skipped'); } catch (eSk) {}   // j49 seam
+            if (msLate > OPEN_SLOW_REPORT_MS && !REGEN_OPEN_REPORTED) { REGEN_OPEN_REPORTED = true; reportError('workout_open_slow', 'REGEN card skipped — the status read settled after ' + (msLate / 1000).toFixed(1) + 's, after the first logged set (R1078)', s.session_id || '', 'card_ms=' + msLate); }
+          } catch (eL) {}
+          return;
+        }
         app.appendChild(regenCard(d, st));
         try {
           var msCard = REGEN_OPEN_T0 ? (Date.now() - REGEN_OPEN_T0) : 0;
@@ -743,7 +757,7 @@
     }).catch(function () { done(); });
   }
   // mkLog returns null once the athlete has left the workout; a null must never reach the queue.
-  function logRows(rows) { rows = (rows || []).filter(Boolean); if (!rows.length) return; Promise.all(rows.map(qAdd)).then(updateBadge).then(drain); }
+  function logRows(rows) { rows = (rows || []).filter(Boolean); if (!rows.length) return; REGEN_LOGS_SINCE_OPEN += rows.length; Promise.all(rows.map(qAdd)).then(updateBadge).then(drain); }   // R1078: the count the late-card guard reads
   window.addEventListener('online', drain);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) drain(); });
   setInterval(function () { if (navigator.onLine) drain(); }, 15000);
@@ -5386,7 +5400,7 @@
     primeAudio();                // the session-start TAP is the gesture iOS unlocks audio on (L124)
     try { sessionStorage.setItem('bp_open_session', sessionId); } catch (e) {}
     var t0Open = Date.now(), openReported = false;
-    REGEN_OPEN_T0 = t0Open; REGEN_OPEN_REPORTED = false;   // R1071 §0: the REGEN card is inside the open number
+    REGEN_OPEN_T0 = t0Open; REGEN_OPEN_REPORTED = false; REGEN_LOGS_SINCE_OPEN = 0;   // R1071 §0: the REGEN card is inside the open number; R1078: a card after the first logged set is skipped
     var cached = cachedSession(sessionId);
     var painted = cached ? safeRender(cached, sessionId) : false;
     if (painted) { try { regenCardMaybe(cached); } catch (eRc) {} }   // R1000: the card over the cached paint, once per date

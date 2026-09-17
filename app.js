@@ -8,6 +8,27 @@
   'use strict';
 
   var cfg = window.BP_CONFIG || {};
+  // API ROUND-TRIP TIMING (21:08 slot 2026-09-16, the capability design/IOS-PITFALLS.md names NOT COVERED: Grace's session that night
+  // read "session fetch still pending after 20000ms", four drain wedges of 83–157 s and a 46 s boot stall, and no server row existed
+  // for any of them — the phone is the only witness to platform latency, and workout_open_slow / completion_slow watch two of its
+  // ~ten calls). Every fetch to the exec URL is timed here, whatever door made it; one that settles (or aborts) past the 8 s cell
+  // reports `api_slow` with the action and the wall time. The clienterror post itself is never timed (it would report itself).
+  // Detection only, one row per distinct action+seconds; nothing an athlete sees changes. Reversing line: delete this block.
+  var API_SLOW_MS = 8000, _rawFetch = window.fetch;
+  try {
+    if (typeof _rawFetch === 'function' && cfg.WEBAPP_URL) window.fetch = function (input, init) {
+      var url = ''; try { url = (typeof input === 'string') ? input : String(input && input.url || ''); } catch (eU) {}
+      if (url.indexOf(cfg.WEBAPP_URL) !== 0) return _rawFetch.apply(window, arguments);
+      var action = '';
+      try { action = new URL(url, location.href).searchParams.get('action') || ''; } catch (eA) {}
+      if (!action) { try { var b = JSON.parse((init && typeof init.body === 'string') ? init.body : '{}'); action = String(b.action || ''); } catch (eB) {} }
+      if (action === 'clienterror') return _rawFetch.apply(window, arguments);
+      var t0 = Date.now(), done = function (how) { try { var ms = Date.now() - t0; if (ms > API_SLOW_MS) { try { (window.__bpApiSlow = window.__bpApiSlow || []).push({ action: action || 'api', ms: ms, how: how }); } catch (eS) {}   // the journeys' seam (j34 precedent): a localhost build never posts
+          reportError('api_slow', (action || 'api') + ' round trip ' + (ms / 1000).toFixed(1) + 's (' + how + ', over the 8 s cell)', '', 'ms=' + ms + ' action=' + (action || '?') + ' how=' + how); } } catch (eR) {} };
+      var p = _rawFetch.apply(window, arguments);
+      return p.then(function (r) { done('settled'); return r; }, function (err) { done(err && err.name === 'AbortError' ? 'aborted' : 'failed'); throw err; });
+    };
+  } catch (eW) {}
   var params = new URLSearchParams(location.search);
   var athlete = params.get('athlete') || localStorage.getItem('bp_athlete') || '';
   // R601 TOKEN INDIRECTION (Phil's R600 ruling: rotations must touch zero athletes). The bookmark's
@@ -733,8 +754,11 @@
             var rIds = refused.map(function (x) { return x.id; });
             var park = left.filter(function (id) { return rIds.indexOf(id) < 0; });
             var fin = function () {
+              // R489 (2026-09-17, the 03:11 gate: Grace's row declared ids=32 and carried 24 — 32 full UUIDs overran reportError's
+              // 900-char detail cap and the tail was cut): the list carries each id's first 8 hex chars (the ledger's own citation
+              // form); syncack matches a Sessions log_id by that prefix. 32 ids = 288 chars, never cut.
               if (park.length) reportError('sync_unconfirmed', 'logs sent but not confirmed by the server', '',
-                'ids=' + park.length + ' queued=' + park.join(','));
+                'ids=' + park.length + ' queued=' + park.map(function (id) { return String(id).slice(0, 8); }).join(','));
               done(); return updateBadge();                                   // parked rows retry next drain
             };
             if (!rIds.length) return fin();
@@ -2867,6 +2891,10 @@
       try {
         var sid = SESSION && SESSION.session_id; if (!sid) return out;
         var pref = sid + '|', today = {};
+        // R1109 (Phil 2026-09-17): today's tonnage counts WORK sets only — the set plan names each set's kind; a lift whose plan is
+        // unknown here sums every set (an old payload), matching the server's legacy rule
+        var workNos = {};
+        try { ((SESSION && SESSION.slots) || []).forEach(function (sl) { (sl.exercises || []).forEach(function (e2) { if (!e2 || !e2.setPlan || !e2.setPlan.length) return; var w9 = {}; e2.setPlan.forEach(function (st, i9) { if (st && st.kind === 'work') w9[i9 + 1] = 1; }); workNos[e2.exercise] = w9; }); }); } catch (eW9) {}
         Object.keys(COMMIT_SIG).forEach(function (k) {
           if (k.indexOf(pref) !== 0) return;
           var kp = k.split('|'); if (kp.length < 4) return;
@@ -2876,7 +2904,8 @@
           var load = Number(sv[0]), reps = Number(sv[1]);
           if (!(reps > 0)) return;
           var t9 = (today[ex] = today[ex] || { vol: 0, bestE: 0, best: null });
-          if (load > 0) t9.vol += load * reps;
+          var isWork9 = !workNos[ex] || !!workNos[ex][Number(kp[kp.length - 1])];
+          if (load > 0 && isWork9) t9.vol += load * reps;
           var e9 = load > 0 ? load * (1 + reps / 30) : reps;
           if (e9 > t9.bestE) { t9.bestE = e9; t9.best = { load: load, reps: reps }; }
         });
@@ -3705,7 +3734,7 @@
     // never sit on a spinner waiting for a cold backend build.
     var cachedWk = null;
     try { var raw = localStorage.getItem('bp_week_' + CACHE_V + '_' + athlete); cachedWk = raw ? JSON.parse(raw).sessions : null; } catch (e) {}
-    if (cachedWk && cachedWk.length) renderCalendar(cachedWk); else show('Loading your plan…');
+    if (cachedWk && cachedWk.length) { renderCalendar(cachedWk); prefetchNext(cachedWk); } else show('Loading your plan…');
     fetchJson(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (data) {
         if (data && data.pwa_ver) versionHandshake(data.pwa_ver);   // stale-client self-heal (P0 2026-08-12)
@@ -3746,6 +3775,7 @@
           return;
         }
         renderCalendar(data.sessions, data.next_round_preview, data.round_pending);
+        prefetchNext(data.sessions);
         // BW SELF-ENTRY (Phil 2026-08-29 launch ruling: the athlete types their own body weight;
         // the server writes BLANK cells only, so a coach-typed value is never touched). One quiet
         // card above the calendar; it disappears on success and never returns (planver bump drops
@@ -3831,6 +3861,27 @@
   //
   // The DATE is its own column, not part of the tile: "some days might be zero workouts and some
   // days might have 2". A tile-per-day can't express either.
+  // R1067's PHONE HALF (2026-09-17; the SLOW OPENS red on Grace and Phil — a first open of a fresh round has no cached copy, so the tap
+  // waits for the whole cold build): the calendar PREFETCHES the next workout the moment it renders, into the same cache the open
+  // paints from (`cacheSession`), so the first tap of a round paints instantly like a second tap does. One request per calendar load,
+  // only when no cached copy exists, never over a tap in flight, silently (no render, no card, no report). The next workout is the
+  // tile the calendar itself marks next (`wo-next`: the first open-round session not done or missed). Reversing line: the two
+  // `prefetchNext(...)` calls at the calendar's render sites.
+  var PREFETCH_INFLIGHT = {};
+  function prefetchNext(sessions) {
+    try {
+      var nxt = null;
+      (sessions || []).forEach(function (s) { if (!nxt && s && s.open_round && s.status !== 'done' && s.status !== 'missed' && s.session_id) nxt = s; });
+      if (!nxt) return;
+      var sid = nxt.session_id;
+      if (cachedSession(sid) || PREFETCH_INFLIGHT[sid]) return;
+      try { if (sessionStorage.getItem('bp_open_session') === sid) return; } catch (eO) {}
+      PREFETCH_INFLIGHT[sid] = 1;
+      fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sid) + '&token=' + encodeURIComponent(token))
+        .then(function (data) { delete PREFETCH_INFLIGHT[sid]; if (data && data.ok && data.session && !cachedSession(sid)) cacheSession(sid, data.session); })
+        .catch(function () { delete PREFETCH_INFLIGHT[sid]; });
+    } catch (ePf) {}
+  }
   function renderCalendar(sessions, nextPreview, roundPending) {
     // DUMB CALENDAR (Phil 2026-08-12, the mandated fallback): one screen, page too short to hide the
     // truth. Top: OPEN sessions, flat list, tap to start. Below: LOGGED history, newest first. No
@@ -4414,14 +4465,16 @@
   // history. The graph should not be a 1RM. It should be the volume." Volume is the honest progress
   // signal across variant changes (a harder Dip variant lowers reps but the 1RM chart read as
   // "getting worse"); the PR star still marks where a new best 1RM landed.
-  function _sessVol(sets) {   // tonnage: load×reps for loaded sets, reps for bodyweight (warm-ups included)
+  function _sessVol(sets) {   // tonnage: load×reps for loaded sets, reps for bodyweight — WORK sets only (R1109, Phil 2026-09-17: "Tonnage is work sets only"); an old payload without `w` flags sums every set as before
     // R591 — `s.vmult` IS THE SERVER'S OWN `_volMult_`, carried across the display merge. The merge
     // drops `side` (L170/U5: one line per set), so this function cannot see that two limbs did the
     // work and has no exercise flags to consult — it scored every each-side day at HALF the "Best
     // volume" tile printed directly above it. Measured on Grace's real 2026-08-25 Side Raise: tile
     // 300 lb, day card 150 lb, same sets, same screen. Defaulting to 1 keeps an older cached payload
     // rendering exactly as it always did.
+    var anyW = (sets || []).some(function (s) { return s && s.w != null; });   // R1109: the server flags each set w=true (work) / false (warm-up)
     var v = 0; (sets || []).forEach(function (s) {
+      if (anyW && !s.w) return;
       var l = Number(s.load), rp = Number(s.reps), m = Number(s.vmult) > 0 ? Number(s.vmult) : 1;
       if (l > 0) v += l * (rp || 0) * m; else if (rp > 0) v += rp * m;
     }); return Math.round(v);
@@ -4491,8 +4544,9 @@
     // It lives UNCHANGED behind the tap-through: tap the volume, see the math. Decomposable by
     // tapping was always the requirement; printing internals never was.
     if (day.coeff && Number(day.vol) > 0 && volEl) {
-      var raw = 0;
+      var raw = 0, anyW2 = sets.some(function (s2) { return s2 && s2.w != null; });   // R1109: the Σ reads the same work sets the volume did
       sets.forEach(function (s2) {
+        if (anyW2 && !s2.w) return;
         var l = Number(s2.load), rp = Number(s2.reps) || 0;
         raw += loaded ? (l > 0 ? l * rp : 0) : rp;
       });
@@ -5032,7 +5086,7 @@
     // icon you click if you want to see it").
     var infoRow = el('div', 'p-vol-inforow');
     var ib = el('button', 'p-info'); ib.type = 'button'; ib.textContent = 'ⓘ'; ib.title = 'How volume is counted';
-    var foot = el('div', 'p-vol-foot', 'Volume = every set’s load × reps, summed. Dumbbell (per-hand) lifts count ×2 — both hands work.');
+    var foot = el('div', 'p-vol-foot', 'Volume = your work sets’ load × reps, summed — warm-up sets never count (R1109, Phil 2026-09-17). Dumbbell (per-hand) lifts count ×2 — both hands work.');
     foot.hidden = true;
     ib.addEventListener('click', function () { foot.hidden = !foot.hidden; });
     infoRow.appendChild(ib);

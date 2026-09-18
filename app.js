@@ -23,8 +23,13 @@
       try { action = new URL(url, location.href).searchParams.get('action') || ''; } catch (eA) {}
       if (!action) { try { var b = JSON.parse((init && typeof init.body === 'string') ? init.body : '{}'); action = String(b.action || ''); } catch (eB) {} }
       if (action === 'clienterror') return _rawFetch.apply(window, arguments);
-      var t0 = Date.now(), done = function (how) { try { var ms = Date.now() - t0; if (ms > API_SLOW_MS) { try { (window.__bpApiSlow = window.__bpApiSlow || []).push({ action: action || 'api', ms: ms, how: how }); } catch (eS) {}   // the journeys' seam (j34 precedent): a localhost build never posts
-          reportError('api_slow', (action || 'api') + ' round trip ' + (ms / 1000).toFixed(1) + 's (' + how + ', over the 8 s cell)', '', 'ms=' + ms + ' action=' + (action || '?') + ' how=' + how); } } catch (eR) {} };
+      // BACKGROUND CALLS SAY SO (Phil 2026-09-18 item 2, his own 09-17 14:56 row: `api_slow session 9.5 s` was the calendar's PREFETCH —
+      // nobody waited, the morning report led with it as a P0). A call the phone made behind the athlete's back carries `bg=<why>`
+      // on its URL (prefetchNext: bg=prefetch); the row keeps the wall time but says "background — no wait felt", and the report files
+      // it as a machine row, never a device error. A tap's own read never carries bg.
+      var bg = ''; try { bg = new URL(url, location.href).searchParams.get('bg') || ''; } catch (eG) {}
+      var t0 = Date.now(), done = function (how) { try { var ms = Date.now() - t0; if (ms > API_SLOW_MS) { try { (window.__bpApiSlow = window.__bpApiSlow || []).push({ action: action || 'api', ms: ms, how: how, bg: bg }); } catch (eS) {}   // the journeys' seam (j34 precedent): a localhost build never posts
+          reportError('api_slow', (action || 'api') + ' round trip ' + (ms / 1000).toFixed(1) + 's (' + how + ', over the 8 s cell' + (bg ? ', background ' + bg + ' — no wait felt' : '') + ')', '', 'ms=' + ms + ' action=' + (action || '?') + ' how=' + how + (bg ? ' bg=' + bg : '')); } } catch (eR) {} };
       var p = _rawFetch.apply(window, arguments);
       return p.then(function (r) { done('settled'); return r; }, function (err) { done(err && err.name === 'AbortError' ? 'aborted' : 'failed'); throw err; });
     };
@@ -3877,7 +3882,7 @@
       if (cachedSession(sid) || PREFETCH_INFLIGHT[sid]) return;
       try { if (sessionStorage.getItem('bp_open_session') === sid) return; } catch (eO) {}
       PREFETCH_INFLIGHT[sid] = 1;
-      fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sid) + '&token=' + encodeURIComponent(token))
+      fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sid) + '&token=' + encodeURIComponent(token) + '&bg=prefetch')   // bg=prefetch: a background call — its slowness reports as such, never as a wait (Phil 09-18 item 2)
         .then(function (data) { delete PREFETCH_INFLIGHT[sid]; if (data && data.ok && data.session && !cachedSession(sid)) cacheSession(sid, data.session); })
         .catch(function () { delete PREFETCH_INFLIGHT[sid]; });
     } catch (ePf) {}

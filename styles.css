@@ -297,6 +297,10 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 .p-block.regen .regen-hist-row { font-size: var(--fs-13); padding: 3px 0; }
 .p-block.regen .regen-hist-row.low { color: var(--warn); }
 .p-block.regen .regen-hist-mean { color: var(--muted); font-size: var(--fs-13); margin-top: 4px; }
+/* R1111 (behind the client flag until Phil's "accepted"): three lines and one tap — the session line and the collapsed done-list */
+.sum-line3 { text-align: center; color: var(--muted); font-size: var(--fs-14); margin: 0 0 12px; }
+.sum-more { display: block; margin: 4px auto 8px; padding: 6px 14px; min-height: 0; border-radius: var(--r-pill); border: 1px solid var(--muted-soft); background: transparent; color: var(--bp); font-size: var(--fs-14); }
+.sum-lifts[hidden] { display: none; }
 .sum-row.lift { border-left: 3px solid var(--muted-soft); }                  /* R995: one line per lift served, this session only */
 .sum-row.lift.done { border-left-color: var(--bp); }
 .sum-row.lift.met { border-left-color: var(--ok); color: var(--ok); }

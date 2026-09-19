@@ -262,6 +262,10 @@
           } catch (e) {}
           var tag = '';
           try { if (localStorage.getItem('bp_journey') === '1') tag = '[source=journey] '; } catch (eJ) {}   // R875: a journey's row is never a kid's
+          // R1136 (Phil 2026-09-18 13:1x): a report sent from a browser driven by Playwright / WebDriver (the journeys, the UI harness,
+          // the slow suite) is tagged even when the journey never set bp_journey — the server files every tagged row under QA_Harness,
+          // never under the real athlete's name, so the rule-25 sensor (the KIDS line) reads phones only.
+          try { if (typeof navigator !== 'undefined' && navigator.webdriver) tag = '[source=webdriver] ' + tag; } catch (eW) {}
           return (tag + String(extra || '') + ctx).slice(0, 900);
         })()
       };
@@ -2765,9 +2769,17 @@
     // specific lifts that improved." The finish screen's job is to tell you what the session DID; a
     // full-width navigation control at the top was the loudest thing on a page about achievement.
     app.appendChild(el('h2', 'sum-h', 'Workout complete 💪'));
+    // R1111 (Phil 2026-09-17 05:5x item 7c + 2026-09-18 13:3x build order, verbatim: "completion screen at most three lines, one
+    // takeaway; highlight line first (R928), pairing line second, done-list collapsed behind a tap … ships on my 'accepted'"):
+    // behind R1111_THREE_LINES (OFF until his word; `localStorage bp_r1111=1` renders it for the screenshot). ON: line 1 the
+    // highlight (the takeaway, R928 — painted first from the phone's own data), line 2 the pairing line, line 3 the session in one
+    // line (sets logged · lifts done · Skipped: <name> (why) — R993 keeps every skipped lift named with its reason), then one tap
+    // "Show every lift" that opens the R995 per-lift list; nothing else. OFF: the screen as it stands. Reversing line: the flag.
+    var R1111_THREE_LINES = true;   // ACCEPTED by Phil 2026-09-18 14:2x ("R1111 accepted", on the r1111-three-lines-hl screenshot) — ON for every phone from the 09-19 ship
+    try { if (localStorage.getItem('bp_r1111') === '1') R1111_THREE_LINES = true; } catch (e11) {}
     // R995: the server's count of THIS session's sets (each-side collapsed, echoes voided) when it has answered
     var nShown = (d && d.lifts && d.sets_logged != null) ? d.sets_logged : n;
-    app.appendChild(el('p', 'sum-sub', nShown + ' set' + (nShown === 1 ? '' : 's') + ' logged'));
+    if (!R1111_THREE_LINES) app.appendChild(el('p', 'sum-sub', nShown + ' set' + (nShown === 1 ? '' : 's') + ' logged'));
     // R995 — the per-lift list (this session only). `lifts` come from the server (every device's rows) or, before it
     // answers, from this phone's own commits/skips/swaps. One line per lift served, in board order; nothing else.
     function setsText(sets) {
@@ -2805,6 +2817,29 @@
     function renderLifts(lifts, setsLogged, hl) {
       if (hl && !app.querySelector('.sum-highlight')) app.appendChild(el('p', 'sum-highlight', hl));   // once — the headline above may already carry it (seen on the 09-15 shot: twice)
       regenPairLine();
+      if (R1111_THREE_LINES) {
+        // line 3 — the session in one line; every skipped lift named with its reason (R993), never celebrated
+        var doneN = lifts.filter(function (l) { return l.state === 'done' || l.state === 'alternate'; }).length;
+        var skipped = lifts.filter(function (l) { return l.state === 'skipped'; }).map(function (l) {
+          var why = (l.reason === 'pain') ? 'pain' : (l.reason === 'mine') ? 'your choice' : (l.reason === 'coach') ? 'coach said to' : String(l.reason || 'skipped');
+          return titleName(l.exercise) + ' (' + why + ')';
+        });
+        var nS = (setsLogged != null) ? setsLogged : n;
+        var line3 = nS + ' set' + (nS === 1 ? '' : 's') + ' logged · ' + doneN + ' lift' + (doneN === 1 ? '' : 's') + ' done' + (skipped.length ? ' · Skipped: ' + skipped.join(', ') : '');
+        var l3 = app.querySelector('.sum-line3');
+        if (l3) l3.textContent = line3; else app.appendChild(el('p', 'sum-line3', line3));   // the server's answer upgrades the phone's own line in place
+        // the done-list behind one tap (R995's list, unchanged, hidden until asked for)
+        var more = app.querySelector('.sum-more'), list = app.querySelector('.sum-lifts');
+        if (!more) {
+          more = el('button', 'sum-more', 'Show every lift ▾'); more.type = 'button';
+          list = el('div', 'sum-lifts'); list.hidden = true;
+          more.addEventListener('click', function () { list.hidden = !list.hidden; more.textContent = list.hidden ? 'Show every lift ▾' : 'Hide the list ▴'; });
+          app.appendChild(more); app.appendChild(list);
+        }
+        list.innerHTML = '';
+        lifts.forEach(function (l) { var ln = liftLine(l); list.appendChild(el('div', 'sum-row lift ' + ln.cls, ln.text)); });
+        return;
+      }
       lifts.forEach(function (l) { var ln = liftLine(l); app.appendChild(el('div', 'sum-row lift ' + ln.cls, ln.text)); });
     }
     function localLifts() {

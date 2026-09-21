@@ -90,7 +90,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260920-r1182swap';   // morning 09-20 (Phil item 1): a searched swap opens at the weight the athlete last did it with — from the session payload's last_loads the instant it is tapped (R1182); was 20260918-r1105bg — morning 09-18 (Phil item 2): a background call (the calendar prefetch) that runs slow says so — bg=prefetch, "no wait felt" — and never leads the report as a P0; the tap's own read still does. Previous stamp 20260917-r1112prefetch — morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20260921-r1208reopen';   // morning 09-21 (Phil A1, P0): a Finish carries its tap time and a stale one is refused and dropped — a workout never finishes itself; the completion screen and the same-day done screen carry '↩ Reopen workout' (no confirm; the reopen is the guard); the timer dies at completion, always. Previous stamp 20260920-r1182swap — morning 09-20 (Phil item 1): a searched swap opens at the weight the athlete last did it with — from the session payload's last_loads the instant it is tapped (R1182); was 20260918-r1105bg — morning 09-18 (Phil item 2): a background call (the calendar prefetch) that runs slow says so — bg=prefetch, "no wait felt" — and never leads the report as a P0; the tap's own read still does. Previous stamp 20260917-r1112prefetch — morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -144,36 +144,55 @@
   // survived every network hiccup since the IndexedDB queue landed; completes now get the same
   // discipline — a GET the client can READ (the move lesson: an opaque write is indistinguishable
   // from a broken app), retried from a pending list until the server actually says ok.
+  // R1208 (Phil 2026-09-21 A1 — his own 09-20 session "completed itself before my last complex"; L381: a session completes only on the
+  // athlete's deliberate tap): every pending complete carries the TIME of the Finish tap (`at`), the server refuses one that arrived after
+  // a set logged later than it (`stale_complete`), and the phone drops that entry and says so — a Finish from another day never lands on a
+  // workout in progress. The entries were bare session ids before; both shapes are read.
+  function pendingCompletes() { try { return JSON.parse(localStorage.getItem('bp_pending_completes') || '[]').map(function (x) { return (x && typeof x === 'object') ? x : { sid: x, at: '' }; }); } catch (e) { return []; } }
+  function savePendingCompletes(list) { try { localStorage.setItem('bp_pending_completes', JSON.stringify(list)); } catch (e) {} }
   function sendComplete(sessionId) {
-    try {
-      var pend = JSON.parse(localStorage.getItem('bp_pending_completes') || '[]');
-      if (pend.indexOf(sessionId) < 0) { pend.push(sessionId); localStorage.setItem('bp_pending_completes', JSON.stringify(pend)); }
-    } catch (e) {}
+    var pend = pendingCompletes();
+    if (!pend.some(function (x) { return x.sid === sessionId; })) { pend.push({ sid: sessionId, at: new Date().toISOString() }); savePendingCompletes(pend); }
     return drainCompletes();
   }
   var drainingC = false;
   function drainCompletes() {
     if (drainingC || !navigator.onLine) return Promise.resolve();
-    var pend = [];
-    try { pend = JSON.parse(localStorage.getItem('bp_pending_completes') || '[]'); } catch (e) {}
+    var pend = pendingCompletes();
     if (!pend.length) return Promise.resolve();
     drainingC = true;
-    var sid = pend[0];
+    var sid = pend[0].sid, at = pend[0].at || '';
     var url = cfg.WEBAPP_URL + '?action=complete&athlete=' + encodeURIComponent(athlete) +
-      '&token=' + encodeURIComponent(token) + '&session_id=' + encodeURIComponent(sid);
+      '&token=' + encodeURIComponent(token) + '&session_id=' + encodeURIComponent(sid) + (at ? '&finished_at=' + encodeURIComponent(at) : '');
+    var forget = function () { savePendingCompletes(pendingCompletes().filter(function (x) { return x.sid !== sid; })); };
     return fetchJson(url).then(function (d) {
       drainingC = false;
-      if (d && d.ok) {
-        try {
-          var p2 = JSON.parse(localStorage.getItem('bp_pending_completes') || '[]');
-          localStorage.setItem('bp_pending_completes', JSON.stringify(p2.filter(function (x) { return x !== sid; })));
-        } catch (e) {}
-        return drainCompletes();               // clear any others waiting
+      if (d && d.ok) { forget(); return drainCompletes(); }   // clear any others waiting
+      if (d && d.error === 'stale_complete') {   // R1208: a set was logged after this Finish — the workout is still open; the Finish is dropped, never replayed
+        forget(); reportError('complete_stale_dropped', 'a Finish from ' + at + ' was refused: a set landed after it (' + String(d.newer_set_at || '') + ') — dropped, the workout stays open (R1208)', sid, '');
+        return drainCompletes();
       }
       // Not ok: stays pending; the drain ticks below retry it. The athlete is told ONCE per attempt
       // wave, not spammed — the badge machinery already shows pending state for logs.
       return null;
     }).catch(function () { drainingC = false; });
+  }
+  // R1208: "A finished session can be reopened from the completion screen for the rest of that day. No confirm step; the reopen is the
+  // guard." One tap → the server puts the day's DONE rows back to started (its own guard: own session, today) → the workout opens with
+  // every logged set restored and the rest to log. Refused on another day, with one line.
+  function reopenSession(sid) {
+    var url = cfg.WEBAPP_URL + '?action=reopen&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token) + '&session_id=' + encodeURIComponent(sid);
+    savePendingCompletes(pendingCompletes().filter(function (x) { return x.sid !== sid; }));   // a Finish still queued for it must not land on the reopened workout
+    return fetchJson(url).then(function (d) {
+      if (d && d.ok) {
+        try { localStorage.removeItem('bp_week_' + CACHE_V + '_' + athlete); } catch (e) {}
+        try { localStorage.removeItem('bp_sess_' + CACHE_V + '_' + athlete + '_' + sid); } catch (e2) {}
+        try { (window.__bpReopened = window.__bpReopened || []).push(sid); } catch (e3) {}   // j51 seam
+        openSession(sid); return true;
+      }
+      toast(d && d.error === 'reopen_window' ? 'A finished workout can be reopened only on the day it was done.' : 'Could not reopen this workout — try again.');
+      return false;
+    }).catch(function () { toast('No connection — reconnect and try again.'); return false; });
   }
   window.addEventListener('online', drainCompletes);
   setInterval(function () { if (navigator.onLine) drainCompletes(); }, 20000);
@@ -968,6 +987,7 @@
   // single pinned bar correct rather than ambiguous: starting a timer stops any other, so the bar
   // never has to answer "which complex is this?".
   var TBAR = null, ACTIVE_TIMER = null;
+  try { window.BP_timerRunning = function () { return !!(ACTIVE_TIMER && ACTIVE_TIMER.running && ACTIVE_TIMER.running()); }; } catch (eTS) {}   // j57 seam (R1208): is a complex timer counting?
   function tbar() {
     if (!TBAR) {
       TBAR = el('div', 'tbar'); TBAR.hidden = true;
@@ -2919,8 +2939,10 @@
       // R016 two-mode law). Same quiet styling as the calendar link; navigation stays at the bottom.
       var sid = (SESSION && SESSION.session_id) || (function () { try { return sessionStorage.getItem('bp_open_session') || ''; } catch (e) { return ''; } })();
       if (sid) {
-        var edit = el('button', 'sum-back', '← Back into workout to edit'); edit.type = 'button';
-        edit.addEventListener('click', function () { openSession(sid); });
+        // R1208 (Phil 2026-09-21): the way back in is a REOPEN — the server puts the day's rows back to started, so the workout opens to
+        // log, not read-only (the R112 button opened the R1003 done screen since 09-12). No confirm step; the reopen is the guard.
+        var edit = el('button', 'sum-back sum-reopen', '↩ Reopen workout'); edit.type = 'button';
+        edit.addEventListener('click', function () { edit.disabled = true; reopenSession(sid).then(function (ok) { if (!ok) edit.disabled = false; }); });
         app.appendChild(edit);
       }
       var back = el('button', 'sum-back', '← Back to calendar'); back.type = 'button';
@@ -3364,7 +3386,9 @@
     var sl = s.slots || []; return sl.length > 0 && sl.every(function (x) { return String(x.status || '').toLowerCase() === 'done'; });
   }
   function renderDone(s) {
-    clearTimerBar(s && (s.session_id || s.date));
+    // R1208 (Phil 2026-09-21 A1: "The timer dies at completion, always."): the sid-matched early return of clearTimerBar kept his complex
+    // timer counting on a workout the server had just marked done (09-20 23:1x). A done screen has no timer — stopped unconditionally.
+    clearTimerBar();
     SESSION = s; ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};
     renderNav('wo');
     meta.textContent = (s.from_rows ? 'Completed' : woTitle(s)) + ' · ' + s.date;
@@ -3374,6 +3398,12 @@
     back.addEventListener('click', function () { loadHome(); });
     app.appendChild(back);
     app.appendChild(el('div', 'done-note', 'Completed — what you logged.'));
+    // R1208: for the rest of the day it was done, one tap reopens it to log (his 09-20 Cossack sets); on another day the button is absent.
+    if (!s.from_rows && s.date === regenToday()) {
+      var ro = el('button', 'sum-back sum-reopen', '↩ Reopen workout'); ro.type = 'button';
+      ro.addEventListener('click', function () { ro.disabled = true; reopenSession(s.session_id).then(function (ok) { if (!ok) ro.disabled = false; }); });
+      app.appendChild(ro);
+    }
     var compSeen = 0, anySet = false;
     (s.slots || []).forEach(function (slot) {
       var sec = el('section', 'done-slot');

@@ -90,7 +90,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260921-r1208reopen';   // morning 09-21 (Phil A1, P0): a Finish carries its tap time and a stale one is refused and dropped — a workout never finishes itself; the completion screen and the same-day done screen carry '↩ Reopen workout' (no confirm; the reopen is the guard); the timer dies at completion, always. Previous stamp 20260920-r1182swap — morning 09-20 (Phil item 1): a searched swap opens at the weight the athlete last did it with — from the session payload's last_loads the instant it is tapped (R1182); was 20260918-r1105bg — morning 09-18 (Phil item 2): a background call (the calendar prefetch) that runs slow says so — bg=prefetch, "no wait felt" — and never leads the report as a P0; the tap's own read still does. Previous stamp 20260917-r1112prefetch — morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20260922-r1228openrace';   // rides the 09-22 train (Phil 09-22 item 2, P0): a calendar open that finds no cached copy takes the cached payload THE MOMENT one lands (the prefetch resolving behind a wedged fetch) and keeps its own fetch refreshing behind it; the 20 s watchdog never throws a card over a painted board, and a late-landing copy repaints over the card; the REGEN card latency is measured once per open (a refresh repaint never re-times against the tap) — j59. Previous stamp 20260921-r1215stale (Phil 07:3x item 3; RE-CUT 09-22 under R1226's ruling (b): "A queued row carrying real load and reps lands whenever it drains; marker actions stay refused as built" — the server judges markers only): every queued row carries its tap time (tapped_at, stamped at qAdd) and session id; the server refuses a MARKER replay from a prior day older than its session's own day (stale_action) and the phone drops it through the refused door with its own card line; an evidence row lands whenever it drains — j58 arm F. Previous stamp 20260921-r1204batch (same train, Phil D6): the check lands at once, a burst of checks rides one POST, the read-back runs detached and a sent row is never re-sent inside 45 s (then it is — idempotent by log_id); the badge names only a set that has waited 20 s. Previous stamp 20260921-r1208reopen — morning 09-21 (Phil A1, P0): a Finish carries its tap time and a stale one is refused and dropped — a workout never finishes itself; the completion screen and the same-day done screen carry '↩ Reopen workout' (no confirm; the reopen is the guard); the timer dies at completion, always. Previous stamp 20260920-r1182swap — morning 09-20 (Phil item 1): a searched swap opens at the weight the athlete last did it with — from the session payload's last_loads the instant it is tapped (R1182); was 20260918-r1105bg — morning 09-18 (Phil item 2): a background call (the calendar prefetch) that runs slow says so — bg=prefetch, "no wait felt" — and never leads the report as a P0; the tap's own read still does. Previous stamp 20260917-r1112prefetch — morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -569,14 +569,21 @@
           try {
             var msLate = REGEN_OPEN_T0 ? (Date.now() - REGEN_OPEN_T0) : 0;
             try { (window.__bpErrLog = window.__bpErrLog || []).push('regen_card_skipped'); } catch (eSk) {}   // j49 seam
-            if (msLate > OPEN_SLOW_REPORT_MS && !REGEN_OPEN_REPORTED) { REGEN_OPEN_REPORTED = true; reportError('workout_open_slow', 'REGEN card skipped — the status read settled after ' + (msLate / 1000).toFixed(1) + 's, after the first logged set (R1078)', s.session_id || '', 'card_ms=' + msLate); }
+            if (msLate > OPEN_SLOW_REPORT_MS && !REGEN_OPEN_REPORTED) { reportError('workout_open_slow', 'REGEN card skipped — the status read settled after ' + (msLate / 1000).toFixed(1) + 's, after the first logged set (R1078)', s.session_id || '', 'card_ms=' + msLate); }
+            REGEN_OPEN_REPORTED = true;   // R1228: one measurement per open, reported or not (see below)
           } catch (eL) {}
           return;
         }
         app.appendChild(regenCard(d, st));
         try {
           var msCard = REGEN_OPEN_T0 ? (Date.now() - REGEN_OPEN_T0) : 0;
-          if (msCard > OPEN_SLOW_REPORT_MS && !REGEN_OPEN_REPORTED) { REGEN_OPEN_REPORTED = true; reportError('workout_open_slow', 'REGEN card painted after ' + (msCard / 1000).toFixed(1) + 's (over the 8 s cell workout_open_max_s)', s.session_id || '', 'card_ms=' + msCard); }
+          // R1228: ONE measurement per open, whether it reported or not. The refresh render behind a
+          // cached paint re-runs this fetch, and timing THAT against the tap reported a 35 s "card
+          // paint" the athlete never waited for — a false row on the SLOW OPENS line that graded
+          // Mason. The first card (or first skip) settles the open's card latency; later repaints of
+          // the same open are refreshes, not opens.
+          if (msCard > OPEN_SLOW_REPORT_MS && !REGEN_OPEN_REPORTED) { reportError('workout_open_slow', 'REGEN card painted after ' + (msCard / 1000).toFixed(1) + 's (over the 8 s cell workout_open_max_s)', s.session_id || '', 'card_ms=' + msCard); }
+          REGEN_OPEN_REPORTED = true;
         } catch (eT) {}
       }).catch(function () {});   // offline: no card, no state change — the workout stands
   }
@@ -594,7 +601,7 @@
     else if (mean != null) sec.appendChild(el('div', 'regen-hist-mean', '4-week mean ' + mean));
     return sec;
   }
-  function qAdd(row) { try { if (row && row._q_at == null) row._q_at = Date.now(); if (row && row.log_id) qMirrorAdd(row.log_id); } catch (eQa) {}   // when it was queued — the beacon reports only what has sat unsent (Mason 09-12 15:0x: four reports of sets that drained seconds later); the mirror (L381 as amended 09-15) records every id that entered
+  function qAdd(row) { try { if (row && row._q_at == null) row._q_at = Date.now(); if (row && !row.tapped_at && row._q_at) row.tapped_at = new Date(Number(row._q_at)).toISOString(); if (row && row.log_id) qMirrorAdd(row.log_id); } catch (eQa) {}   // when it was queued — the beacon reports only what has sat unsent (Mason 09-12 15:0x: four reports of sets that drained seconds later); the mirror (L381 as amended 09-15) records every id that entered. R1215 (Phil 2026-09-21 item 3): the tap time RIDES THE POST as tapped_at — persisted here so every send path (drain, unload delivery) carries it and the server can refuse a replay from a prior day (stale_action; the refused read-back then drops it through the queue_dropped door)
     return qStore('readwrite').then(function (s) { return new Promise(function (res) { s.put(row); s.transaction.oncomplete = res; }); }); }
   function qAll() { return qStore('readonly').then(function (s) { return new Promise(function (res) { var rq = s.getAll(); rq.onsuccess = function () { res(rq.result || []); }; }); }); }
   try { window.BP_qCount = function () { return qAll().then(function (r) { return r.length; }); }; } catch (e) {}   // j20 asserts a tap really queued
@@ -699,8 +706,11 @@
   } catch (e) {}
   function updateBadge() {
     return qAll().then(function (rows) {
-      if (rows.length) { syncEl.hidden = false; syncEl.className = 'sync pending'; syncEl.textContent = rows.length + ' pending'; }
-      else { syncEl.className = 'sync synced'; syncEl.textContent = 'synced'; setTimeout(function () { if (syncEl.textContent === 'synced') syncEl.hidden = true; }, 1500); }
+      // R1204 (3): only a row that has sat unsent past BADGE_AFTER_MS is a set waiting; a set between taps shows nothing (the kid never watches a set wait)
+      var nowB = Date.now(), waiting = rows.filter(function (r) { return r && (r._q_at == null || (nowB - Number(r._q_at)) >= BADGE_AFTER_MS); });
+      if (waiting.length) { syncEl.hidden = false; syncEl.className = 'sync pending'; syncEl.textContent = waiting.length + ' pending'; }
+      else if (rows.length) { syncEl.hidden = true; }
+      else if (!syncEl.hidden) { syncEl.className = 'sync synced'; syncEl.textContent = 'synced'; setTimeout(function () { if (syncEl.textContent === 'synced') syncEl.hidden = true; }, 1500); }
     }).catch(function () {});
   }
   // Confirm which log_ids the Workbook actually has. The POST goes out `mode:'no-cors'`, so its
@@ -738,6 +748,8 @@
         var who = x.ex ? ('A set of ' + x.ex) : 'A set';
         card.appendChild(el('div', 'refused-line', x.reason === 'impossible_load'
           ? who + ' couldn’t be saved — the weight looks like a typo. Log it again with the right number.'
+          : x.reason === 'stale_action'
+          ? who + ' from an earlier day couldn’t be saved to this workout. Log it again if you did it today.'   // R1215: a replayed queued action was refused, not lost silently
           : who + ' couldn’t be saved. Tell your coach.'));
       });
       var ok = el('button', 'refused-ok', 'OK'); ok.type = 'button';
@@ -748,6 +760,19 @@
   }
   var draining = false, drainingSince = 0, drainAgain = false;
   var DRAIN_WEDGE_MS = 60000;   // R1077: a drain older than this is a wedge (a fetch that never settled), not a drain in progress
+  // R1204 (Phil 2026-09-21 D6, verbatim: "The check lands on the phone at once. The queue sends in the background, one call for all pending
+  // rows, safe to re-send by row id. The kid never watches a set wait."). R1202 measured the wait: 6.2 s inside the server and 6.8 s on the
+  // platform hop, paid ONCE PER SET because every tap's drain waited for the previous tap's send AND its read-back before it could send.
+  // Grace's Pullups went 3 reps → "failed save" → uncheck → 1 rep in 15 s; Mason's Dips 11 → six unchecks → 8. Three changes, one law:
+  //   (1) COALESCE — a tap schedules the drain 900 ms out; a burst of checks rides ONE POST (scheduleDrain);
+  //   (2) THE SEND IS THE DRAIN — the read-back (logack / logrefused) runs DETACHED after the POST resolves, so the next tap's send never
+  //       waits on it; rows already sent sit IN FLIGHT for INFLIGHT_MS and are not re-sent until then (then they are — idempotent by log_id,
+  //       hard rule 4); the read-back still evicts what landed and announces what was refused;
+  //   (3) THE BADGE reads only rows that have sat unsent past BADGE_AFTER_MS — a set between taps is not a set waiting.
+  // Reversing line: INFLIGHT_MS = 0 and scheduleDrain = drain.
+  var INFLIGHT = {}, INFLIGHT_MS = 45000, COALESCE_MS = 900, BADGE_AFTER_MS = 20000, drainTimer = null;
+  try { window.BP_inflight = function () { return Object.keys(INFLIGHT).length; }; window.BP_setInflightMs = function (ms) { INFLIGHT_MS = Number(ms) || 0; }; } catch (eIf) {}   // j58 seams
+  function scheduleDrain() { if (drainTimer) clearTimeout(drainTimer); drainTimer = setTimeout(function () { drainTimer = null; drain(); }, COALESCE_MS); }
   function drain() {
     if (draining) {
       drainAgain = true;   // rows queued while a drain runs are sent the moment it ends, not on the next 15 s tick
@@ -760,12 +785,17 @@
     var done = function () {
       draining = false; drainingSince = 0;
       if (drainAgain) { drainAgain = false; setTimeout(function () { drain(); }, 50); }
+      updateBadge();
     };
     return qAll().then(function (rows) {
       qVanishedCheck(rows);   // L381 as amended 09-15: a mirrored id the store no longer holds reports itself before this drain
+      var nowD = Date.now();
+      rows = rows.filter(function (x) { var t = INFLIGHT[x.log_id]; return !(t && (nowD - t) < INFLIGHT_MS); });   // R1204 (2): sent and awaiting its read-back — not re-sent yet
       if (!rows.length) { done(); return; }
       var ids = rows.map(function (x) { return x.log_id; });
+      ids.forEach(function (id) { INFLIGHT[id] = Date.now(); });
       return sendLog(rows).then(function () {
+        done();   // R1204 (2): the send is the drain — the read-back below runs detached; the next tap's send never waits on it
         // Apps Script may still be writing when the opaque POST resolves, so poll the read-back a
         // few times before giving up. Anything unconfirmed STAYS QUEUED and is retried — at worst a
         // set is sent twice, which hard rule 4 makes safe (idempotent via client log_id); losing one
@@ -777,7 +807,7 @@
         // permanent pending chip or spam the ErrorLog every 4th retry.
         function giveUp(present) {
           var left = ids.filter(function (id) { return present.indexOf(id) < 0; });
-          if (!left.length) { done(); return updateBadge(); }
+          if (!left.length) { return updateBadge(); }
           return refusedLogs(left).then(function (refused) {
             var rIds = refused.map(function (x) { return x.id; });
             var park = left.filter(function (id) { return rIds.indexOf(id) < 0; });
@@ -787,10 +817,11 @@
               // form); syncack matches a Sessions log_id by that prefix. 32 ids = 288 chars, never cut.
               if (park.length) reportError('sync_unconfirmed', 'logs sent but not confirmed by the server', '',
                 'ids=' + park.length + ' queued=' + park.map(function (id) { return String(id).slice(0, 8); }).join(','));
-              done(); return updateBadge();                                   // parked rows retry next drain
+              park.forEach(function (id) { delete INFLIGHT[id]; });          // R1204: a row the read-back could not confirm is re-sent by the next tick (idempotent by log_id) — never held 45 s on a slow ack
+              return updateBadge();                                           // parked rows retry next drain
             };
             if (!rIds.length) return fin();
-            refused.forEach(function (x) { queueDropped(x.id, 'refused', String(x.reason || 'the server refused it'), x.ex); });   // L381 as amended 09-15: the door is named
+            refused.forEach(function (x) { queueDropped(x.id, 'refused', String(x.reason || 'the server refused it'), x.ex); delete INFLIGHT[x.id]; });   // L381 as amended 09-15: the door is named
             return qDel(rIds).then(function () { showRefusedCard(refused); return fin(); });
           });
         }
@@ -798,8 +829,9 @@
           tries += 1;
           return ackLogs(ids).then(function (present) {
             if (present.length) {
+              present.forEach(function (id) { delete INFLIGHT[id]; });
               return qDel(present).then(function () {
-                if (present.length === ids.length) { done(); return updateBadge(); }
+                if (present.length === ids.length) { return updateBadge(); }
                 if (tries >= 4 || ackTimedOut) return giveUp(present);
                 return new Promise(function (r) { setTimeout(r, 2000); }).then(confirm);
               });
@@ -808,15 +840,17 @@
             return new Promise(function (r) { setTimeout(r, 2000); }).then(confirm);
           });
         }
-        return confirm();
-      }).catch(function () { done(); });
+        confirm().catch(function () {});   // detached (R1204)
+        return;
+      }).catch(function () { ids.forEach(function (id) { delete INFLIGHT[id]; }); done(); });
     }).catch(function () { done(); });
   }
   // mkLog returns null once the athlete has left the workout; a null must never reach the queue.
-  function logRows(rows) { rows = (rows || []).filter(Boolean); if (!rows.length) return; REGEN_LOGS_SINCE_OPEN += rows.length; Promise.all(rows.map(qAdd)).then(updateBadge).then(drain); }   // R1078: the count the late-card guard reads
+  function logRows(rows) { rows = (rows || []).filter(Boolean); if (!rows.length) return; REGEN_LOGS_SINCE_OPEN += rows.length; Promise.all(rows.map(qAdd)).then(updateBadge).then(scheduleDrain); }   // R1204 (1): a burst of checks rides one POST   // R1078: the count the late-card guard reads
   window.addEventListener('online', drain);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) drain(); });
   setInterval(function () { if (navigator.onLine) drain(); }, 15000);
+  setInterval(updateBadge, 5000);   // R1204 (3): the chip names a set that has waited 20 s — offline too, where no drain runs to refresh it
 
   // ---- one ROLLING timer per complex: starts on the first A-side set, auto-restarts each round
   //      (rolls through all sets in succession), until the athlete pauses. ----
@@ -5542,15 +5576,39 @@
     if (painted) { try { regenCardMaybe(cached); } catch (eRc) {} }   // R1000: the card over the cached paint, once per date
     if (!cached) show('Loading…');
     var settled = false;
+    var firstPaintWasCached = painted;
+    // R1228 (Mason 2026-09-21 15:48 his clock, P0 — his calendar open failed three times while the
+    // workout tab opened the same session): a tap that finds no cached copy races the calendar's own
+    // PREFETCH already in flight for the same session. His tap's fetch sat queued behind a wedged
+    // save (254 s), the 20 s watchdog showed the retry card — and the prefetched payload landed in
+    // the cache seconds later with nothing left to paint it. The open now takes the cached payload
+    // THE MOMENT one lands (the poll below), keeps its own fetch refreshing behind it exactly as a
+    // warm-cache open does, and the watchdog never throws a card over a painted board. The poll
+    // outlives the card on purpose: a late-landing copy repaints the workout (the same law as the
+    // pending fetch under the card).
     if (!painted) {
+      var pollT = setInterval(function () {
+        if (settled || painted || !isCurrent(_screen)) { clearInterval(pollT); return; }
+        var late = cachedSession(sessionId);
+        if (!late) return;
+        clearInterval(pollT);
+        painted = safeRender(late, sessionId);
+        if (!painted) return;
+        firstPaintWasCached = true;   // the athlete's first board came from the cache, not our fetch
+        try { regenCardMaybe(late); } catch (eRc3) {}
+        var msLate9 = Date.now() - t0Open;
+        if (msLate9 > OPEN_SLOW_REPORT_MS && !openReported) {
+          openReported = true;
+          reportError('workout_open_slow', 'opened from the prefetched copy after ' + (msLate9 / 1000).toFixed(1) + 's (own fetch still pending; over the 8 s cell workout_open_max_s)', sessionId, 'open_ms=' + msLate9);
+        }
+      }, 500);
       setTimeout(function () {
-        if (settled || !isCurrent(_screen)) return;
+        if (settled || painted || !isCurrent(_screen)) return;
         openReported = true;
         reportError('workout_open_slow', 'session fetch still pending after ' + OPEN_WATCHDOG_MS + 'ms', sessionId, '');
         showRetryCard(sessionId, 'Your workout is taking too long to load.');
       }, OPEN_WATCHDOG_MS);
     }
-    var firstPaintWasCached = painted;
     fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))
       .then(function (data) {
         settled = true;

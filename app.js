@@ -90,7 +90,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260922-r1228openrace';   // rides the 09-22 train (Phil 09-22 item 2, P0): a calendar open that finds no cached copy takes the cached payload THE MOMENT one lands (the prefetch resolving behind a wedged fetch) and keeps its own fetch refreshing behind it; the 20 s watchdog never throws a card over a painted board, and a late-landing copy repaints over the card; the REGEN card latency is measured once per open (a refresh repaint never re-times against the tap) — j59. Previous stamp 20260921-r1215stale (Phil 07:3x item 3; RE-CUT 09-22 under R1226's ruling (b): "A queued row carrying real load and reps lands whenever it drains; marker actions stay refused as built" — the server judges markers only): every queued row carries its tap time (tapped_at, stamped at qAdd) and session id; the server refuses a MARKER replay from a prior day older than its session's own day (stale_action) and the phone drops it through the refused door with its own card line; an evidence row lands whenever it drains — j58 arm F. Previous stamp 20260921-r1204batch (same train, Phil D6): the check lands at once, a burst of checks rides one POST, the read-back runs detached and a sent row is never re-sent inside 45 s (then it is — idempotent by log_id); the badge names only a set that has waited 20 s. Previous stamp 20260921-r1208reopen — morning 09-21 (Phil A1, P0): a Finish carries its tap time and a stale one is refused and dropped — a workout never finishes itself; the completion screen and the same-day done screen carry '↩ Reopen workout' (no confirm; the reopen is the guard); the timer dies at completion, always. Previous stamp 20260920-r1182swap — morning 09-20 (Phil item 1): a searched swap opens at the weight the athlete last did it with — from the session payload's last_loads the instant it is tapped (R1182); was 20260918-r1105bg — morning 09-18 (Phil item 2): a background call (the calendar prefetch) that runs slow says so — bg=prefetch, "no wait felt" — and never leads the report as a P0; the tap's own read still does. Previous stamp 20260917-r1112prefetch — morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20260924-r1245drainyield';   // rides Saturday 09-26's train (Phil 09-24 item 10, P0 — Grace 09-22: her calendar open of a never-prefetched future session was carded at 20 s while the drain's slow POSTs held the pool): while a tapped open is UNPAINTED, background sends (log drain, complete drain) yield the connection pool so the tap's own session GET gets a slot; bounded by the 20 s watchdog, released the moment the board paints, the fetch settles, or the card shows — j60. Previous stamp 20260922-r1228openrace (Phil 09-22 item 2, P0): a calendar open that finds no cached copy takes the cached payload THE MOMENT one lands (the prefetch resolving behind a wedged fetch) and keeps its own fetch refreshing behind it; the 20 s watchdog never throws a card over a painted board, and a late-landing copy repaints over the card; the REGEN card latency is measured once per open (a refresh repaint never re-times against the tap) — j59. Previous stamp 20260921-r1215stale (Phil 07:3x item 3; RE-CUT 09-22 under R1226's ruling (b): "A queued row carrying real load and reps lands whenever it drains; marker actions stay refused as built" — the server judges markers only): every queued row carries its tap time (tapped_at, stamped at qAdd) and session id; the server refuses a MARKER replay from a prior day older than its session's own day (stale_action) and the phone drops it through the refused door with its own card line; an evidence row lands whenever it drains — j58 arm F. Previous stamp 20260921-r1204batch (same train, Phil D6): the check lands at once, a burst of checks rides one POST, the read-back runs detached and a sent row is never re-sent inside 45 s (then it is — idempotent by log_id); the badge names only a set that has waited 20 s. Previous stamp 20260921-r1208reopen — morning 09-21 (Phil A1, P0): a Finish carries its tap time and a stale one is refused and dropped — a workout never finishes itself; the completion screen and the same-day done screen carry '↩ Reopen workout' (no confirm; the reopen is the guard); the timer dies at completion, always. Previous stamp 20260920-r1182swap — morning 09-20 (Phil item 1): a searched swap opens at the weight the athlete last did it with — from the session payload's last_loads the instant it is tapped (R1182); was 20260918-r1105bg — morning 09-18 (Phil item 2): a background call (the calendar prefetch) that runs slow says so — bg=prefetch, "no wait felt" — and never leads the report as a P0; the tap's own read still does. Previous stamp 20260917-r1112prefetch — morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -158,6 +158,7 @@
   var drainingC = false;
   function drainCompletes() {
     if (drainingC || !navigator.onLine) return Promise.resolve();
+    if (bgHeld()) return Promise.resolve();   // R1245: yield the pool to an unpainted open (the 20 s tick and releaseBg retry)
     var pend = pendingCompletes();
     if (!pend.length) return Promise.resolve();
     drainingC = true;
@@ -170,6 +171,12 @@
       if (d && d.ok) { forget(); return drainCompletes(); }   // clear any others waiting
       if (d && d.error === 'stale_complete') {   // R1208: a set was logged after this Finish — the workout is still open; the Finish is dropped, never replayed
         forget(); reportError('complete_stale_dropped', 'a Finish from ' + at + ' was refused: a set landed after it (' + String(d.newer_set_at || '') + ') — dropped, the workout stays open (R1208)', sid, '');
+        // R1248 (Grace 2026-09-23 18:02 her clock): the drop was SILENT — she believed she finished and the workout
+        // silently stayed open. The athlete gets the one-line signal, and the cached week/session are dropped so the
+        // calendar reads the workout as open instead of the stale copy. The Finish itself is never replayed (R1208's
+        // law): a new Finish is the athlete's tap.
+        try { localStorage.removeItem('bp_week_' + CACHE_V + '_' + athlete); localStorage.removeItem('bp_sess_' + CACHE_V + '_' + athlete + '_' + sid); } catch (eSt) {}
+        toast('That workout is still open — a set saved after you tapped Finish. Open it and finish again.');
         return drainCompletes();
       }
       // Not ok: stays pending; the drain ticks below retry it. The athlete is told ONCE per attempt
@@ -758,6 +765,26 @@
       document.body.appendChild(card);
     } catch (e) {}
   }
+  // R1245 (Grace 2026-09-22 17:01 her clock, P0 — her calendar open of a future session was carded
+  // at 20 s while the drain's slow log POSTs held every connection; the R1228 poll had nothing to
+  // land because only the wo-next tile prefetches, so her tap's own GET was the one hope and it
+  // starved): while a tapped open is UNPAINTED, background sends (the log drain, the complete
+  // drain) YIELD the connection pool so the tap's session GET gets a slot. Bounded by the 20 s
+  // watchdog: the hold lifts the moment the board paints, the fetch settles, or the card shows —
+  // a hopeless open never starves background sends. Reversing line: make holdBg a no-op.
+  var BG_HOLD_UNTIL = 0;
+  function holdBg(ms) { BG_HOLD_UNTIL = Date.now() + ms; }
+  function releaseBg() {
+    if (!BG_HOLD_UNTIL) return;
+    BG_HOLD_UNTIL = 0;
+    try { scheduleDrain(); } catch (e) {}        // resume promptly — held rows send now, not at the next 15 s tick
+    try { drainCompletes(); } catch (e2) {}
+  }
+  function bgHeld() {
+    if (BG_HOLD_UNTIL && Date.now() >= BG_HOLD_UNTIL) BG_HOLD_UNTIL = 0;   // the watchdog bound expired on its own
+    return !!BG_HOLD_UNTIL;
+  }
+  try { window.BP_bgHold = function () { return BG_HOLD_UNTIL; }; } catch (eBh) {}   // j60 seam
   var draining = false, drainingSince = 0, drainAgain = false;
   var DRAIN_WEDGE_MS = 60000;   // R1077: a drain older than this is a wedge (a fetch that never settled), not a drain in progress
   // R1204 (Phil 2026-09-21 D6, verbatim: "The check lands on the phone at once. The queue sends in the background, one call for all pending
@@ -774,6 +801,10 @@
   try { window.BP_inflight = function () { return Object.keys(INFLIGHT).length; }; window.BP_setInflightMs = function (ms) { INFLIGHT_MS = Number(ms) || 0; }; } catch (eIf) {}   // j58 seams
   function scheduleDrain() { if (drainTimer) clearTimeout(drainTimer); drainTimer = setTimeout(function () { drainTimer = null; drain(); }, COALESCE_MS); }
   function drain() {
+    if (bgHeld()) {   // R1245: a tapped open is unpainted — new sends yield the pool (bounded by the watchdog; releaseBg resumes)
+      if (!drainTimer) drainTimer = setTimeout(function () { drainTimer = null; drain(); }, 1500);
+      return Promise.resolve();
+    }
     if (draining) {
       drainAgain = true;   // rows queued while a drain runs are sent the moment it ends, not on the next 15 s tick
       if (!(drainingSince && (Date.now() - drainingSince) > DRAIN_WEDGE_MS)) return Promise.resolve();
@@ -5587,12 +5618,14 @@
     // outlives the card on purpose: a late-landing copy repaints the workout (the same law as the
     // pending fetch under the card).
     if (!painted) {
+      holdBg(OPEN_WATCHDOG_MS);   // R1245: the tap's own fetch must win the pool — background sends yield until this open paints, settles, or cards
       var pollT = setInterval(function () {
-        if (settled || painted || !isCurrent(_screen)) { clearInterval(pollT); return; }
+        if (settled || painted || !isCurrent(_screen)) { clearInterval(pollT); if (!isCurrent(_screen)) releaseBg(); return; }
         var late = cachedSession(sessionId);
         if (!late) return;
         clearInterval(pollT);
         painted = safeRender(late, sessionId);
+        releaseBg();   // R1245: painted (or a failed render the watchdog still owns) — the drain resumes
         if (!painted) return;
         firstPaintWasCached = true;   // the athlete's first board came from the cache, not our fetch
         try { regenCardMaybe(late); } catch (eRc3) {}
@@ -5603,7 +5636,8 @@
         }
       }, 500);
       setTimeout(function () {
-        if (settled || painted || !isCurrent(_screen)) return;
+        if (settled || painted || !isCurrent(_screen)) { releaseBg(); return; }
+        releaseBg();   // R1245: the card is the bound — a hopeless open never starves background sends
         openReported = true;
         reportError('workout_open_slow', 'session fetch still pending after ' + OPEN_WATCHDOG_MS + 'ms', sessionId, '');
         showRetryCard(sessionId, 'Your workout is taking too long to load.');
@@ -5612,6 +5646,7 @@
     fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token))
       .then(function (data) {
         settled = true;
+        releaseBg();   // R1245: the open's own fetch settled — the drain resumes whatever happens below
         if (data && data.ok && data.session) { cacheSession(sessionId, data.session); adoptFreshFlags(data.session); }   // R904: flags adopted even when the render below is skipped
         if (!isCurrent(_screen)) return;   // athlete moved on; the cache above still updated
         if (data && (data.error === 'offline' || data.error === 'server')) {

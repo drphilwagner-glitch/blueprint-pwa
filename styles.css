@@ -271,7 +271,7 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
    Start is disabled until every question present has a tap; the unlock line, the None chip and the three strip lines. */
 /* Phil 06:0x change 1: THE CARD IS THE WHOLE SCREEN — opaque, the workout hidden until Start; three stacked rows with one icon each,
    bigger pills, a filled selected state; the nav stays above it (z 30 < 40) so Tell Coach is reachable. */
-.regen-wrap { z-index: 30; background: var(--bg); align-items: stretch; padding: 0 0 64px; overflow-y: auto; }
+.regen-wrap { z-index: 30; background: var(--bg); align-items: stretch; padding: 0; overflow-y: auto; }
 .regen-card { max-width: none; border-radius: 0; box-shadow: none; padding: 18px 16px 24px; min-height: 100%; }
 .regen-title { font-size: var(--fs-20, 20px); }
 .regen-q { margin: 16px 0; padding: 12px; border: 1px solid var(--muted-soft); border-radius: 12px; }
@@ -286,6 +286,19 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 .regen-unlock { background: var(--bp); color: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: var(--fs-13); font-weight: 700; margin-bottom: 8px; }
 .regen-chip.none { border-style: dashed; }
 .regen-tell { color: var(--muted); font-size: var(--fs-12); margin-top: 8px; text-align: center; }
+/* R1304 (P0, Phil 2026-09-29 04:57 item 1, verbatim): "A card never blocks Start: if it cannot fit, it scrolls and Start
+   stays reachable." Two changes, both citing DESIGN.md rule 2 (one primary action, in the bottom thumb zone) and rule 7
+   (nothing required is below the fold):
+   (1) THE FOOTER STICKS. Start + the tell line are one .regen-foot pinned to the bottom of the card's own scroller, so
+       however tall the card grows — stage 3 is five questions — the way out of it is on the glass at every scroll
+       position. The 64px of bottom padding is the nav's clearance (the nav is z 40 OVER this z-30 overlay, so Tell Coach
+       stays tappable — j42 arm D); it moved here from .regen-wrap's padding, which the sticky box would have sat under.
+   (2) THE OVERLAY IS THE VISIBLE GLASS. On iOS Safari a fixed `bottom: 0` resolves against the LARGE viewport (URL bar
+       hidden), so the last ~100px of the scroller lived under the browser chrome permanently and scrolling never reached
+       them — that is the 20 minutes Phil lost. 100dvh is the viewport he can actually see.
+   Reversing line: delete this block and restore `padding: 0 0 64px` on .regen-wrap above. Proof: qa/journeys/j62-regen-start-reachable.mjs */
+.regen-foot { position: sticky; bottom: 0; background: var(--bg); padding: 10px 0 64px; border-top: 1px solid var(--line); }
+@supports (height: 100dvh) { .regen-wrap { bottom: auto; height: 100dvh; } }
 /* change 2: the pre-workout strip is ONE line */
 .regen-strip { padding: 6px 0; }
 .regen-l1 { display: block; width: 100%; text-align: left; background: transparent; border: 0; padding: 2px 0; color: inherit; font-size: var(--fs-13); font-weight: 700; }

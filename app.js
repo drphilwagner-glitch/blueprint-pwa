@@ -90,7 +90,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20260924-r1245drainyield';   // rides Saturday 09-26's train (Phil 09-24 item 10, P0 — Grace 09-22: her calendar open of a never-prefetched future session was carded at 20 s while the drain's slow POSTs held the pool): while a tapped open is UNPAINTED, background sends (log drain, complete drain) yield the connection pool so the tap's own session GET gets a slot; bounded by the 20 s watchdog, released the moment the board paints, the fetch settles, or the card shows — j60. Previous stamp 20260922-r1228openrace (Phil 09-22 item 2, P0): a calendar open that finds no cached copy takes the cached payload THE MOMENT one lands (the prefetch resolving behind a wedged fetch) and keeps its own fetch refreshing behind it; the 20 s watchdog never throws a card over a painted board, and a late-landing copy repaints over the card; the REGEN card latency is measured once per open (a refresh repaint never re-times against the tap) — j59. Previous stamp 20260921-r1215stale (Phil 07:3x item 3; RE-CUT 09-22 under R1226's ruling (b): "A queued row carrying real load and reps lands whenever it drains; marker actions stay refused as built" — the server judges markers only): every queued row carries its tap time (tapped_at, stamped at qAdd) and session id; the server refuses a MARKER replay from a prior day older than its session's own day (stale_action) and the phone drops it through the refused door with its own card line; an evidence row lands whenever it drains — j58 arm F. Previous stamp 20260921-r1204batch (same train, Phil D6): the check lands at once, a burst of checks rides one POST, the read-back runs detached and a sent row is never re-sent inside 45 s (then it is — idempotent by log_id); the badge names only a set that has waited 20 s. Previous stamp 20260921-r1208reopen — morning 09-21 (Phil A1, P0): a Finish carries its tap time and a stale one is refused and dropped — a workout never finishes itself; the completion screen and the same-day done screen carry '↩ Reopen workout' (no confirm; the reopen is the guard); the timer dies at completion, always. Previous stamp 20260920-r1182swap — morning 09-20 (Phil item 1): a searched swap opens at the weight the athlete last did it with — from the session payload's last_loads the instant it is tapped (R1182); was 20260918-r1105bg — morning 09-18 (Phil item 2): a background call (the calendar prefetch) that runs slow says so — bg=prefetch, "no wait felt" — and never leads the report as a P0; the tap's own read still does. Previous stamp 20260917-r1112prefetch — morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20260929-r1304regenstart';   // TUESDAY 09-29's train. R1304 (P0, Phil 04:57 item 1, verbatim: "the regen card hid its Log Regen button below the screen on my phone and blocked my workout ~20 min. A card never blocks Start: if it cannot fit, it scrolls and Start stays reachable. Prove on the iPhone engine."): the card's Start and the line under it are one .regen-foot STUCK to the bottom of the card's own scroller, and the overlay is 100dvh so it is the glass iOS actually shows rather than the URL-bar-hidden large viewport whose last ~100 px lived under the browser chrome. Proven red-then-green on WebKit at 390x664 AND 390x844 (j62-regen-start-reachable: was 2 of 9 FAILED on arm B, now PASSED 12 of 12; the position:static mutant re-fires arm B red at both sizes). Screenshots read by eye, rule 17/60: qa/journeys/shots/j62-*. Previous stamp 20260928-r1297reps-r1292regen   // rode TUESDAY 09-29's train on Phil's word (rules 17/67: both changes have their screenshot — qa/reports/r1297-typed-reps-20260928.png and qa/reports/r1292-reopen-20260928.png). R1297: a typed rep count saves whole — the reps control is the same tap-to-type field as the weight, whole numbers only, own-the-insertion, and typing arms the round's Log button (Mason's 9/21 Dips reached the sheet as 1,1,1 for sets he did at 14, with the +/- pair the only way to move a rep count). R1292 (P0): the REGEN card is refused whenever the server's payload already carries a logged set for this session — his 9/21 re-opens were carded twice, at 15.7 s and 13.1 s, over his own half-finished workout, because REGEN_LOGS_SINCE_OPEN counts only the sets logged since THIS open. Previous stamp 20260924-r1245drainyield   // rode Saturday 09-26's train (Phil 09-24 item 10, P0 — Grace 09-22: her calendar open of a never-prefetched future session was carded at 20 s while the drain's slow POSTs held the pool): while a tapped open is UNPAINTED, background sends (log drain, complete drain) yield the connection pool so the tap's own session GET gets a slot; bounded by the 20 s watchdog, released the moment the board paints, the fetch settles, or the card shows — j60. Previous stamp 20260922-r1228openrace (Phil 09-22 item 2, P0): a calendar open that finds no cached copy takes the cached payload THE MOMENT one lands (the prefetch resolving behind a wedged fetch) and keeps its own fetch refreshing behind it; the 20 s watchdog never throws a card over a painted board, and a late-landing copy repaints over the card; the REGEN card latency is measured once per open (a refresh repaint never re-times against the tap) — j59. Previous stamp 20260921-r1215stale (Phil 07:3x item 3; RE-CUT 09-22 under R1226's ruling (b): "A queued row carrying real load and reps lands whenever it drains; marker actions stay refused as built" — the server judges markers only): every queued row carries its tap time (tapped_at, stamped at qAdd) and session id; the server refuses a MARKER replay from a prior day older than its session's own day (stale_action) and the phone drops it through the refused door with its own card line; an evidence row lands whenever it drains — j58 arm F. Previous stamp 20260921-r1204batch (same train, Phil D6): the check lands at once, a burst of checks rides one POST, the read-back runs detached and a sent row is never re-sent inside 45 s (then it is — idempotent by log_id); the badge names only a set that has waited 20 s. Previous stamp 20260921-r1208reopen — morning 09-21 (Phil A1, P0): a Finish carries its tap time and a stale one is refused and dropped — a workout never finishes itself; the completion screen and the same-day done screen carry '↩ Reopen workout' (no confirm; the reopen is the guard); the timer dies at completion, always. Previous stamp 20260920-r1182swap — morning 09-20 (Phil item 1): a searched swap opens at the weight the athlete last did it with — from the session payload's last_loads the instant it is tapped (R1182); was 20260918-r1105bg — morning 09-18 (Phil item 2): a background call (the calendar prefetch) that runs slow says so — bg=prefetch, "no wait felt" — and never leads the report as a P0; the tap's own read still does. Previous stamp 20260917-r1112prefetch — morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -529,8 +529,16 @@
       wrap.remove(); regenStrip(d); regenRefresh(d, 3);
     }
     start.addEventListener('click', close);
-    btns.appendChild(start); card.appendChild(btns);
-    var tell = el('div', 'regen-tell', 'Your workout opens when you tap Start. Tell coach stays open below.'); card.appendChild(tell);
+    btns.appendChild(start);
+    // R1304 (P0, Phil 2026-09-29 04:57 item 1, verbatim): "the regen card hid its Log Regen button below the screen on my
+    // phone and blocked my workout ~20 min. A card never blocks Start: if it cannot fit, it scrolls and Start stays
+    // reachable." Start and the line under it move into ONE footer that STICKS to the bottom of the card's scroller
+    // (.regen-foot in styles.css): the card's single primary action stays in the thumb zone at every scroll position and
+    // at every card height (DESIGN.md rules 2 and 7). Reversing line: append btns and tell to `card` again.
+    var foot = el('div', 'regen-foot');
+    foot.appendChild(btns);
+    var tell = el('div', 'regen-tell', 'Your workout opens when you tap Start. Tell coach stays open below.'); foot.appendChild(tell);
+    card.appendChild(foot);
     try { wrap.dataset.taps = '0'; card.addEventListener('click', function () { wrap.dataset.taps = String(tapCount); }); } catch (e) {}
     wrap.appendChild(card);
     arm();
@@ -556,8 +564,41 @@
   // logged set of this open is SKIPPED (reported on the slow-open line, never painted); one that arrives before any set is
   // still the card, however late. REGEN is record-and-show only (§9a), so a skipped card changes nothing served.
   var REGEN_LOGS_SINCE_OPEN = 0;
+  // R1292 (P0, Phil 2026-09-28 item 3): does this session ALREADY carry logged sets — from any open, on any
+  // device, at any time? The server sends each exercise's logged map in the payload, so this is the
+  // sheet's own answer, not this pageload's memory.
+  function sessionHasLoggedSets(s) {
+    var slots = (s && s.slots) || [];
+    for (var i = 0; i < slots.length; i++) {
+      var exs = slots[i].exercises || [];
+      for (var j = 0; j < exs.length; j++) {
+        var lg = exs[j].logged;
+        if (lg && typeof lg === 'object') { for (var k in lg) { if (Object.prototype.hasOwnProperty.call(lg, k)) return true; } }
+      }
+    }
+    return false;
+  }
   function regenCardMaybe(s) {
     if (!REGEN_ON || !s || !s.date) return;
+    // R1292 (P0, kid-facing — Phil 2026-09-28 item 3, verbatim in R1288: "Mason's 9/21 finished workout will
+    // not open from his phone calendar — it demands his regen answers and the workout never shows. A kid's
+    // finished history must open.").
+    //
+    // WHAT HIS ROWS SAY, read 2026-09-28. The calendar chip dated 2026-09-21 carries session_id
+    // Mason_2026-09-22 (Plan: calendar date 09-21, session id 09-22 — his rounds routinely run that way), and
+    // that is the session he logged 31 sets into that evening from 22:44. At 23:38:00 and 23:38:48 he RE-OPENED
+    // it and his phone recorded "REGEN card painted" both times, at 15.7 s and 13.1 s: the full-screen card, in
+    // the middle of his own half-finished workout, twice, because `REGEN_LOGS_SINCE_OPEN` counts only the sets
+    // logged since THIS open and resets on every one. R1078 had the right idea — a card never covers a workout
+    // in progress — and scoped it to the wrong memory.
+    //
+    // THE LAW: a session that already carries logged sets is a workout under way (or over). The card asks about
+    // last night BEFORE you train; there is nothing to answer in the middle of it, and nothing it can change
+    // (REGEN is record-and-show only, §9a). Checked from the SERVER's own logged map, so a re-open on any
+    // device, at any hour, is the same answer — and checked again after the status read settles, because a set
+    // can land while that read is in flight, which is the 187 s shape R1078 was born from.
+    // Reversing line: the two `sessionHasLoggedSets` guards in this function.
+    if (sessionHasLoggedSets(s)) return;
     var d = regenToday(), sid0 = String(s.session_id || '');   // item 16 (Phil 2026-09-16): the row is dated the day it is logged, not the board's date
     var known = regenKnown(d);
     if (known && known.logged) { regenStrip(d); regenRefresh(d, 0); return; }
@@ -572,6 +613,7 @@
           regenStrip(d); return;
         }
         if (app.querySelector('.regen-wrap') || !document.querySelector('.ex-row')) return;
+        if (sessionHasLoggedSets(SESSION)) return;   // R1292: a set landed, or the fresh payload arrived, while the status read was in flight
         if (REGEN_LOGS_SINCE_OPEN > 0) {   // R1078: the athlete has started — a late card never covers a workout in progress
           try {
             var msLate = REGEN_OPEN_T0 ? (Date.now() - REGEN_OPEN_T0) : 0;
@@ -1437,7 +1479,15 @@
   // correction, not a fresh count. The value only reaches the Workbook once it is a number; logging
   // the string "max" would record a set nobody can compare to anything.
   function isMaxVal(v) { return typeof v === 'string' && v.trim().toLowerCase() === 'max'; }
-  function stepper(state, key, delta, unit, extraCls, onTouch, maxBase, editable) {
+  // R1297 — A TYPED REP COUNT SAVES WHOLE (Phil 2026-09-28 07:1x, verbatim: "A typed rep count saves
+  // whole: 14 is 14, never 1."). Mason's 9/21 Dips stood at its prescribed 10 and reached the sheet as
+  // 1, 1, 1 for three sets he had done at 14 — and the ONLY way to move a rep count was the ± pair, so
+  // 10 -> 14 is four taps and 10 -> 1 is nine, on an evening his phone was taking 12-20 s per save. The
+  // same complaint Phil made of the weight field in B2 ("74 taps to reach 185 from 0") was still true of
+  // every rep on the screen. `intOnly` is the reps flavour of the load field's tap-to-type: whole
+  // numbers only, numeric keypad, and the SAME own-the-insertion guard, so a two-digit entry lands whole
+  // instead of concatenating into the prescription (j24's 118582 shape, on reps).
+  function stepper(state, key, delta, unit, extraCls, onTouch, maxBase, editable, intOnly) {
     var f = el('div', 'stepper' + (extraCls ? ' ' + extraCls : '') + (editable ? ' editable' : ''));
     // EDITABLE: the value itself is a tap-to-type field, so a weight is ENTERED, not bumped up from 0
     // one press at a time. Phil, B2 2026-07-25: "74 taps to reach 185 from 0." The ± buttons stay for
@@ -1448,8 +1498,14 @@
     var val;
     if (editable) {
       val = document.createElement('input');
-      val.className = 'val'; val.type = 'text'; val.inputMode = 'decimal';
-      val.autocomplete = 'off'; val.setAttribute('aria-label', 'weight'); val.placeholder = '0';
+      val.className = 'val'; val.type = 'text'; val.inputMode = intOnly ? 'numeric' : 'decimal';
+      val.autocomplete = 'off'; val.setAttribute('aria-label', intOnly ? 'reps' : 'weight');
+      // ONE ZERO FORM FOR BOTH LANES — placeholder '0', empty field (B2, 2026-07-25). The first cut of
+      // this used an em dash for reps, to keep the look of the readout it replaced; j13 caught it on the
+      // MAX-reps screen, where the prefill is 0 and the field is therefore blank, and its check reads
+      // "a number or the empty-with-placeholder-0 zero form". A kid's screen is not the place to invent a
+      // second convention for the same state, so reps wear the weight's.
+      val.placeholder = '0';
     } else {
       val = el('span', 'val');
     }
@@ -1483,10 +1539,19 @@
     f.appendChild(btn(-1)); f.appendChild(val); if (unit) f.appendChild(el('span', 'unit', unit)); f.appendChild(btn(1));
     if (editable) {
       val.addEventListener('input', function () {
-        var raw = val.value.replace(/[^0-9.]/g, '');
-        // keep only the first dot
-        raw = raw.replace(/(\..*)\./g, '$1');
-        state[key] = raw === '' ? '' : (Math.round(Number(raw) * 10) / 10);
+        var raw;
+        if (intOnly) {
+          // A REP COUNT IS WHOLE. Truncate at the first dot rather than stripping it: a stripped dot
+          // turns "14.5" into 145, which is the same class of silent mangling this field exists to
+          // end. The field is rewritten only when the athlete typed something it cannot hold, so what
+          // they read is always what will be logged.
+          raw = String(val.value).split('.')[0].replace(/[^0-9]/g, '');
+          if (val.value !== raw) val.value = raw;
+        } else {
+          raw = val.value.replace(/[^0-9.]/g, '');
+          raw = raw.replace(/(\..*)\./g, '$1');   // keep only the first dot
+        }
+        state[key] = raw === '' ? '' : (intOnly ? Number(raw) : Math.round(Number(raw) * 10) / 10);
         touched();
       });
       // TAP-TO-TYPE MUST REPLACE, NOT INSERT (Phil: he corrected a set to 185, the field showed 811,
@@ -2402,7 +2467,12 @@
       var repState = { reps: isMaxLift ? (lastReps ? lastReps + 1 : 0)
                                        : ((tr != null && tr !== '') ? Number(tr) : '') };
       var st = stepper(repState, 'reps', 1, '', 'unconfirmed',
-        function () { repsOut.v = repState.reps; }, (ex.best_reps || t.target_reps));
+        // R1297: TYPING IS TOUCHING. The round's Log button was armed only by the stepper's own click
+        // listener below; a thumb that taps the field and types a number fires click too, but a typed
+        // correction that never re-taps (dictation, a paste, a second digit after a redraw) would have
+        // left the row unconfirmed and the button naming a row the athlete had just answered.
+        function () { repsOut.v = repState.reps; if (row) { row._confirmed = true; syncRound(row.closest('.round')); } },
+        (ex.best_reps || t.target_reps), true, true);   // tap-to-type, whole reps
       l2.appendChild(lane('c-goal', '', isMaxLift ? el('span', 'goal-max', 'Max') : null));
       l2.appendChild(lane('c-actual', 'reps', st));
     } else {
@@ -2663,7 +2733,7 @@
 
     var hasReps = !isDur && (t.target_reps !== '' && t.target_reps != null);
     function repsStepper() {
-      var s = stepper(state, 'reps', 1, '', '', critical === 'reps' ? confirmActual : null);
+      var s = stepper(state, 'reps', 1, '', '', critical === 'reps' ? confirmActual : null, null, true, true);   // R1297: tap-to-type, whole reps
       if (needsConfirm && critical === 'reps') s.classList.add('unconfirmed');
       return s;
     }

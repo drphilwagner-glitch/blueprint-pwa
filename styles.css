@@ -960,6 +960,8 @@ body.has-tbar #app { padding-bottom: 128px; }
   color: var(--muted); }
 .swap-name { font-size: var(--fs-15); font-weight: 600; color: var(--ink); }
 .swap-same { font-size: var(--fs-10); font-weight: 700; color: var(--ok); text-transform: uppercase; letter-spacing: .4px; }
+/* R1306: the coach's own line for a swap option — his 'note in app' cell, quiet under the name (DESIGN.md rule 8). */
+.swap-note { font-size: var(--fs-11); color: var(--muted); line-height: 1.3; white-space: normal; }
 
 /* ============================================================================
    PROFILE v2 — Phil 2026-07-18: the summary is the MAIN EVENT (longer, bigger),

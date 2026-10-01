@@ -41,10 +41,85 @@
       setTimeout(function () {
         var st = reached(); if (st === 'painted') return;
         var b = window.__bpBoot;
+        // R1331 (Grace 2026-09-28 14:00 and 2026-09-30 17:56): THE REPORT HAS TO SAY WHICH BLANK SCREEN
+        // THIS IS. Both of her stalls read exactly `reached: app; online=true` with no first error — so
+        // app.js had loaded and run and painted nothing, and the row could not say whether a fetch was
+        // hanging, whether a cached board existed and was skipped, or whether the service worker served a
+        // stale shell. Two blank screens on a real kid and no instrument to tell them apart (rule 14: Phil
+        // must never be the sensor for something a tool could sense). Everything added below is read, never
+        // wrapped — this code cannot break a boot it is only describing.
+        // STILL NOT ANSWERED and named on R1331: WHICH request was in flight. That needs a fetch counter
+        // installed before app.js, which is a change to the boot path rather than a read of it, so it is
+        // the row's next step and not this one.
+        var diag = '';
+        try {
+          var ath = '';
+          try { ath = new URLSearchParams(location.search).get('athlete') || localStorage.getItem('bp_athlete') || ''; } catch (xA) {}
+          var keys = [], n = 0;
+          try {
+            for (var i = 0; i < localStorage.length; i++) {
+              var k = localStorage.key(i);
+              if (/^bp_(week|sess|prof|exlist|hist)_/.test(k)) { n++; if (keys.length < 4) keys.push(k.replace(/_[^_]*$/, '')); }
+            }
+          } catch (xK) {}
+          var swState = 'no-sw-api';
+          try {
+            if (navigator.serviceWorker) swState = navigator.serviceWorker.controller
+              ? ('controlled by ' + String(navigator.serviceWorker.controller.scriptURL || '').replace(/^.*\//, ''))
+              : 'registered-but-not-controlling';
+          } catch (xS) {}
+          var appEl = document.getElementById('app');
+          // R1331 step 2: WHAT WAS IN FLIGHT. app.js counts its own reads in __bpInflight (the fetchJson
+          // path); undefined means app.js never got that far, which is reported as unknown rather than 0 —
+          // a zero here would be a lie about a boot that never reached the counter.
+          var inf = 'unknown (app.js never reached its counter)';
+          try {
+            var w = window.__bpInflight;
+            if (w) inf = w.n + (w.n && w.last ? ' (' + w.last + ', waiting ' + Math.round((Date.now() - w.since) / 1000) + 's)' : '');
+          } catch (xI) {}
+          diag = '; in flight=' + inf
+               + '; cached copies=' + n + (keys.length ? ' (' + keys.join(', ') + ')' : '')
+               + '; sw=' + swState
+               + '; readyState=' + document.readyState
+               + '; app children=' + (appEl ? appEl.children.length : 'no #app')
+               + '; app text=' + (appEl ? String(appEl.textContent || '').trim().slice(0, 40) : '')
+               + '; athlete known=' + (ath ? 'yes' : 'no')
+               + '; visible=' + (document.visibilityState || '?');
+        } catch (xD) { diag = '; diag unavailable: ' + String((xD && xD.message) || xD).slice(0, 60); }
         var msg = 'no first paint after ' + Math.round((Date.now() - b.t0) / 1000) + 's; reached: ' + st +
-                  (b.err ? '; first error: ' + b.err : '') + '; online=' + String(navigator.onLine);
+                  (b.err ? '; first error: ' + b.err : '') + '; online=' + String(navigator.onLine) + diag;
         b.report = msg;
         try { (window.__bpErrLog = window.__bpErrLog || []).push('boot_stall'); } catch (x) {}   // the journeys' seam (j34 precedent)
+        // R1331 THE FIX (Grace 2026-09-28 14:00 and 2026-09-30 17:56): SHE HAD NOTHING TO TAP. Both times
+        // her app sat on the static "Loading your plan…" line for 45 s with — measured, not assumed —
+        // `{"text":"Loading your plan…","buttons":[],"children":1}`: zero controls, no explanation, no way
+        // out but force-quitting the app. R631 won this law for the WORKOUT tap in August ("a tap ALWAYS
+        // ends in either the workout or an actionable retry card, and the failure reports itself") and it
+        // was never extended to the BOOT, which is the one screen where app.js may not be able to help.
+        // So the shell does it itself, here, where it already knows the boot has stalled: her own words for
+        // what happened, and one button. Deliberately plain: this runs only when the screen is already
+        // useless, it touches nothing on a healthy boot, and a late-landing render is free to paint over it
+        // (app.js owns #app and replaces its contents wholesale).
+        try {
+          var appE = document.getElementById('app');
+          if (appE && !appE.querySelector('.boot-retry')) {
+            appE.innerHTML = '';
+            var p1 = document.createElement('p');
+            p1.className = 'slowload';
+            p1.textContent = navigator.onLine
+              ? 'This is taking longer than it should. Your workout is safe — nothing has been lost.'
+              : 'You look offline. Your workout is safe — nothing has been lost.';
+            appE.appendChild(p1);
+            var rb = document.createElement('button');
+            rb.className = 'boot-retry'; rb.type = 'button'; rb.textContent = 'Try again';
+            rb.addEventListener('click', function () { try { location.reload(); } catch (xR) { location.href = location.href; } });
+            appE.appendChild(rb);
+            var p2 = document.createElement('p');
+            p2.className = 'slowload-sub';
+            p2.textContent = 'If it keeps happening, tell your coach — the app has already told him.';
+            appE.appendChild(p2);
+          }
+        } catch (xC) {}
         var cfg = window.BP_CONFIG || {};
         if (!cfg.WEBAPP_URL || /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname)) return;   // errorhygiene: never from the harness
         var athlete = '';

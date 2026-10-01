@@ -334,13 +334,15 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 
 /* ---- calendar home screen ---- */
 .back { background: none; border: 0; color: var(--bp); font-size: var(--fs-14); font-weight: 700; padding: 4px 2px; margin-bottom: 6px; }
-  padding: 3px 2px; display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-3); }
-/* 44px tall: it opens a workout, so it's a real tap target — and the extra height is also what
-   fills the screen Phil said the calendar was wasting. Width is whatever 7 columns leave in 390px
-   (~45px after trimming the gaps), which is the honest ceiling for a 7-day grid on a phone. */
-  border-left: 3px solid var(--bp); border-radius: var(--r-5); background: var(--bp-tint); color: var(--muted);
-  font-size: var(--fs-12); font-weight: 800; line-height: 1; padding: 0; min-height: 44px; }
-.chip-tick { font-weight: 800; flex: none; }
+/* The MONTH GRID's corpse lived here from 2026-07-17 (e59678b8, "the month grid is gone") until
+   2026-09-30: that commit deleted `.cal-cell` and `.cal-chip` by their first lines and left their
+   continuation lines behind, so two declaration bodies sat at the top level with no selector. CSS
+   recovery consumes an invalid prelude up to the NEXT `{`, which meant the orphans swallowed
+   `.chip-tick` with them — WebKit parsed 718 rules here and `.chip-tick` was not among them. All
+   three were dead either way (nothing in pwa/ has carried those classes since the rewrite), and
+   they were removed together for that reason: deleting only the orphans would have RESURRECTED
+   `.chip-tick` as a live rule, which is a change to a kid's stylesheet rather than a cleanup of it.
+   Proof it changed nothing: the browser's own parsed rule list is identical before and after. */
 
 /* level goal moved to line 1 (muted, next to the name); line 2 gets room for both adjusters */
 .l1 .goaltag { flex: none; font-size: var(--fs-11); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -1212,6 +1214,12 @@ body #app { padding-bottom: 108px; }
 .tc-btn { flex: 1; font-size: var(--fs-14); padding: 10px 8px; border-radius: var(--r-8); border: 1px solid var(--line); background: var(--card); color: var(--ink); }
 /* R631: the open-failure retry card — the athlete always has a live control, never a dead screen */
 .slowload { color: var(--ink); font-size: var(--fs-16); margin: 18px 4px 4px; }
+/* R1331 — the boot's own retry card (pwa/index.html's 45 s watchdog). The shell cannot rely on app.js here,
+   so these two rules stand alone and reuse the tokens the rest of the app uses. `.boot-retry` matches
+   `.retry-open`'s shape on purpose: it is the same promise in the same words, one screen earlier. */
+.boot-retry { display: block; width: 100%; margin-top: 10px; font-size: var(--fs-16); font-weight: 700;
+  padding: 12px 8px; border-radius: var(--r-8); border: 1px solid var(--line); background: var(--card); color: var(--bp); }
+.slowload-sub { color: var(--muted); font-size: var(--fs-13); margin: 10px 4px 4px; }
 .retry-open { display: block; width: 100%; margin-top: 10px; font-size: var(--fs-16); font-weight: 700; padding: 12px 8px; border-radius: var(--r-8); border: 1px solid var(--line); background: var(--card); color: var(--bp); }
 
 /* R639 detail page — variant+level header, stats line, round-graph marks, breakdown */

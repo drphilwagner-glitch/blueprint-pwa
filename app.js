@@ -121,7 +121,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261003-r1355bmove';   // SATURDAY 10-03's train, on Phil's word (10-03, after the 390px before/after shots qa/journeys/shots/j68-move-told-failed-01-*). R1355b: a move the server made is never reported as 'No connection' — a non-abort rejection re-reads the week and shows where the workout is — and three taps make ONE move (j68 5/5, --mutant reds both harm arms). R1359: an open history panel whose cache is fresh and post-dates the last queued set is not re-fetched — no pixel changes (j69 Mason 11/11, --mutant reds arm 1). Previous stamp 20261002-r1337hold   // FRIDAY 10-02's train, on Phil's 10-02 item 7 ("The app file that is committed but not on phones rides a train before 14:00 today"). TWO client commits had landed since the 09-30 stamp and neither had ever ridden one, which is why the gate's L179 arm was RED: pwa/app.js built, committed, and on no phone. R1337 (0fb00ff3, his "R1337 pass"): inside a round the app hides a row's own control unless it is a TIMED hold, and a PER-REP hold was not counted as one, so Grace's L-Sit rung rendered its play button 0x0 and she would have tapped Log Set 1 and logged 3 reps with no countdown at all — the whole of his item 4b, invisible on the one screen it exists for. Item 4b's phone half (6d32752c): one countdown per rep. BOTH ARE INERT TODAY and that was READ, not assumed, before this stamp moved: hold_s is null until the STAB_HOLD script property is on (LoggerApi.gs:7566), and Grace's own served payload for 2026-10-02, read 07:0x, carries her Tuck L-Sit 20 sec rung with hold=None. So the countdown cannot appear on a phone before his item 4c turns the flag on at Friday's mint, and his word on the look (YOUR MOVE R1337s, the 390px shot at qa/reports/r1337-hold-390.png) still gates that flip, not this ship. The stamp moves because R607's law says it must: ship-pwa stamps PWA_VER from APP_BUILD, and shipping a new bundle under an UNCHANGED stamp leaves every installed phone serving the old one from cache while the host holds the new — the exact stale-phone defect of 2026-08-26. Previous stamp 20260930-r1330r1331   // THURSDAY 10-01's train, built the evening of 09-30 by the 19:00 slot. R1330 (Grace 18:50): the completion path captured `SESSION.session_id` in deferred callbacks and threw `null is not an object` when she left the screen before the 20 s watchdog fired — the line that reports her slow completion screen was the line that crashed on her, and the crash took the report with it; `finSid` is captured before the timers arm. R1331 (Grace 09-28 14:00 and 09-30 17:56, two 45-second blank screens): the boot watchdog now names what it was waiting on (`in flight=1 (week, waiting 6s)`, the cache count, the service worker, the shell state) AND paints a card with a Try again button instead of leaving her on a dead "Loading your plan…" line with nothing to tap — R631's law extended to the boot. Screenshot read by eye at 390px: qa/reports/r1331-boot-retry-card-390.png. Proofs: j38 4/4 (both R1330 arms), j64-boot-stall-actionable.mjs 3/3 (that file, renamed into the suite by the 21:08 slot so the card has a nightly guard), j0-access 3/3. ALSO ON THIS STAMP (21:08 slot 09-30): a slow call that ran while the app was in the BACKGROUND now says how much of it was hidden, under Phil's own 09-18 item 2 ruling that a call nobody waited on keeps its wall time but says 'no wait felt'. Forced by three of Grace's rows on 09-30 that ran past their own abort deadlines — logrefused aborted at 44.0 s against an 8 s deadline, two log POSTs failed at 42.2 s and 43.4 s against a 20 s one — while her own queue_pending rows said 'still queued at hidden'. Nothing rendered changes; it is a read of visibilityState and a subtraction. Proof: j65-background-not-a-wait 4/4 with a never-hidden control, --mutant reds arm 2. Previous stamp 20260930-r1304skip   // WEDNESDAY 09-30, the day's SECOND client stamp. R1304 REOPENED by Phil the same morning, his reply verbatim: "R1304 fail — the regen card must be skippable: a 'Skip' control beside Start workout, visible without scrolling at 390x664, that opens the workout and logs the regen as skipped (not as zeros)." The 09-29 fix made Start REACHABLE and left it DISABLED until every question was tapped — reachable-but-disabled is still a locked door, and that is the twenty minutes he lost. Skip is a sibling of Start inside the same sticky .regen-foot, always enabled, and sends regen:{"skipped":true} with load and reps EMPTY — the server's _regenScore_ returns every column blank for a skip, so a skipped morning never reads as a morning scored zero (rule 64(2), his own word: a skipped lift is never 'done'). The Athlete Review's skip counter, which counted only pre-09-15 rows because Skip had ceased to exist, counts every skip again. Proven red-then-green on real WebKit at 390x664 and 390x844: j62 arms S1-S6 all RED on the pre-Skip client, 19 of 19 PASS after. Screenshots read by eye (rules 2/17/60/67): qa/journeys/shots/j62-*-06-short-skip-visible.png and *-07-short-after-skip.png. Previous stamp 20260930-r1306ladder   // WEDNESDAY 09-30's train. R1306 (Phil 2026-09-29 item 3, verbatim: "The swap menu offers every rung of the lift's own ladder (Level or Stability Standards) plus its Alternates row, each with its note. Mason could not find Weighted Dips (his 3.2 rung) or DB Pullover bench."): the menu carries every rung of the lift's OWN ladder beside his substitute movements, nearest-rung-first from where the athlete stands, each wearing its level as a quiet category chip ("Ladder 3.2") and his own 'note in app' line under the name. Reproduced on his live payload before a line was written (rule 12): Mason's Dips menu carried 4 Alternates rows and 0 of his 7 Dips rungs, so his own 3.2 had no way to be chosen from the phone at all. Screenshot read by eye (rules 2/17/60/67): qa/journeys/shots/j63-swap-menu-ladder-01-01-swap-menu.png. Rides with R1300 (the set trail is superseded, never skipped), R1284/R1257/R1313 (the slow opens) and the datasanity unit fix. Previous stamp 20260929-r1304regenstart   // TUESDAY 09-29's train. R1304 (P0, Phil 04:57 item 1, verbatim: "the regen card hid its Log Regen button below the screen on my phone and blocked my workout ~20 min. A card never blocks Start: if it cannot fit, it scrolls and Start stays reachable. Prove on the iPhone engine."): the card's Start and the line under it are one .regen-foot STUCK to the bottom of the card's own scroller, and the overlay is 100dvh so it is the glass iOS actually shows rather than the URL-bar-hidden large viewport whose last ~100 px lived under the browser chrome. Proven red-then-green on WebKit at 390x664 AND 390x844 (j62-regen-start-reachable: was 2 of 9 FAILED on arm B, now PASSED 12 of 12; the position:static mutant re-fires arm B red at both sizes). Screenshots read by eye, rule 17/60: qa/journeys/shots/j62-*. Previous stamp 20260928-r1297reps-r1292regen   // rode TUESDAY 09-29's train on Phil's word (rules 17/67: both changes have their screenshot — qa/reports/r1297-typed-reps-20260928.png and qa/reports/r1292-reopen-20260928.png). R1297: a typed rep count saves whole — the reps control is the same tap-to-type field as the weight, whole numbers only, own-the-insertion, and typing arms the round's Log button (Mason's 9/21 Dips reached the sheet as 1,1,1 for sets he did at 14, with the +/- pair the only way to move a rep count). R1292 (P0): the REGEN card is refused whenever the server's payload already carries a logged set for this session — his 9/21 re-opens were carded twice, at 15.7 s and 13.1 s, over his own half-finished workout, because REGEN_LOGS_SINCE_OPEN counts only the sets logged since THIS open. Previous stamp 20260924-r1245drainyield   // rode Saturday 09-26's train (Phil 09-24 item 10, P0 — Grace 09-22: her calendar open of a never-prefetched future session was carded at 20 s while the drain's slow POSTs held the pool): while a tapped open is UNPAINTED, background sends (log drain, complete drain) yield the connection pool so the tap's own session GET gets a slot; bounded by the 20 s watchdog, released the moment the board paints, the fetch settles, or the card shows — j60. Previous stamp 20260922-r1228openrace (Phil 09-22 item 2, P0): a calendar open that finds no cached copy takes the cached payload THE MOMENT one lands (the prefetch resolving behind a wedged fetch) and keeps its own fetch refreshing behind it; the 20 s watchdog never throws a card over a painted board, and a late-landing copy repaints over the card; the REGEN card latency is measured once per open (a refresh repaint never re-times against the tap) — j59. Previous stamp 20260921-r1215stale (Phil 07:3x item 3; RE-CUT 09-22 under R1226's ruling (b): "A queued row carrying real load and reps lands whenever it drains; marker actions stay refused as built" — the server judges markers only): every queued row carries its tap time (tapped_at, stamped at qAdd) and session id; the server refuses a MARKER replay from a prior day older than its session's own day (stale_action) and the phone drops it through the refused door with its own card line; an evidence row lands whenever it drains — j58 arm F. Previous stamp 20260921-r1204batch (same train, Phil D6): the check lands at once, a burst of checks rides one POST, the read-back runs detached and a sent row is never re-sent inside 45 s (then it is — idempotent by log_id); the badge names only a set that has waited 20 s. Previous stamp 20260921-r1208reopen — morning 09-21 (Phil A1, P0): a Finish carries its tap time and a stale one is refused and dropped — a workout never finishes itself; the completion screen and the same-day done screen carry '↩ Reopen workout' (no confirm; the reopen is the guard); the timer dies at completion, always. Previous stamp 20260920-r1182swap — morning 09-20 (Phil item 1): a searched swap opens at the weight the athlete last did it with — from the session payload's last_loads the instant it is tapped (R1182); was 20260918-r1105bg — morning 09-18 (Phil item 2): a background call (the calendar prefetch) that runs slow says so — bg=prefetch, "no wait felt" — and never leads the report as a P0; the tap's own read still does. Previous stamp 20260917-r1112prefetch — morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
+  var APP_BUILD = '20261005-r1428movewindow';   // MONDAY 10-05, STAGED FOR PHIL'S YES (MACHINE.md STAGED-VISUAL) — the three deploy trains were spent before this was built, so these bytes are committed and on no phone. R1428: the move picker never offers a day past the round. The date input carried `min = today` and NO `max`, so the native iOS wheel offered every day to the end of time — and on 2026-10-05, in nine move calls over three minutes from his own iPhone (api_slow `move round trip` 152.8 s at 14:54:14Z, 215.3 s at 14:55:09Z, both action=move how=settled), Phil put his ECC session Phil_2026-10-05 on 2026-10-10 against a Phil-R13 window of 2026-10-03->2026-10-09. The server took it (no window read in `_handleMove_` — fixed in the same commit) and `roundspan` went PASS 07:37 -> FAIL 08:0x with four PAST WINDOW rows. The ceiling is now the SERVER's own window read, riding the week payload as `round_window_end`, so the client holds no copy of the cadence arithmetic; absent, there is no max and the picker behaves exactly as before. A `past_window` refusal also RENDERS the last lawful day ('That day is past this round — FRI 10/9 is the last day.') at both call sites instead of the generic 'Move failed — try again' that invited the nine-tap loop. TWO PIXELS MOVE and guard 6 binds on both: the greyed-out tail of the native date wheel and the refusal line in the move panel — 390 px shots owed on Phil's eyes BEFORE `ship-pwa.sh CONFIRM`. Proof: qa/harness/r1428-move-inside-window.mjs 10/10 with three mutants red-firing arms 1-2, 4 and 7; four fast-gate arms wired. Page qa/reports/r1428-move-inside-window-20261005.md. Previous stamp 20261004-r1385week   // SUNDAY 10-04's 04:30 train, STAGED FOR PHIL'S YES (MACHINE.md STAGED-VISUAL). R1385: returning to a calendar that is already painted, fresh, plain and showing a dated grid makes NO `week` request — loadHome painted from bp_week_ and then fetched unconditionally, and twelve call sites each bought a cold Apps Script invocation (R1360: server 75/85 ms under a 6417/6534 ms wall) over a screen already on the phone; the slow-read ring held FOUR of Mason's week reads in 77 minutes. The FIRST loadHome of a page life still fetches (the 2026-08-12 pwa_ver self-heal P0, j70 arm 0) and a stale or epoch-superseded cache still refreshes (arms 2/3). No pixel moves by construction: the skip returns after the same renderCalendar the fetch path would have re-run, and condition 4 keeps the one `round_pending` line off screen. j70 Mason/Grace/Phil/QA_Harness 8/8 each, --mutant reds ARM 1 alone; two fast-gate arms, the pass arm on MASON not the clone. THE STAMP MOVES BECAUSE R607'S LAW SAYS IT MUST: ship-pwa stamps PWA_VER from APP_BUILD, and shipping new bytes under an unchanged stamp leaves every installed phone serving the old bundle from cache — the 2026-08-26 stale-phone defect, and the same-stamp trap scripts/clientship.sh reds on. Previous stamp 20261003-r1355bmove   // SATURDAY 10-03's train, on Phil's word (10-03, after the 390px before/after shots qa/journeys/shots/j68-move-told-failed-01-*). R1355b: a move the server made is never reported as 'No connection' — a non-abort rejection re-reads the week and shows where the workout is — and three taps make ONE move (j68 5/5, --mutant reds both harm arms). R1359: an open history panel whose cache is fresh and post-dates the last queued set is not re-fetched — no pixel changes (j69 Mason 11/11, --mutant reds arm 1). Previous stamp 20261002-r1337hold   // FRIDAY 10-02's train, on Phil's 10-02 item 7 ("The app file that is committed but not on phones rides a train before 14:00 today"). TWO client commits had landed since the 09-30 stamp and neither had ever ridden one, which is why the gate's L179 arm was RED: pwa/app.js built, committed, and on no phone. R1337 (0fb00ff3, his "R1337 pass"): inside a round the app hides a row's own control unless it is a TIMED hold, and a PER-REP hold was not counted as one, so Grace's L-Sit rung rendered its play button 0x0 and she would have tapped Log Set 1 and logged 3 reps with no countdown at all — the whole of his item 4b, invisible on the one screen it exists for. Item 4b's phone half (6d32752c): one countdown per rep. BOTH ARE INERT TODAY and that was READ, not assumed, before this stamp moved: hold_s is null until the STAB_HOLD script property is on (LoggerApi.gs:7566), and Grace's own served payload for 2026-10-02, read 07:0x, carries her Tuck L-Sit 20 sec rung with hold=None. So the countdown cannot appear on a phone before his item 4c turns the flag on at Friday's mint, and his word on the look (YOUR MOVE R1337s, the 390px shot at qa/reports/r1337-hold-390.png) still gates that flip, not this ship. The stamp moves because R607's law says it must: ship-pwa stamps PWA_VER from APP_BUILD, and shipping a new bundle under an UNCHANGED stamp leaves every installed phone serving the old one from cache while the host holds the new — the exact stale-phone defect of 2026-08-26. Previous stamp 20260930-r1330r1331   // THURSDAY 10-01's train, built the evening of 09-30 by the 19:00 slot. R1330 (Grace 18:50): the completion path captured `SESSION.session_id` in deferred callbacks and threw `null is not an object` when she left the screen before the 20 s watchdog fired — the line that reports her slow completion screen was the line that crashed on her, and the crash took the report with it; `finSid` is captured before the timers arm. R1331 (Grace 09-28 14:00 and 09-30 17:56, two 45-second blank screens): the boot watchdog now names what it was waiting on (`in flight=1 (week, waiting 6s)`, the cache count, the service worker, the shell state) AND paints a card with a Try again button instead of leaving her on a dead "Loading your plan…" line with nothing to tap — R631's law extended to the boot. Screenshot read by eye at 390px: qa/reports/r1331-boot-retry-card-390.png. Proofs: j38 4/4 (both R1330 arms), j64-boot-stall-actionable.mjs 3/3 (that file, renamed into the suite by the 21:08 slot so the card has a nightly guard), j0-access 3/3. ALSO ON THIS STAMP (21:08 slot 09-30): a slow call that ran while the app was in the BACKGROUND now says how much of it was hidden, under Phil's own 09-18 item 2 ruling that a call nobody waited on keeps its wall time but says 'no wait felt'. Forced by three of Grace's rows on 09-30 that ran past their own abort deadlines — logrefused aborted at 44.0 s against an 8 s deadline, two log POSTs failed at 42.2 s and 43.4 s against a 20 s one — while her own queue_pending rows said 'still queued at hidden'. Nothing rendered changes; it is a read of visibilityState and a subtraction. Proof: j65-background-not-a-wait 4/4 with a never-hidden control, --mutant reds arm 2. Previous stamp 20260930-r1304skip   // WEDNESDAY 09-30, the day's SECOND client stamp. R1304 REOPENED by Phil the same morning, his reply verbatim: "R1304 fail — the regen card must be skippable: a 'Skip' control beside Start workout, visible without scrolling at 390x664, that opens the workout and logs the regen as skipped (not as zeros)." The 09-29 fix made Start REACHABLE and left it DISABLED until every question was tapped — reachable-but-disabled is still a locked door, and that is the twenty minutes he lost. Skip is a sibling of Start inside the same sticky .regen-foot, always enabled, and sends regen:{"skipped":true} with load and reps EMPTY — the server's _regenScore_ returns every column blank for a skip, so a skipped morning never reads as a morning scored zero (rule 64(2), his own word: a skipped lift is never 'done'). The Athlete Review's skip counter, which counted only pre-09-15 rows because Skip had ceased to exist, counts every skip again. Proven red-then-green on real WebKit at 390x664 and 390x844: j62 arms S1-S6 all RED on the pre-Skip client, 19 of 19 PASS after. Screenshots read by eye (rules 2/17/60/67): qa/journeys/shots/j62-*-06-short-skip-visible.png and *-07-short-after-skip.png. Previous stamp 20260930-r1306ladder   // WEDNESDAY 09-30's train. R1306 (Phil 2026-09-29 item 3, verbatim: "The swap menu offers every rung of the lift's own ladder (Level or Stability Standards) plus its Alternates row, each with its note. Mason could not find Weighted Dips (his 3.2 rung) or DB Pullover bench."): the menu carries every rung of the lift's OWN ladder beside his substitute movements, nearest-rung-first from where the athlete stands, each wearing its level as a quiet category chip ("Ladder 3.2") and his own 'note in app' line under the name. Reproduced on his live payload before a line was written (rule 12): Mason's Dips menu carried 4 Alternates rows and 0 of his 7 Dips rungs, so his own 3.2 had no way to be chosen from the phone at all. Screenshot read by eye (rules 2/17/60/67): qa/journeys/shots/j63-swap-menu-ladder-01-01-swap-menu.png. Rides with R1300 (the set trail is superseded, never skipped), R1284/R1257/R1313 (the slow opens) and the datasanity unit fix. Previous stamp 20260929-r1304regenstart   // TUESDAY 09-29's train. R1304 (P0, Phil 04:57 item 1, verbatim: "the regen card hid its Log Regen button below the screen on my phone and blocked my workout ~20 min. A card never blocks Start: if it cannot fit, it scrolls and Start stays reachable. Prove on the iPhone engine."): the card's Start and the line under it are one .regen-foot STUCK to the bottom of the card's own scroller, and the overlay is 100dvh so it is the glass iOS actually shows rather than the URL-bar-hidden large viewport whose last ~100 px lived under the browser chrome. Proven red-then-green on WebKit at 390x664 AND 390x844 (j62-regen-start-reachable: was 2 of 9 FAILED on arm B, now PASSED 12 of 12; the position:static mutant re-fires arm B red at both sizes). Screenshots read by eye, rule 17/60: qa/journeys/shots/j62-*. Previous stamp 20260928-r1297reps-r1292regen   // rode TUESDAY 09-29's train on Phil's word (rules 17/67: both changes have their screenshot — qa/reports/r1297-typed-reps-20260928.png and qa/reports/r1292-reopen-20260928.png). R1297: a typed rep count saves whole — the reps control is the same tap-to-type field as the weight, whole numbers only, own-the-insertion, and typing arms the round's Log button (Mason's 9/21 Dips reached the sheet as 1,1,1 for sets he did at 14, with the +/- pair the only way to move a rep count). R1292 (P0): the REGEN card is refused whenever the server's payload already carries a logged set for this session — his 9/21 re-opens were carded twice, at 15.7 s and 13.1 s, over his own half-finished workout, because REGEN_LOGS_SINCE_OPEN counts only the sets logged since THIS open. Previous stamp 20260924-r1245drainyield   // rode Saturday 09-26's train (Phil 09-24 item 10, P0 — Grace 09-22: her calendar open of a never-prefetched future session was carded at 20 s while the drain's slow POSTs held the pool): while a tapped open is UNPAINTED, background sends (log drain, complete drain) yield the connection pool so the tap's own session GET gets a slot; bounded by the 20 s watchdog, released the moment the board paints, the fetch settles, or the card shows — j60. Previous stamp 20260922-r1228openrace (Phil 09-22 item 2, P0): a calendar open that finds no cached copy takes the cached payload THE MOMENT one lands (the prefetch resolving behind a wedged fetch) and keeps its own fetch refreshing behind it; the 20 s watchdog never throws a card over a painted board, and a late-landing copy repaints over the card; the REGEN card latency is measured once per open (a refresh repaint never re-times against the tap) — j59. Previous stamp 20260921-r1215stale (Phil 07:3x item 3; RE-CUT 09-22 under R1226's ruling (b): "A queued row carrying real load and reps lands whenever it drains; marker actions stay refused as built" — the server judges markers only): every queued row carries its tap time (tapped_at, stamped at qAdd) and session id; the server refuses a MARKER replay from a prior day older than its session's own day (stale_action) and the phone drops it through the refused door with its own card line; an evidence row lands whenever it drains — j58 arm F. Previous stamp 20260921-r1204batch (same train, Phil D6): the check lands at once, a burst of checks rides one POST, the read-back runs detached and a sent row is never re-sent inside 45 s (then it is — idempotent by log_id); the badge names only a set that has waited 20 s. Previous stamp 20260921-r1208reopen — morning 09-21 (Phil A1, P0): a Finish carries its tap time and a stale one is refused and dropped — a workout never finishes itself; the completion screen and the same-day done screen carry '↩ Reopen workout' (no confirm; the reopen is the guard); the timer dies at completion, always. Previous stamp 20260920-r1182swap — morning 09-20 (Phil item 1): a searched swap opens at the weight the athlete last did it with — from the session payload's last_loads the instant it is tapped (R1182); was 20260918-r1105bg — morning 09-18 (Phil item 2): a background call (the calendar prefetch) that runs slow says so — bg=prefetch, "no wait felt" — and never leads the report as a P0; the tap's own read still does. Previous stamp 20260917-r1112prefetch — morning 09-16 (Phil item 16): a regen row is dated the day it is logged (the phone's clock), never the board's date; was: r1078regenlate —  // 23:30 slot 09-15: R1078 a REGEN card that arrives after the first logged set is skipped, never painted over a workout in progress (Grace 16:05, 187 s status read). Previous stamp 20260915-r1077drain — 21:08 slot 09-15: R1077 a hung read-back never wedges the drain (deadlines on send/ack, wedge watchdog, re-drain, keepalive delivery at unload) — Grace's 26 undelivered sets. Previous stamp 20260915-r1071regen — 21:08 slot 09-13: R1032 a swapped-in curated alternate opens at the athlete's own last load (best_load), blank the first time — Phil's Friday lunge opened at 0 (rides the 09-14 report's screenshot, rule 67). Previous stamp 20260912-r1003done5 — shipped on Phil's 09:47 "render accepted": R1003 a done session opens read-only · R997 echo path · R995 the completion screen · R996 the 8 s open report · R1001 pain score + Where? chips · R1000 the REGEN card ON (his 09:47 acceptance) · the queue_pending beacon (a set unsent past 45 s at unload reports itself; a set between taps does not — Mason 15:0x) · a refused audio device reports audio_unavailable, never an unhandled rejection (Grace 10:48)
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -249,6 +249,7 @@
   //   (b) A non-abort rejection is not a verdict: re-read the week and report what the Plan SAYS.
   //       An AbortError is still 'offline' — there the client chose to stop, and nothing landed.
   var MOVE_INFLIGHT = {};
+  var WEEK_WIN_END = '';   // R1428: the round's window end, as the week payload reported it (see the move picker)
   function sendMove(sessionId, toDate) {
     var key = String(sessionId);
     if (MOVE_INFLIGHT[key]) return MOVE_INFLIGHT[key];
@@ -286,8 +287,21 @@
     not_found: 'Could not find that workout to move.',
     forbidden: 'Access denied — check your link.',
     offline: 'No connection — reconnect and try again.',
-    bad_args: 'Something was missing. Try again.'
+    bad_args: 'Something was missing. Try again.',
+    past_window: 'That day is past this round — pick an earlier one.'
   };
+  // R1428 — A REFUSAL THE ATHLETE CAN ACT ON SAYS WHICH DAY IS THE LAST ONE. The server now refuses a
+  // move past the round's window end (L359: "a session is never dated past its round's window"), and a
+  // refusal rendered as the generic 'Move failed — try again.' would invite exactly the retry loop Phil
+  // ran on 2026-10-05: NINE move calls in three minutes from his own iPhone. The server hands back
+  // `window_end`, so the message names the last lawful day instead of a dead end.
+  function moveErrText(res) {
+    var e = res && res.error;
+    if (e === 'past_window' && res && res.window_end) {
+      return 'That day is past this round — ' + dowLabel(res.window_end) + ' is the last day.';
+    }
+    return MOVE_ERR[e] || 'Move failed — try again.';
+  }
   // JSON fetch with RETRY + an honest failure class. A throttled Apps Script answers with an HTML
   // error page; r.json() threw and every caller's catch said "Offline" — Phil and Grace force-closed
   // the app for what was a server hiccup (2026-08-05). Retries ride out the hiccup; 'server' vs
@@ -4027,11 +4041,11 @@
       // completion_slow; post-fix neither. Reversing line: this var, and the four uses below.
       var finSid = SESSION ? SESSION.session_id : '';
       sendComplete(finSid).then(function () {
-        try { localStorage.removeItem('bp_week_' + CACHE_V + '_' + athlete); } catch (e) {}
+        try { localStorage.removeItem('bp_week_' + CACHE_V + '_' + athlete); weekTouch(); } catch (e) {}   // R1385: a completion is a local change to the week
         fetchJson(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
           .then(function (d) {
             if (d && d.ok && d.sessions && d.sessions.length) {
-              try { localStorage.setItem('bp_week_' + CACHE_V + '_' + athlete, JSON.stringify({ at: Date.now(), sessions: d.sessions })); } catch (e) {}
+              try { localStorage.setItem('bp_week_' + CACHE_V + '_' + athlete, JSON.stringify({ at: Date.now(), plain: weekPlain(d), sessions: d.sessions })); } catch (e) {}
             }
           });
       });
@@ -4097,6 +4111,50 @@
   // ---- Home = calendar of the athlete's sessions; tap a day to open that workout ----
   function mondayOf(s) { var x = new Date(s + 'T00:00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
   function ymd(d) { return d.toLocaleDateString('en-CA'); }
+  // R1385 (QUEUE b, 2026-10-03 21:08 slot) — THE CALENDAR THE ATHLETE IS ALREADY LOOKING AT.
+  // Mason's `week` rows are the felt action with no request-side owner: Phil's felt ruler (R1356)
+  // ranks them 6 rows / 36.5 s worst, and R1360 measured the route end to end — server 75 ms and
+  // 85 ms under a 6417 ms and 6534 ms wall, so 6.3 s of the 6.4 s is one cold Apps Script
+  // invocation and "on this path only REMOVING REQUESTS can help". Nothing had removed one. The
+  // slow-read ring read live 2026-10-03 holds FOUR of his week reads in 77 minutes
+  // (17:41 18.5s · 18:34 11.8s · 18:45 9.6s · 18:57 18.2s).
+  // The defect is R1359's, one screen over: loadHome paints the calendar from this cache and then
+  // fetched UNCONDITIONALLY, and the cache entry has carried `at: Date.now()` since it was born
+  // with NOTHING EVER READING IT. Now it is read, under three conditions that each exist for a
+  // rule the speed must not buy:
+  //   1. WEEK_BOOTED — the FIRST loadHome of a page life always fetches. The week payload carries
+  //      `pwa_ver` and versionHandshake() on it is the stale-client self-heal P0 of 2026-08-12.
+  //   2. `plain` — the skip repaints from `sessions` alone, so it is only taken when the last
+  //      server payload carried nothing else TO DRAW. A cache written by an older build has no
+  //      `plain` key and is never skipped, so there is no migration and the unsafe direction is
+  //      the default.
+  //      WHICH KEYS COUNT WAS READ, NOT GUESSED (2026-10-03 23:0x slot, `scripts/athlete-payload.sh
+  //      <A> week` on the deployed backend @1065). The first cut of this guard also refused on
+  //      `next_round_preview` and `round_pending`, and the read says ALL FOUR athletes — Grace,
+  //      Mason, Phil AND QA_Harness — carry a non-empty `next_round_preview`, so that cut could
+  //      never skip one request for ANYONE. It was dead code, not a harness artifact.
+  //      `next_round_preview` DRAWS NOTHING: it is renderCalendar's `nextPreview` parameter and the
+  //      body never reads it (the NEXT ROUND section is built from each session's own `next_round` /
+  //      `held` flags). `round_pending` draws text in ONE place — the `!dated.length` empty-grid
+  //      line — which condition 4 excludes by construction. `bw_missing` draws a real card
+  //      (renderBwIntake), so it alone keeps a payload un-plain.
+  //   4. WEEK_DREW_DATED — the paint actually put a dated row on the grid. renderCalendar reports
+  //      what it drew rather than this guard re-deriving it. Mason is why: he carries
+  //      `round_pending: true` tonight (his next board was lawfully refused), and his empty-grid
+  //      line must never freeze on a cache while the round he is waiting for is built.
+  //   3. the epoch — any local change to the week (a move's date patch, a status flip, a
+  //      completion) stamps `bp_week_epoch`, and a cache written before that stamp is stale
+  //      however young it is. Accuracy first (goal 1): a kid never reads a day the phone has
+  //      already changed under it.
+  // Reversing line: WEEK_FRESH_MS = 0 restores the unconditional refetch (every cache reads stale).
+  var WEEK_FRESH_MS = 5 * 60 * 1000;
+  var WEEK_BOOTED = false;
+  var WEEK_DREW_DATED = false;   // set by renderCalendar: did the paint put at least one DATED row on the grid
+  function weekEpoch() { try { return Number(localStorage.getItem('bp_week_epoch')) || 0; } catch (eWE) { return 0; } }
+  function weekTouch() { try { localStorage.setItem('bp_week_epoch', String(Date.now())); } catch (eWT) {} }
+  function weekCacheFresh(at) { var n = Number(at) || 0; return n > 0 && (Date.now() - n) <= WEEK_FRESH_MS && n >= weekEpoch(); }
+  function weekPlain(d) { return !(d && d.bw_missing); }   // see condition 2 above: bw_missing is the only week key that draws anything the sessions repaint does not
+  try { window.BP_weekFresh = weekCacheFresh; } catch (eWS) {}   // j70 seam
   // R564: the server ACK is the truth about a move, so the cached week adopts it immediately.
   // loadHome instant-paints that cache, and its refresh path deliberately keeps the paint on a
   // server hiccup — which, right after a move (the server just wrote the Plan and rebuilt Coach
@@ -4111,6 +4169,7 @@
         if (String(s.session_id) === String(sessionId)) s.date = String(toDate);
       });
       localStorage.setItem(k, JSON.stringify(obj));
+      weekTouch();   // R1385: the phone changed the week itself — the next loadHome reads the server, not this guess
     } catch (e) {}
   }
   // R929 (Phil 2026-09-06, "the lagging checkmark"): the phone's cached week adopts the status the
@@ -4126,7 +4185,7 @@
       (obj.sessions || []).forEach(function (s) {
         if (String(s.session_id) === String(sessionId) && s.status !== 'done' && s.status !== status) { s.status = status; changed = true; }
       });
-      if (changed) localStorage.setItem(k, JSON.stringify(obj));
+      if (changed) { localStorage.setItem(k, JSON.stringify(obj)); weekTouch(); }   // R1385: a local status flip supersedes the clock
     } catch (e) {}
   }
   function loadHome() {
@@ -4138,9 +4197,22 @@
     var mine = newScreen();
     // Same instant-paint as openSession: the calendar is the FIRST thing an athlete sees, so it must
     // never sit on a spinner waiting for a cold backend build.
-    var cachedWk = null;
-    try { var raw = localStorage.getItem('bp_week_' + CACHE_V + '_' + athlete); cachedWk = raw ? JSON.parse(raw).sessions : null; } catch (e) {}
+    var cachedWk = null, cachedWkAt = 0, cachedWkPlain = false;
+    try {
+      var raw = localStorage.getItem('bp_week_' + CACHE_V + '_' + athlete);
+      var rawO = raw ? JSON.parse(raw) : null;
+      cachedWk = rawO ? rawO.sessions : null; cachedWkAt = rawO ? rawO.at : 0; cachedWkPlain = !!(rawO && rawO.plain === true);
+    } catch (e) {}
     if (cachedWk && cachedWk.length) { renderCalendar(cachedWk); prefetchNext(cachedWk); } else show('Loading your plan…');
+    // R1385: the calendar is PAINTED with a dated grid and its payload is fresh, plain and
+    // un-superseded — there is nothing a cold round trip can add, so no request is made. See the block
+    // above patchWeekCacheDate for why each of the four conditions is there; drop any one of them and
+    // the skip buys speed with either accuracy (goal 1) or the stale-client self-heal.
+    if (WEEK_BOOTED && cachedWk && cachedWk.length && cachedWkPlain && WEEK_DREW_DATED && weekCacheFresh(cachedWkAt)) {
+      try { window.BP_weekSkips = (window.BP_weekSkips || 0) + 1; } catch (eWk) {}   // j70 seam
+      return;   // renderCalendar above already set the nav and the screen — this path draws nothing new
+    }
+    WEEK_BOOTED = true;
     fetchJson(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (data) {
         if (data && data.pwa_ver) versionHandshake(data.pwa_ver);   // stale-client self-heal (P0 2026-08-12)
@@ -4150,7 +4222,7 @@
         }
         // Cache the week regardless — it is good data. Only DRAW if the athlete is still here.
         if (data.ok && data.sessions && data.sessions.length) {
-          try { localStorage.setItem('bp_week_' + CACHE_V + '_' + athlete, JSON.stringify({ at: Date.now(), sessions: data.sessions })); } catch (e) {}
+          try { localStorage.setItem('bp_week_' + CACHE_V + '_' + athlete, JSON.stringify({ at: Date.now(), plain: weekPlain(data), sessions: data.sessions })); } catch (e) {}
         }
         if (!isCurrent(mine)) return;
         // R601 self-heal: a REVOKED device token gets ok:false here — drop it, fall back to the
@@ -4180,6 +4252,7 @@
           if (data.bw_missing) renderBwIntake(data);
           return;
         }
+        WEEK_WIN_END = String(data.round_window_end || '');   // R1428: the move picker's ceiling, from the server's own window read
         renderCalendar(data.sessions, data.next_round_preview, data.round_pending);
         prefetchNext(data.sessions);
         // BW SELF-ENTRY (Phil 2026-08-29 launch ruling: the athlete types their own body weight;
@@ -4351,6 +4424,8 @@
     }
     var grid = el('div', 'days'), rowsByDate = {}, todayStr = ymd(new Date()), todayRow = null;
     var dated = logged.concat(open).filter(function (s) { return s.date; });
+    WEEK_DREW_DATED = dated.length > 0;   // R1385 condition 4: with a dated grid the `roundPending` line below is unreachable, so a cached repaint cannot freeze it
+    try { window.BP_weekDrewDated = WEEK_DREW_DATED; } catch (eWD) {}   // j70 seam
     dated.sort(function (a, b) { return String(a.date) < String(b.date) ? -1 : 1; });   // oldest first: history above, today at anchor
     // F2 (Phil 2026-08-13): ONE workout is ONE card. A started-unfinished session renders on TODAY and
     // nowhere else — the 2026-08-12 ruling put it on today's row *as well as* its own date, which gave
@@ -4510,7 +4585,7 @@
         // race. Same rule now: ack, then reload.
         sendMove(s.session_id, to).then(function (res) {
           if (res && res.ok) { patchWeekCacheDate(s.session_id, to); loadHome(); return; }
-          show(MOVE_ERR[res && res.error] || 'Move failed — try again.', 'err');
+          show(moveErrText(res), 'err');
           setTimeout(loadHome, 1600);
         });
       }
@@ -4544,7 +4619,7 @@
       sendMove(s.session_id, iso).then(function (res) {
         if (res && res.ok) { patchWeekCacheDate(s.session_id, iso); loadHome(); return; }
         p.innerHTML = '';
-        p.appendChild(el('div', 'move-h err', MOVE_ERR[res && res.error] || 'Move failed \u2014 try again.'));
+        p.appendChild(el('div', 'move-h err', moveErrText(res)));
         var again = el('button', 'move-opt', 'Back'); again.type = 'button';
         again.addEventListener('click', function () { p.remove(); toggleMove(wrap, s); });
         p.appendChild(again);
@@ -4561,6 +4636,13 @@
     var dIn = el('input', 'move-date'); dIn.type = 'date';
     dIn.value = (s.date < today2) ? today2 : s.date;
     dIn.min = today2;                                    // nothing moves into the past
+    // R1428 — AND NOTHING MOVES PAST THE ROUND. This input carried a `min` and NO `max`, so the native
+    // iOS date wheel offered every day to the end of time: on 2026-10-05 Phil picked 2026-10-10 against
+    // a Phil-R13 window of 2026-10-03→2026-10-09, the server took it (no window read in `_handleMove_`,
+    // fixed in the same commit) and `roundspan` went PASS → FAIL with four PAST WINDOW rows. The ceiling
+    // is the server's own window read, so the client never holds its own copy of the cadence arithmetic.
+    // Absent (an older server, or an athlete with no Start Date anchor) -> no max, exactly as before.
+    if (WEEK_WIN_END) dIn.max = WEEK_WIN_END;
     var gBtn = el('button', 'move-go', 'Move'); gBtn.type = 'button';
     gBtn.addEventListener('click', function () { if (dIn.value) go(dIn.value); });
     rowEl.appendChild(todayBtn); rowEl.appendChild(dIn); rowEl.appendChild(gBtn);

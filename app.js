@@ -5948,13 +5948,14 @@
     // its OWN section, two rows, directly below Tell Coach. The gating lift names itself in the
     // tooltip, never on the row.
     var MINUS_COPY = 'you moved up without passing yet — pass at this level and it sticks; three rounds without a pass returns you to the previous sub-level.';
-    // R1569 (W-I) — OFF, STAGED, WAITING ON PHIL (A13). The engine half is live: a Coach View header now prints the
-    // rung the round SERVES, with the clock's rung owed beside it. This row is the SAME defect on the kid's screen —
-    // Mason's card reads "Round 1 of 3 at 3.2" all round while his board serves 3.1 — and his standing rule is that
-    // anything moving what a kid sees goes to APPROVALS with a 390px shot first. `header_level`/`owed_level` already
-    // ride the profile payload (_handleProfile_); flipping this flag to true is the whole change.
-    // Shots: design/a13/*.png. Rig: qa/harness/r1569-phone-clock-row.mjs.
-    var R1569_PHONE_SERVES_THE_ROUND = false;
+    // R1569 (W-I) — ON. A13 PASS (Phil 2026-10-14 11:48), shots design/a13/r1569-phone-clock-{off,on}.png.
+    // The engine half (R1569_HEADER_SERVES_THE_ROUND, deployed @1111) made a Coach View header print the rung the
+    // round SERVES, with the clock's rung owed beside it. This is the SAME ruling on the kid's screen: Mason's card
+    // read "Round 1 of 3 at 3.2 · not passed yet" all round while his board served 3.1, and now reads
+    // "at 3.1 · not passed yet · 3.2 next round". `header_level`/`owed_level` ride the profile payload
+    // (_handleProfile_), and both reads fall back to the CLOCK's rung, so a payload cached before @1111 renders
+    // exactly what it renders today (rig arm 4). Rig: qa/harness/r1569-phone-clock-row.mjs (10 arms).
+    var R1569_PHONE_SERVES_THE_ROUND = true;
     function clockRowFor(c) {
       if (!c) return null;
       var sideWord = c.side === 'LE' ? 'Lower body' : c.side === 'UE' ? 'Upper body' : String(c.side || '');

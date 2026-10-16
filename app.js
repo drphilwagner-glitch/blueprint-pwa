@@ -149,7 +149,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261016-a26d2';   // FRIDAY 10-16, SECOND CLIENT STAMP OF THE DAY — D2, Phil's RESET 10-13 line ("Timer back button: one tap goes to the previous set, never two") reaching a phone for the first time. A26 came back `pass` on 2026-10-16: ship B AS SHOT — the ⏮ leads the pinned bar, left of the label, where A21 B put it. The control itself has been built, wired and rigged since 10-14 (R1589) and held off every phone since 10-15 by ONE line, R1592's `BACK_GLYPH_ON = false`, because `ship-pwa` copies this file WHOLE and D3's own approved ship had already carried the unapproved glyph to the Pages edge for ~3 minutes. R1617 DELETES THAT GATE rather than flipping it to a dead `true`: the ⏮ is now an unconditional first child of the bar, and REFUSALS row 48 + its gate arm refuse any condition reappearing on that append. Behaviour is unchanged from the 27-arm rig that proved it — one tap, one set, the landed interval restarts WHOLE, set 1 restarts rather than reading an interval that is not there, and the tap is refused outright under a between-complex transition and on any timer that is not running (R850). NOTHING ELSE IN THIS FILE SHIPS A PIXEL: D5's note fix stays behind `ALT_NOTE_EVERY_ON = false` — A28 passed too, but D5 is its own row and its own ship.
+  var APP_BUILD = '20261016-a28d5';   // FRIDAY 10-16, THIRD CLIENT STAMP OF THE DAY — D5, Phil's RESET 10-13 line ("An alternate carries its reps, weight and notes every time it is chosen") reaching a phone for the first time. A28 came back `pass` on 2026-10-16. The reps and the weight were already carried (R686/#29/L39, R1032/R116); the NOTE was carried too — the server stamps it (R1379) and `swapTarget` hands it across — and the RENDER threw it away: `SHOWN_NOTE` is a one-shot guard cleared only on a whole-session render, so the second time a name reached the screen in one session the coaching line for the movement a kid was standing over was simply absent. Built and rigged on 10-15 (R1600, 8 arms) and held off every phone since by ONE line, `ALT_NOTE_EVERY_ON = false`, because `ship-pwa` copies this file WHOLE. R1618 DELETES THAT GATE rather than flipping it to a dead `true`: the free is unconditional and still ONCE per rebuild, so #35 (one note per lift line, never one per set-round) is untouched, and the rig now reads this source and refuses a condition reappearing on it. Behaviour is unchanged from the rig that proved it — the revert carries the original's note, the substitute carries its own on every choosing, and the ladder rung carries the rung's. NOTHING ELSE IN THIS FILE SHIPS A PIXEL with it.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2613,16 +2613,16 @@
     // case this line changes beyond the swap itself.
     // Reversing line: delete the `delete SHOWN_NOTE[...]` below (BP_MUTANT=notesticky serves it that way).
     //
-    // R1600 (SHIP-UNASKED, 2026-10-15) — AND IT IS NOT ON A PHONE YET, BECAUSE A28 IS OPEN. This row
-    // was committed at 08:48 as "BUILT, NOT SHIPPED" and nothing enforced that but the absence of a
-    // deploy: `ship-pwa.sh` copies pwa/app.js WHOLE, so the next approved ship of ANY kid fix would
-    // have carried this unapproved render to the Pages edge in the same bytes — which is exactly what
-    // happened to D2's glyph at 08:06 this morning. So the free sits behind ONE line, the same shape
-    // R1592 gave D2: the code is built, wired and rigged (BP_FLAGS drives it on), and no athlete is
-    // served it until Phil answers. A28's answer flips this line: `pass` -> true; `B` -> true with the
-    // free scoped to a swap onto an ALTERNATE only (not the revert); `no` -> delete the free and this
-    // flag together. ship-pwa.sh now REFUSES a push while A28 is unanswered and this reads true.
-    var ALT_NOTE_EVERY_ON = false;
+    // R1600 held this free behind `var ALT_NOTE_EVERY_ON = false;` from 2026-10-15, because
+    // `ship-pwa.sh` copies pwa/app.js WHOLE and A28 was open — the next approved ship of any kid fix
+    // would otherwise have carried an unanswered render to the Pages edge in the same bytes, which is
+    // exactly what happened to D2's glyph at 08:06 on 10-16. R1618: A28 CAME BACK `pass` on
+    // 2026-10-16, so the gate is DELETED rather than flipped to a dead `true` — R1617's shape on D2,
+    // and for its reason: a condition that can now only read one way is still a condition, and the
+    // one it guards is a kid's coaching note. The free is unconditional and still ONCE per rebuild,
+    // so #35 holds. qa/harness/d5-alt-note-every-time.mjs reads this source and refuses a condition
+    // reappearing on it; REFUSALS row 43 is the rule, and `BP_MUTANT=notesticky` serves the client
+    // Phil reported (the note shown once a session, gone every choosing after).
     var noteFreed = false;
     entries.forEach(function (en) {
       // R997 (Phil 2026-09-12, red 3: "a swap … must never write the prescribed sets as logged"): a set the athlete
@@ -2633,7 +2633,7 @@
       if (en.row.classList.contains('done')) { ROW_REG[key].push(en); return; }
       var oEx = en.ex._alt_of || en.ex, oT = en.ex._alt_t || en.t;   // each set keeps its own set_no
       var tgt = swapTarget(a, oEx, oT);
-      if (ALT_NOTE_EVERY_ON && !noteFreed) { delete SHOWN_NOTE[tgt.ex.exercise]; noteFreed = true; }   // D5: see above
+      if (!noteFreed) { delete SHOWN_NOTE[tgt.ex.exercise]; noteFreed = true; }   // D5: see above
       var newRow = exerciseRow(en.slot, tgt.ex, tgt.t, en.timer, en.isASide);
       if (en.row.parentNode) en.row.replaceWith(newRow);
       if (!firstNew) firstNew = newRow;

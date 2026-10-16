@@ -149,7 +149,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261016-a32a35';   // FRIDAY 10-16, THE DAY'S FIRST CLIENT STAMP — D1 (K5 RED 17.6 s), TWO CUTS THAT WERE BUILT, HELD OFF EVERY PHONE AND WAITING ON ONE WORD EACH, AND BOTH WORDS CAME BACK `pass` ON 10-16. No line of either cut changed for this ship; the only edits are the two guard lines and this stamp. A32 -> LOG_ACK_READABLE_ON (R1607): the phone reads the `log` POST's OWN answer (the `acks:[{log_id,status}]` _handleLog_ has always returned and `sendLog` threw away) and asks logack/logrefused only about the ids that answer could not settle - the Finish tap goes 5-9 round trips to 4, 25-63 s to 20-28, measured by the rig as requests never made. PROGRESSIVE, NEVER A SWAP: the readable POST is an ATTEMPT and the opaque mode:'no-cors' send goes out behind ANY rejection with the existing read-backs settling the batch, because a readable POST that is ever blocked REJECTS and the drain's .catch would park every queued row for ever - sets that never leave a kid's phone, worse than the 35 s the cut saves. `sendLog` is byte-for-byte unchanged. A35 -> REGEN_IN_SESSION_ON (R1612): the regen card's `action=regen_status` rides the open's own request (`&regen_date=` -> `payload.regen`), so Grace's 17.6 s card - a SECOND cold platform hop, 5.3-6.9 s of platform to do 0.6 s of work, serial behind a board that was already on the glass at 8.6 s - becomes a request never made on a cold open (1 -> 0; warm 2 -> 1). The engine half has been live since @1151 and is inert until this build sends the param. K5 DOES NOT GO GREEN ON THIS AND IT IS SAID HERE: her board itself was 8.6 s, over the 8 s cell alone, so the worst wait of her day roughly HALVES and stays red.
+  var APP_BUILD = '20261016-a26d2';   // FRIDAY 10-16, SECOND CLIENT STAMP OF THE DAY — D2, Phil's RESET 10-13 line ("Timer back button: one tap goes to the previous set, never two") reaching a phone for the first time. A26 came back `pass` on 2026-10-16: ship B AS SHOT — the ⏮ leads the pinned bar, left of the label, where A21 B put it. The control itself has been built, wired and rigged since 10-14 (R1589) and held off every phone since 10-15 by ONE line, R1592's `BACK_GLYPH_ON = false`, because `ship-pwa` copies this file WHOLE and D3's own approved ship had already carried the unapproved glyph to the Pages edge for ~3 minutes. R1617 DELETES THAT GATE rather than flipping it to a dead `true`: the ⏮ is now an unconditional first child of the bar, and REFUSALS row 48 + its gate arm refuse any condition reappearing on that append. Behaviour is unchanged from the 27-arm rig that proved it — one tap, one set, the landed interval restarts WHOLE, set 1 restarts rather than reading an interval that is not there, and the tap is refused outright under a between-complex transition and on any timer that is not running (R850). NOTHING ELSE IN THIS FILE SHIPS A PIXEL: D5's note fix stays behind `ALT_NOTE_EVERY_ON = false` — A28 passed too, but D5 is its own row and its own ship.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1498,20 +1498,12 @@
       // So the ⏮ LEADS the bar and the label starts after it; ⏸ and ⏭ keep the right edge they
       // have held since R606. The handler pair below is unchanged — only the side moved.
       //
-      // R1592 (D3's ship, 2026-10-15 08:1x) — AND IT IS NOT ON A PHONE YET, BECAUSE A26 IS OPEN.
-      // D2's glyph was committed this morning as "BUILT, NOT SHIPPED" and nothing enforced that but
-      // the absence of a deploy: `ship-pwa.sh` copies pwa/app.js WHOLE, so D3's own approved ship
-      // (A22 B) carried this unapproved control to the Pages repo in the same bytes — the exact
-      // "one train carried more than the kid fix" hazard PHIL-LIST.md names, caught by reading the
-      // deployed bundle against HEAD instead of trusting the commit subject. The glyph is therefore
-      // BUILT, WIRED, RIGGED AND NOT APPENDED: the element exists, so every handler and every
-      // `b._b.hidden` assignment downstream stays honest and the rigs can drive it, but it is in no
-      // DOM — no athlete sees a control Phil has not passed, and no tap target exists (rule 27).
-      // A26's answer flips ONE line: `pass` -> true (ship B, the glyph leading the bar); `B` -> true
-      // with the append order moved back to tb-l/tb-v/tb-p/tb-s + tb-b; `no` -> delete the glyph.
-      var BACK_GLYPH_ON = false;
-      if (BACK_GLYPH_ON) TBAR.appendChild(TBAR._b);
-      TBAR.appendChild(TBAR._l); TBAR.appendChild(TBAR._v); TBAR.appendChild(TBAR._p); TBAR.appendChild(TBAR._s);
+      // R1617 — A26 ANSWERED `pass` (Phil, 2026-10-16): ship B as shot. The one-line gate
+      // `BACK_GLYPH_ON` that R1592 put here on 2026-10-15 existed for exactly one reason — to hold
+      // an UNAPPROVED control off a kid's phone while `ship-pwa.sh` kept copying pwa/app.js WHOLE —
+      // and that reason is spent, so the gate is gone rather than left behind as a dead `true`
+      // branch. The ⏮ is now a plain child of the bar and it LEADS it: A21 B, verbatim.
+      TBAR.appendChild(TBAR._b); TBAR.appendChild(TBAR._l); TBAR.appendChild(TBAR._v); TBAR.appendChild(TBAR._p); TBAR.appendChild(TBAR._s);
       TBAR._p.addEventListener('click', function () { if (ACTIVE_TIMER) ACTIVE_TIMER.toggle(); });
       // D2 (Phil RESET 10-13): "Timer back button: one tap goes to the previous set, never two."
       // R1589: the ⏮ is the ⏭'s mirror and it is refused in exactly one state. A running

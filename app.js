@@ -149,7 +149,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261017-r1636';   // SATURDAY 10-17 — R1636, ONE IN-FLIGHT READ PER QUESTION. Mason's phone sent FIVE identical `session` reads inside six seconds tonight (22:29:13-19Z, no `bg=`): engine legs 4.1/4.0/5.0/4.3 s, round trips 21.3/18.2/13.8/8.5/8.1 s FELT, and four of the five bought nothing — they serialise at the door, so the extra copies are what made the last one 21 s. D1's measured law prices a round trip at 5-7 s paid OUTSIDE the engine, so the cut on this path is the COUNT. A read that is already in flight is now JOINED, never re-opened; nothing is remembered after it settles, and every write closes the open reads to joiners on BOTH its edges, so no board can be handed an answer that left before a logged set. NOT A PIXEL: no copy, no tap target, no render changed — the same screens, fewer trips (rule 27, so no A-id). Rig qa/harness/r1636-one-read-in-flight.mjs 12/12, three mutants each convicted by its own arm.
+  var APP_BUILD = '20261017-r1636b';   // SATURDAY 10-17 — R1636, ONE IN-FLIGHT READ PER QUESTION. Mason's phone sent FIVE identical `session` reads inside six seconds tonight (22:29:13-19Z, no `bg=`): engine legs 4.1/4.0/5.0/4.3 s, round trips 21.3/18.2/13.8/8.5/8.1 s FELT, and four of the five bought nothing — they serialise at the door, so the extra copies are what made the last one 21 s. D1's measured law prices a round trip at 5-7 s paid OUTSIDE the engine, so the cut on this path is the COUNT. A read that is already in flight is now JOINED, never re-opened; nothing is remembered after it settles, and every write closes the open reads to joiners on BOTH its edges, so no board can be handed an answer that left before a logged set. NOT A PIXEL: no copy, no tap target, no render changed — the same screens, fewer trips (rule 27, so no A-id). AND A HUNG READ CANNOT WEDGE THE READS AFTER IT (-r1636b, the one thing the first stamp was missing): a bare `fetch` has no timeout of its own, so an entry that never settles is joinable only inside its own first 20 s — R1077's defect class, which this law could otherwise have re-created for every screen at once. Rig qa/harness/r1636-one-read-in-flight.mjs 13/13, four mutants each convicted by its own arm.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -447,6 +447,13 @@
   // a DECLARATION by string, and a declaration quoted in a comment is a silent green. Arm 1 refuses it.)
   var READ_JOIN_ON = true;
   var READ_JOINABLE = { session: 1, week: 1, plan: 1, profile: 1, exercises: 1, regen_status: 1, history: 1, summary: 1, exscheme: 1 };
+  // AND A HUNG READ MAY NEVER WEDGE THE READS AFTER IT (R1077's defect class, the one this law could
+  // have re-created wholesale). `fetchJson` without a budget rides a bare `fetch`, which has no timeout
+  // of its own — Grace's 2026-09-15 16:36 fetch never settled and wedged her drain for the rest of the
+  // session. An entry is therefore joinable only inside its own first 20 s (the open watchdog's own
+  // number, by which a round trip of 5-7 s has either landed or is not going to): past that a caller
+  // opens its OWN request, exactly as today. The entry still dies on its settle, whenever that is.
+  var READ_JOIN_MAX_MS = 20000;
   var READ_INFLIGHT = {}, READ_EPOCH = 1, READ_JOIN_N = 0;
   function _readAction_(url) { var m = String(url).match(/[?&]action=([a-z_]+)/i); return m ? String(m[1]).toLowerCase() : ''; }
   function _writeEpochBump_(why) { READ_EPOCH += 1; try { window.__bpReadEpoch = { n: READ_EPOCH, why: String(why || ''), at: Date.now() }; } catch (eEp) {} }
@@ -486,7 +493,7 @@
       if (!READ_JOINABLE[_act]) _writeEpochBump_(_act);
       else if (READ_JOIN_ON) {
         var _live = READ_INFLIGHT[url];
-        if (_live && _live.epoch === READ_EPOCH) { READ_JOIN_N += 1; return _live.p; }
+        if (_live && _live.epoch === READ_EPOCH && (Date.now() - _live.at) < READ_JOIN_MAX_MS) { READ_JOIN_N += 1; return _live.p; }
         _joinKey = url;
       }
     }

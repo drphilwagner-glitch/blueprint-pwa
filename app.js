@@ -51,16 +51,27 @@
       // on its URL (prefetchNext: bg=prefetch); the row keeps the wall time but says "background — no wait felt", and the report files
       // it as a machine row, never a device error. A tap's own read never carries bg.
       var bg = ''; try { bg = new URL(url, location.href).searchParams.get('bg') || ''; } catch (eG) {}
-      var t0 = Date.now(), h0 = _hiddenMs(), done = function (how) { try { var ms = Date.now() - t0;
+      var t0 = Date.now(), h0 = _hiddenMs(), done = function (how) { try {
+          // R1637: A TAP THAT JOINED THIS READ MAKES IT A WAIT A KID FELT, AND THE CLOCK IS HIS.
+          // R1636 lets an identical read in flight be JOINED instead of re-opened, and R1637 makes the
+          // `bg=` tag invisible to that key — so the calendar's PREFETCH and the tap that overtakes it
+          // are one trip. The hazard is this instrument, not the board: if a real tap joins a background
+          // read, the only row left says "background — no wait felt" and the kid's wait DISAPPEARS from
+          // K4, which is the one thing removing a request may never do (the same mistake K5 made on
+          // 10-13, one instrument over). So a joined trip is re-graded here: the tag is dropped, and the
+          // seconds are counted FROM THE TAP — the prefetch's earlier head start was never his wait.
+          var _fj = _feltRead_(url), bg9 = bg, t09 = t0, h09 = h0, joinWord = '';
+          if (_fj) { bg9 = ''; t09 = _fj.t0; h09 = _fj.h0; joinWord = ', a tap joined this background read — the wait is his'; }
+          var ms = Date.now() - t09;
           // How much of this call ran while the app was in the background. Clamped to the call's own
           // length: a listener that missed an event must never make a call look longer-hidden than it was.
-          var hid = Math.max(0, Math.min(ms, _hiddenMs() - h0));
+          var hid = Math.max(0, Math.min(ms, _hiddenMs() - h09));
           // Half or more hidden = nobody was looking at it, so it is filed exactly as `bg=` is filed
           // (Phil 09-18 item 2). Under half, the row still carries the number so the wait can be read honestly.
           var hidWord = hid > 0 ? (hid >= ms / 2 ? ', the app was in the background for ' + (hid / 1000).toFixed(1) + 's of it — no wait felt'
                                                  : ', ' + (hid / 1000).toFixed(1) + 's of it in the background') : '';
-          if (ms > API_SLOW_MS) { try { (window.__bpApiSlow = window.__bpApiSlow || []).push({ action: action || 'api', ms: ms, how: how, bg: bg, hidden_ms: hid }); } catch (eS) {}   // the journeys' seam (j34 precedent): a localhost build never posts
-          reportError('api_slow', (action || 'api') + ' round trip ' + (ms / 1000).toFixed(1) + 's (' + how + ', over the 8 s cell' + (bg ? ', background ' + bg + ' — no wait felt' : '') + hidWord + ')', '', 'ms=' + ms + ' action=' + (action || '?') + ' how=' + how + (bg ? ' bg=' + bg : '') + (hid > 0 ? ' hidden=' + hid : '')); } } catch (eR) {} };
+          if (ms > API_SLOW_MS) { try { (window.__bpApiSlow = window.__bpApiSlow || []).push({ action: action || 'api', ms: ms, how: how, bg: bg9, hidden_ms: hid, joined: !!_fj }); } catch (eS) {}   // the journeys' seam (j34 precedent): a localhost build never posts
+          reportError('api_slow', (action || 'api') + ' round trip ' + (ms / 1000).toFixed(1) + 's (' + how + ', over the 8 s cell' + (bg9 ? ', background ' + bg9 + ' — no wait felt' : '') + hidWord + joinWord + ')', '', 'ms=' + ms + ' action=' + (action || '?') + ' how=' + how + (bg9 ? ' bg=' + bg9 : '') + (hid > 0 ? ' hidden=' + hid : '')); } } catch (eR) {} };
       var p = _rawFetch.apply(window, arguments);
       return p.then(function (r) { done('settled'); return r; }, function (err) { done(err && err.name === 'AbortError' ? 'aborted' : 'failed'); throw err; });
     };
@@ -149,7 +160,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261017-r1636b';   // SATURDAY 10-17 — R1636, ONE IN-FLIGHT READ PER QUESTION. Mason's phone sent FIVE identical `session` reads inside six seconds tonight (22:29:13-19Z, no `bg=`): engine legs 4.1/4.0/5.0/4.3 s, round trips 21.3/18.2/13.8/8.5/8.1 s FELT, and four of the five bought nothing — they serialise at the door, so the extra copies are what made the last one 21 s. D1's measured law prices a round trip at 5-7 s paid OUTSIDE the engine, so the cut on this path is the COUNT. A read that is already in flight is now JOINED, never re-opened; nothing is remembered after it settles, and every write closes the open reads to joiners on BOTH its edges, so no board can be handed an answer that left before a logged set. NOT A PIXEL: no copy, no tap target, no render changed — the same screens, fewer trips (rule 27, so no A-id). AND A HUNG READ CANNOT WEDGE THE READS AFTER IT (-r1636b, the one thing the first stamp was missing): a bare `fetch` has no timeout of its own, so an entry that never settles is joinable only inside its own first 20 s — R1077's defect class, which this law could otherwise have re-created for every screen at once. Rig qa/harness/r1636-one-read-in-flight.mjs 13/13, four mutants each convicted by its own arm.
+  var APP_BUILD = '20261017-r1637';   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -455,6 +466,40 @@
   // opens its OWN request, exactly as today. The entry still dies on its settle, whenever that is.
   var READ_JOIN_MAX_MS = 20000;
   var READ_INFLIGHT = {}, READ_EPOCH = 1, READ_JOIN_N = 0;
+  // R1637 (D1, 2026-10-17 run 2) — THE `bg=` TAG IS TELEMETRY, NOT THE QUESTION.
+  //
+  // R1636 left one pair it could not join and said so in its own report: "the PREFETCH AND THE OPEN
+  // ARE STILL TWO TRIPS FOR ONE QUESTION". On Mason's clock at 17:02:41-43Z today that pair was his
+  // WORST OPEN OF THE DAY — his tap painted from the prefetched copy after 9.7 s with his own
+  // duplicate `session` fetch STILL PENDING, and `session` 10.8 s `bg=prefetch` sits beside it in the
+  // same ErrorLog: the same workout, asked twice, the two copies serialising at the same /exec door
+  // (which is what R1636 measured a burst of five doing — 4.3 s of engine, 21.3 s of his waiting).
+  // Their URLs differed by exactly two things: R1612's `&regen_date=` ride-along, which the prefetch
+  // did not ask, and this tag. The prefetch now asks the ride-along question too (`prefetchNext`), so
+  // the tag is all that is left — and a tag the phone writes for its OWN bookkeeping is not part of
+  // what it is asking the server. It is therefore the ONE param the key ignores; athlete, session,
+  // date, token and src are still byte-exact, so two different questions can never share an answer.
+  //
+  // AND THE KID'S WAIT SURVIVES THE JOIN — the hazard R1636 named and refused to leave for whoever
+  // took this next. `bg=` is how K4 tells the waits a kid FELT from the calls the phone made behind
+  // his back ("its slowness reports as such, never as a wait", Phil 09-18 item 2). A tap joining a
+  // background read would otherwise leave one row saying nobody waited, and his 9.7 s would vanish
+  // from the KPI that counts it. So a join by an untagged caller RE-GRADES the trip it joined: the
+  // api_slow instrument drops the tag and times the row FROM THE TAP (see `_feltRead_` there).
+  // Removing a request must never remove the evidence that a kid waited for it.
+  //
+  // Reversing line: the `READ_BG_BLIND_ON` declaration below, flipped false — the prefetch goes on
+  // asking the ride-along question and simply stops being joinable, which is today's behaviour. (The
+  // literal is deliberately not spelled out in this prose: FLAGLIT-PROSE, 2026-10-16. Arm 1 refuses it.)
+  var READ_BG_BLIND_ON = true;
+  function _bgOf_(url) { var m = String(url).match(/[?&]bg=([^&]*)/); return m ? String(m[1]) : ''; }
+  function _qKey_(url) { return READ_BG_BLIND_ON ? String(url).replace(/[?&]bg=[^&]*/g, '') : String(url); }
+  // The felt re-grade's one-line memory: the raw URL of a background read a tap has joined, the
+  // instant of that tap, and the hidden-time reading at it. Read by the api_slow instrument, dropped
+  // when the call it belongs to settles — so it can never grade a later read of the same URL.
+  var READ_FELT = {};
+  function _feltJoin_(url, t0, h0) { try { if (!READ_FELT[url]) READ_FELT[url] = { t0: t0, h0: h0 }; } catch (eFj) {} }
+  function _feltRead_(url) { try { return (READ_FELT && READ_FELT[url]) || null; } catch (eFr) { return null; } }
   function _readAction_(url) { var m = String(url).match(/[?&]action=([a-z_]+)/i); return m ? String(m[1]).toLowerCase() : ''; }
   function _writeEpochBump_(why) { READ_EPOCH += 1; try { window.__bpReadEpoch = { n: READ_EPOCH, why: String(why || ''), at: Date.now() }; } catch (eEp) {} }
   // The seam the rig and j-journeys read: how many trips the law has saved this session, and whether a
@@ -492,9 +537,15 @@
     if (!_nojoin && _act) {
       if (!READ_JOINABLE[_act]) _writeEpochBump_(_act);
       else if (READ_JOIN_ON) {
-        var _live = READ_INFLIGHT[url];
-        if (_live && _live.epoch === READ_EPOCH && (Date.now() - _live.at) < READ_JOIN_MAX_MS) { READ_JOIN_N += 1; return _live.p; }
-        _joinKey = url;
+        _joinKey = _qKey_(url);   // R1637: the same question, whatever bookkeeping tag is on it
+        var _live = READ_INFLIGHT[_joinKey];
+        if (_live && _live.epoch === READ_EPOCH && (Date.now() - _live.at) < READ_JOIN_MAX_MS) {
+          READ_JOIN_N += 1;
+          // R1637: an untagged caller is a TAP. The trip it just joined is a wait a kid felt, and the
+          // instrument must say so — timed from here, which is when he tapped.
+          if (_live.bg && !_bgOf_(url)) _feltJoin_(_live.url, Date.now(), _hiddenMs());
+          return _live.p;
+        }
       }
     }
     tries = (tries == null) ? 2 : tries;
@@ -517,8 +568,8 @@
     // R1636: the entry lives only while the call is in flight — retries included, because `_p` is the whole
     // chain — and dies on its own settle whatever the outcome. A later read of the same URL opens its own.
     if (_joinKey) {
-      READ_INFLIGHT[_joinKey] = { p: _p, epoch: READ_EPOCH, at: Date.now() };
-      var _fin = function () { var e9 = READ_INFLIGHT[_joinKey]; if (e9 && e9.p === _p) delete READ_INFLIGHT[_joinKey]; };
+      READ_INFLIGHT[_joinKey] = { p: _p, epoch: READ_EPOCH, at: Date.now(), url: url, bg: _bgOf_(url) };   // R1637: the RAW url, because that is the leg the instrument times
+      var _fin = function () { var e9 = READ_INFLIGHT[_joinKey]; if (e9 && e9.p === _p) delete READ_INFLIGHT[_joinKey]; try { delete READ_FELT[url]; } catch (eFd) {} };
       try { _p.then(_fin, _fin); } catch (eFj) {}
     } else if (!_nojoin && _act && !READ_JOINABLE[_act]) {
       _writeSettleBump_(_p, _act);   // the write's OTHER edge: a read opened before this answer landed is not joinable after it
@@ -716,6 +767,18 @@
     if (!REGEN_IN_SESSION_ON || !REGEN_ON) return '';
     try { var d = regenToday(), k = regenKnown(d); if (k && k.logged) return ''; return '&regen_date=' + encodeURIComponent(d); } catch (e) { return ''; }
   }
+  // R1637: THE CARD BUYS NO TRIP FOR A FACT ALREADY ON THE WIRE. R1612 put the card's status on the
+  // open's own request and the census has read `regen_status` as GONE since the 10-16 build — but it is
+  // gone on only ONE of the card's three ways in. `regenCardMaybe` is called from the network answer
+  // WITH that status (`data.regen`), and from the cached paint and the late-prefetch poll with NOTHING,
+  // and those two open their own `action=regen_status`: 5.3-6.9 s of platform for 0.6 s of work, for a
+  // fact that is already on the wire and seconds away. So while the open's own read is in flight AND
+  // really asked the ride-along question, the fallback read is not opened — the answer's own call to
+  // `regenCardMaybe` paints the card. It stays PROGRESSIVE: an answer that comes back without the
+  // status (an older engine, the flag off, an error) falls straight through to that fetch, because this
+  // is released at the HEAD of the answer, before the card is asked for. Reversing line: this variable
+  // and the one `if` in `regenCardMaybe`.
+  var REGEN_RIDE_PENDING = 0;
   // ══ REGEN v1.1 (Phil's BUILD ORDER 2026-09-13, amended 2026-09-15 04:5x — R1071; the copy below is his, verbatim). ══
   // RECORD-AND-SHOW ONLY: nothing here touches the served workout. CHANGED 09-15 (amends R1000): Skip is REMOVED — the card is
   // answered before Start; Start enables only when every question present has a tap; Tell Coach stays reachable (the nav sits
@@ -992,6 +1055,7 @@
     // cached copy from before this build or a flag that is off all fall through to the fetch below, which
     // is exactly today's behaviour — the slow path is the FALLBACK, so this can make an open no worse.
     if (REGEN_IN_SESSION_ON && stPre && stPre.ok && String(stPre.for_date || '') === d) { try { settle(stPre); } catch (eRs) {} return; }
+    if (REGEN_RIDE_PENDING) return;   // R1637: the open's own read is carrying this very question — its answer calls back here
     fetchJson(cfg.WEBAPP_URL + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
       .then(settle).catch(function () {});   // offline: no card, no state change — the workout stands
   }
@@ -4803,7 +4867,12 @@
       if (cachedSession(sid) || PREFETCH_INFLIGHT[sid]) return;
       try { if (sessionStorage.getItem('bp_open_session') === sid) return; } catch (eO) {}
       PREFETCH_INFLIGHT[sid] = 1;
-      fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sid) + '&token=' + encodeURIComponent(token) + '&bg=prefetch')   // bg=prefetch: a background call — its slowness reports as such, never as a wait (Phil 09-18 item 2)
+      // R1637: ... AND IT ASKS THE RIDE-ALONG QUESTION TOO (`regenAskParam`, R1612/A35 `pass`). Until
+      // tonight this read was the ONE copy of the open's own question that did not carry `&regen_date=`,
+      // which is why a tap could never join it and a cold open cost two builds of the same workout. With
+      // the param on both, the pair differs by `&bg=prefetch` alone — the one thing the join key ignores
+      // — so the tap joins this trip and is handed the status the card paints from, with no second read.
+      fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sid) + '&token=' + encodeURIComponent(token) + '&bg=prefetch' + regenAskParam())   // bg=prefetch: a background call — its slowness reports as such, never as a wait (Phil 09-18 item 2)
         .then(function (data) { delete PREFETCH_INFLIGHT[sid]; if (data && data.ok && data.session && !cachedSession(sid)) cacheSession(sid, data.session); })
         .catch(function () { delete PREFETCH_INFLIGHT[sid]; });
     } catch (ePf) {}
@@ -6470,9 +6539,12 @@
         showRetryCard(sessionId, 'Your workout is taking too long to load.');
       }, OPEN_WATCHDOG_MS);
     }
-    fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token) + regenAskParam())
+    var _ride9 = regenAskParam();
+    if (_ride9) REGEN_RIDE_PENDING = 1;   // R1637: this read carries the card's question — the card must not buy a second one
+    fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token) + _ride9)
       .then(function (data) {
         settled = true;
+        REGEN_RIDE_PENDING = 0;   // R1637: released at the HEAD of the answer, on every way out of it — an open that errors must never suppress the card
         releaseBg();   // R1245: the open's own fetch settled — the drain resumes whatever happens below
         if (data && data.ok && data.session) { cacheSession(sessionId, data.session); adoptFreshFlags(data.session); }   // R904: flags adopted even when the render below is skipped
         if (!isCurrent(_screen)) return;   // athlete moved on; the cache above still updated

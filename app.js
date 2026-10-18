@@ -149,7 +149,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261016-a28d5b';   // FRIDAY 10-16, THIRD CLIENT STAMP OF THE DAY — D5, Phil's RESET 10-13 line ("An alternate carries its reps, weight and notes every time it is chosen") reaching a phone for the first time. A28 came back `pass` on 2026-10-16. The reps and the weight were already carried (R686/#29/L39, R1032/R116); the NOTE was carried too — the server stamps it (R1379) and `swapTarget` hands it across — and the RENDER threw it away: `SHOWN_NOTE` is a one-shot guard cleared only on a whole-session render, so the second time a name reached the screen in one session the coaching line for the movement a kid was standing over was simply absent. Built and rigged on 10-15 (R1600, 8 arms) and held off every phone since by ONE line, `ALT_NOTE_EVERY_ON = false`, because `ship-pwa` copies this file WHOLE. R1618 DELETES THAT GATE rather than flipping it to a dead `true`: the free is unconditional and still ONCE per rebuild, so #35 (one note per lift line, never one per set-round) is untouched, and the rig now reads this source and refuses a condition reappearing on it. Behaviour is unchanged from the rig that proved it — the revert carries the original's note, the substitute carries its own on every choosing, and the ladder rung carries the rung's. NOTHING ELSE IN THIS FILE SHIPS A PIXEL with it. (-a28d5b is the same render, re-stamped for one COMMENT: a28d5 spelled the deleted flag's declaration out verbatim in this prose, and server.mjs's BP_FLAGS seam matches that string — so a future arm driving the flag would have silently rewritten a comment and reported the world it never built. The literal lives nowhere in this file now.)
+  var APP_BUILD = '20261017-r1636';   // SATURDAY 10-17 — R1636, ONE IN-FLIGHT READ PER QUESTION. Mason's phone sent FIVE identical `session` reads inside six seconds tonight (22:29:13-19Z, no `bg=`): engine legs 4.1/4.0/5.0/4.3 s, round trips 21.3/18.2/13.8/8.5/8.1 s FELT, and four of the five bought nothing — they serialise at the door, so the extra copies are what made the last one 21 s. D1's measured law prices a round trip at 5-7 s paid OUTSIDE the engine, so the cut on this path is the COUNT. A read that is already in flight is now JOINED, never re-opened; nothing is remembered after it settles, and every write closes the open reads to joiners on BOTH its edges, so no board can be handed an answer that left before a logged set. NOT A PIXEL: no copy, no tap target, no render changed — the same screens, fewer trips (rule 27, so no A-id). Rig qa/harness/r1636-one-read-in-flight.mjs 12/12, three mutants each convicted by its own arm.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -208,8 +208,13 @@
     return fetch(url, opts).then(function (r) { clearTimeout(t); return r; }, function (err) { clearTimeout(t); throw err; });
   }
   function sendLog(rows) {
-    return fetchT(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    var p9 = fetchT(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: rows }) }, SEND_TIMEOUT_MS);
+    // R1636: a logged set closes every open read to joiners — at this edge and at its settle. BEHIND the
+    // send and inside a try on purpose: rigs lift this door alone (d1-roundtrip-census, server.mjs) into a
+    // world holding none of the app's other declarations, and a counter must never be able to lose a set.
+    try { _writeEpochBump_('log'); _writeSettleBump_(p9, 'log'); } catch (eEb1) {}
+    return p9;
   }
   // D1 STEP (2) — THE WRITE'S OWN ANSWER IS THE ACK (R1607, built 2026-10-15, HELD OFF EVERY PHONE).
   //
@@ -240,9 +245,11 @@
   // reds the moment the line and A32's answer disagree in EITHER direction).
   var LOG_ACK_READABLE_ON = true;   // GUARD: A32 — pwa/app.js changes how a refused set reaches the athlete's card (rule 27); ANSWERED pass 2026-10-16
   function sendLogRead(rows) {
-    return fetchT(cfg.WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    var p9 = fetchT(cfg.WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: rows }) }, SEND_TIMEOUT_MS)
       .then(function (r) { return r.json(); });
+    try { _writeEpochBump_('log'); _writeSettleBump_(p9, 'log'); } catch (eEb2) {}   // R1636: the readable send is the same write, same law, same guard as sendLog
+    return p9;
   }
   // Mark this session done on Finish so reopening advances to the next planned session.
   //
@@ -404,6 +411,54 @@
       if (delta > 0) { w.last = String(url).replace(/^.*[?&]action=/, '').split('&')[0].slice(0, 40) || 'no-action'; w.since = Date.now(); }
     } catch (eM) {}
   }
+  // R1636 (D1 / K4-FELT, 2026-10-17 run 2) — ONE IN-FLIGHT READ PER QUESTION: A SECOND TAP NEVER BUYS
+  // A THIRD WAIT.
+  //
+  // WHAT FORCED IT, ON MASON'S OWN CLOCK TONIGHT. At 2026-10-17T22:29:13-19Z his phone sent FIVE
+  // `session` reads of the same workout inside six seconds, not one of them a prefetch (no `bg=`), and
+  // his own ErrorLog rows price every one: round trips 21.3 · 18.2 · 13.8 · 8.5 · 8.1 s, with the
+  // ENGINE's legs for four of them — carried in those same rows' `srvread` ring — at 4.1 · 4.0 · 5.0 ·
+  // 4.3 s. THE FIVE SERIALISE AT THE DOOR: one answer cost 4.3 s of engine and 21.3 s of his waiting,
+  // because every extra copy of a question queues behind the others. D1's measured law (2026-10-15: the
+  // server's share of a kid's wall clock is 1.1-1.5%, ~5-7 s per round trip paid OUTSIDE the engine)
+  // says the only cut left on this path is the COUNT — and four of those five trips bought nothing.
+  //
+  // THE LAW, AND IT IS NOT A CACHE: while a read is IN FLIGHT, an identical read JOINS it instead of
+  // opening a second one. Nothing is remembered once it settles — the next read always crosses the
+  // network — so no caller is ever handed an answer older than a request that was already out when it
+  // asked. `Identical` is the whole tagged URL (athlete, session, date, token, src), so two different
+  // questions can never share an answer.
+  //
+  // AND A WRITE CLOSES EVERY OPEN READ TO JOINERS — the one hazard, named and refused. A read issued
+  // AFTER a set is logged must never be handed the answer of one that left BEFORE it. So every write
+  // the phone makes bumps `READ_EPOCH` ON BOTH EDGES, its send and its settle (the log POST door, the
+  // complete, the move, the queue beacon, and in `fetchJson` every action that is not on the read list
+  // below), and a read may be joined only while the epoch it opened in is still current. A write
+  // therefore costs at most the trips already in flight and can never cost a stale board.
+  //
+  // WHAT IS DELIBERATELY NOT ON THE LIST: every write, and the two read-backs. `logack`/`logrefused`
+  // are a retry loop over a verdict that CHANGES as the server settles the batch (R1204, up to four
+  // tries 2 s apart), so two of them are two questions and joining them would hide the answer the
+  // second one exists to find. Only the nine idempotent reads are joinable.
+  //
+  // Reversing line: the `READ_JOIN_ON` declaration below, flipped false — the entries go on being written
+  // and are never read, so ONE line kills the whole law and the rig sees it die. (The literal is not
+  // spelled out in this prose on purpose: FLAGLIT-PROSE, 2026-10-16 — the seam that drives a flag matches
+  // a DECLARATION by string, and a declaration quoted in a comment is a silent green. Arm 1 refuses it.)
+  var READ_JOIN_ON = true;
+  var READ_JOINABLE = { session: 1, week: 1, plan: 1, profile: 1, exercises: 1, regen_status: 1, history: 1, summary: 1, exscheme: 1 };
+  var READ_INFLIGHT = {}, READ_EPOCH = 1, READ_JOIN_N = 0;
+  function _readAction_(url) { var m = String(url).match(/[?&]action=([a-z_]+)/i); return m ? String(m[1]).toLowerCase() : ''; }
+  function _writeEpochBump_(why) { READ_EPOCH += 1; try { window.__bpReadEpoch = { n: READ_EPOCH, why: String(why || ''), at: Date.now() }; } catch (eEp) {} }
+  // The seam the rig and j-journeys read: how many trips the law has saved this session, and whether a
+  // read is open right now. Nothing in the app reads it (R1331's own rule for `__bpInflight`).
+  try { window.BP_readjoin = function () { return { on: !!READ_JOIN_ON, joined: READ_JOIN_N, open: Object.keys(READ_INFLIGHT).length, epoch: READ_EPOCH }; }; } catch (eRJ) {}
+  function _writeSettleBump_(p, why) {
+    var f = function () { _writeEpochBump_(String(why) + ':settled'); };
+    try { if (p && p.then) p.then(f, f); } catch (eWs) {}
+    return p;
+  }
+
   // R1551 (ORDER 10-13 headless a1, the client half of item 2c — Phil's 10-12 "Start a new round"
   // press): an OPTIONAL WALL-CLOCK DEADLINE for the whole call, retries included. `fetch` has no
   // timeout of its own, so when the server held the script lock and never answered, the press sat on
@@ -421,8 +476,20 @@
   //     caller that asked for a budget can ever see it.
   // Reversing line: the two added parameters, the `endBy` block, the `fetchT` branch, the retry
   // condition's second clause, and the timeout class.
-  function fetchJson(url, tries, budgetMs, _endBy) {
+  function fetchJson(url, tries, budgetMs, _endBy, _nojoin) {
     url = bpTagSrc(url);   // R1581: a driven browser says so on every read; a phone sends what it always sent
+    // R1636: join an identical read already in flight, or close the open reads to joiners if this is a write.
+    // `_nojoin` is the retry below re-entering: the registration belongs to the OUTER call, which is the
+    // promise a joiner waits on, so a retry must never register (or join) itself.
+    var _act = _readAction_(url), _joinKey = '';
+    if (!_nojoin && _act) {
+      if (!READ_JOINABLE[_act]) _writeEpochBump_(_act);
+      else if (READ_JOIN_ON) {
+        var _live = READ_INFLIGHT[url];
+        if (_live && _live.epoch === READ_EPOCH) { READ_JOIN_N += 1; return _live.p; }
+        _joinKey = url;
+      }
+    }
     tries = (tries == null) ? 2 : tries;
     var endBy = _endBy || (budgetMs > 0 ? Date.now() + budgetMs : 0);
     var spent = function () { return !!endBy && Date.now() >= endBy; };
@@ -430,16 +497,26 @@
     _ifMark_(url, 1);
     var _ifDone = false, _ifEnd = function () { if (!_ifDone) { _ifDone = true; _ifMark_(url, -1); } };
     var go = endBy ? fetchT(url, {}, Math.max(1, endBy - Date.now())) : fetch(url);
-    return go.then(function (r) { _ifEnd(); return r; }).then(function (r) {
+    var _p = go.then(function (r) { _ifEnd(); return r; }).then(function (r) {
       return r.text().then(function (txt) {
         try { return JSON.parse(txt); } catch (e) { var er = new Error('server'); er._server = true; throw er; }
       });
     }).catch(function (err) {
       _ifEnd();   // R1331: release whether the fetch rejected or the JSON did — a counter that only counts up is worse than none
-      if (tries > 0 && !(endBy && endBy - Date.now() <= 1200)) return new Promise(function (res) { setTimeout(res, 1200); }).then(function () { return fetchJson(url, tries - 1, 0, endBy); });
+      if (tries > 0 && !(endBy && endBy - Date.now() <= 1200)) return new Promise(function (res) { setTimeout(res, 1200); }).then(function () { return fetchJson(url, tries - 1, 0, endBy, 1); });
       if (spent()) return { ok: false, error: 'timeout', timeout: true };
       return { ok: false, error: (err && err._server) ? 'server' : 'offline' };
     });
+    // R1636: the entry lives only while the call is in flight — retries included, because `_p` is the whole
+    // chain — and dies on its own settle whatever the outcome. A later read of the same URL opens its own.
+    if (_joinKey) {
+      READ_INFLIGHT[_joinKey] = { p: _p, epoch: READ_EPOCH, at: Date.now() };
+      var _fin = function () { var e9 = READ_INFLIGHT[_joinKey]; if (e9 && e9.p === _p) delete READ_INFLIGHT[_joinKey]; };
+      try { _p.then(_fin, _fin); } catch (eFj) {}
+    } else if (!_nojoin && _act && !READ_JOINABLE[_act]) {
+      _writeSettleBump_(_p, _act);   // the write's OTHER edge: a read opened before this answer landed is not joinable after it
+    }
+    return _p;
   }
   var SERVER_HICCUP = 'The server hiccuped — it usually clears in a moment. Tap again.';
   // ---- S18 NERVES: the device reports its own failures ----
@@ -1003,6 +1080,11 @@
       if (!live.length || !cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return;
       var ids = live.map(function (r) { return String(r.log_id || '').slice(0, 8); });
       try { (window.__bpQueueSent = window.__bpQueueSent || []).push({ why: why, ids: ids }); } catch (eS) {}   // j48 seam
+      // R1636: the unload beacon is a write too — the law is every write, not every write we wait for.
+      // GUARDED because r1609-hide-is-not-an-unload lifts THIS function verbatim into a world that holds
+      // none of the app's other declarations, so a bare call here is a ReferenceError in the rig and a
+      // green arm about a delivery that never happened (the idiom `_updatePlanStatus_` names in the engine).
+      try { _writeEpochBump_('log:unload'); } catch (eEb) {}
       for (var i = 0; i < live.length; i += QUEUE_DELIVER_CHUNK) {
         var payload = JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: live.slice(i, i + QUEUE_DELIVER_CHUNK), via: 'unload' });
         fetch(cfg.WEBAPP_URL, { method: 'POST', mode: 'no-cors', keepalive: true,
@@ -6138,6 +6220,7 @@
       if (isNaN(nd) || nd < 0 || nd > 6) { show('Enter a number of days, 0-6.'); return; }
       if (!window.confirm('Train ' + nd + ' day(s) this week? This rebuilds your remaining sessions. Workouts you already finished don’t change.')) return;
       show('Rebuilding your week…');
+      try { _writeEpochBump_('lifehappens'); } catch (eEb3) {}   // R1636: this re-lays the week — no read opened before it may be joined after it
       fetch(cfg.WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'lifehappens', athlete: athlete, token: token, new_days: nd }) })
         .then(function (r) { return r.json(); })

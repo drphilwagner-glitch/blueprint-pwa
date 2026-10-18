@@ -108,6 +108,25 @@
       return str + (str.indexOf('?') >= 0 ? '&' : '?') + 'src=' + w;
     } catch (e) { return u; }
   }
+  // R1650 (2026-10-18, K5-MARKWALL) — THE DEVICE SAYS SO, BECAUSE NOTHING ELSE CAN SAY IT FOR IT.
+  // R1581 above is one-sided: a DRIVEN browser declares itself and a phone "sends what it always sent".
+  // That silence is what let a 187 ms `week` read of our own — a real athlete's token, no bg, no src, no
+  // dev key — become "the slowest workout open of the day: 0.2 s GREEN" on 2026-10-18, a day no kid
+  // opened a workout, over Mason's real 9.7 s of the day before. The per-caller guard has failed TWICE
+  // (K5-OWNTRAFFIC's `bg=diag` by hand, and ~12 harness callers that still carry nothing), so the engine
+  // now asks for an AFFIRMATIVE word and this is the only place that can give it: the bundle a kid's
+  // phone actually runs. NOT A PIXEL — one query parameter on the read path, no copy, no tap target, no
+  // render, and nothing served changes (`dv` is read only while a telemetry row is being written).
+  // ONE WORD IN TWO FILES, deliberately: `LoggerApi.gs MARK_DEV_SAY` and the `dv=1` here (r1650 arm 9).
+  // Reversing line: return `u` unchanged — the engine then reads every mark `nosay` and K5 falls back to
+  // the last day that holds an attributed open, which is a blind K5, never a false green.
+  function bpTagDev(u) {
+    try {
+      if (bpSrcWord()) return u;             // a driven browser has already said what it is (R1581)
+      var str = String(u || ''); if (str.indexOf('dv=') >= 0) return u;   // fetchJson retries re-enter
+      return str + (str.indexOf('?') >= 0 ? '&' : '?') + 'dv=1';
+    } catch (e) { return u; }
+  }
   // One-time invisible enrollment: fire-and-forget on boot when this install has no device token.
   // On success every SUBSEQUENT request rides the device token (the closure var flips); failure of
   // any kind changes nothing — the link token keeps working exactly as before this build.
@@ -160,7 +179,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261017-r1637b';   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it. AND THE CARD'S HALF IS SCOPED TO THE COLD OPEN (-r1637b, caught before signing): on a CACHED paint the board is already up, so holding the card for the session answer (~10.8 s) instead of its own status read (5.3-6.9 s) would push it past the first logged set, where R1078 SKIPS it - seconds of a coach's REGEN data for a trip nobody waits on. A cold open has nothing on screen to delay, and it is the way in that bought Mason's third trip. The warm path's own regen_status is named and NOT taken.
+  var APP_BUILD = '20261018-r1650';   // SUNDAY 10-18 — R1650, THE MARK NAMES ITS CALLER (K5-MARKWALL's recorder half). K5 read GREEN 0.2 s on 2026-10-18 off a 187 ms `week` read OF OURS - a real athlete's token, no bg, no src, no dev key - replacing Mason's real 9.7 s open of the day before, on a day no kid opened a workout at all. Nothing could refuse it: R1581's three doors are words the CALLER sends, and a phone "sends what it always sent", so a curl of ours holding a kid's token was indistinguishable from the kid BY CONSTRUCTION. The per-caller guard had already failed twice. THE ONE CLIENT CUT: `bpTagDev` adds `dv=1` at fetchJson's one choke point for an UNDRIVEN browser only, so the engine's `phone` is AFFIRMATIVE - the device said so on that very request - and an undeclared read is `nosay` on the mark and on the error row alike. NOT A PIXEL: one query parameter on the read path, no copy, no tap target, no render, nothing served changed; `dv` is read only while a telemetry row is being written. AND NOTHING A KID WAITED FOR IS LAUNDERED: an undeclared request still WRITES its mark (an old bundle is still a kid's phone) and kpi.py refuses it only BELOW the target, so Mason's 9.7 s and his 6.1 s still count in full. Rig qa/harness/r1650-the-mark-names-its-caller.mjs 9/9, five mutants each convicted by its own arm (`wordphone` reproduces the live false green verbatim); r1581 13/13 with arm 10 re-aimed, r1580 8/8, r1591 35/35, r1629 10/10, r1636 13/13, r1637 12/12 beside it.   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it. AND THE CARD'S HALF IS SCOPED TO THE COLD OPEN (-r1637b, caught before signing): on a CACHED paint the board is already up, so holding the card for the session answer (~10.8 s) instead of its own status read (5.3-6.9 s) would push it past the first logged set, where R1078 SKIPS it - seconds of a coach's REGEN data for a trip nobody waits on. A cold open has nothing on screen to delay, and it is the way in that bought Mason's third trip. The warm path's own regen_status is named and NOT taken.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -530,6 +549,7 @@
   // condition's second clause, and the timeout class.
   function fetchJson(url, tries, budgetMs, _endBy, _nojoin) {
     url = bpTagSrc(url);   // R1581: a driven browser says so on every read; a phone sends what it always sent
+    url = bpTagDev(url);   // R1650: and an UNDRIVEN one says it is a device, so `phone` on a mark is affirmative
     // R1636: join an identical read already in flight, or close the open reads to joiners if this is a write.
     // `_nojoin` is the retry below re-entering: the registration belongs to the OUTER call, which is the
     // promise a joiner waits on, so a retry must never register (or join) itself.

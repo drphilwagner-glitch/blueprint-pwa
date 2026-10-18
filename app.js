@@ -160,7 +160,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261017-r1637';   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it.
+  var APP_BUILD = '20261017-r1637b';   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it. AND THE CARD'S HALF IS SCOPED TO THE COLD OPEN (-r1637b, caught before signing): on a CACHED paint the board is already up, so holding the card for the session answer (~10.8 s) instead of its own status read (5.3-6.9 s) would push it past the first logged set, where R1078 SKIPS it - seconds of a coach's REGEN data for a trip nobody waits on. A cold open has nothing on screen to delay, and it is the way in that bought Mason's third trip. The warm path's own regen_status is named and NOT taken.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -6540,7 +6540,15 @@
       }, OPEN_WATCHDOG_MS);
     }
     var _ride9 = regenAskParam();
-    if (_ride9) REGEN_RIDE_PENDING = 1;   // R1637: this read carries the card's question — the card must not buy a second one
+    // R1637, SCOPED TO THE COLD OPEN ON PURPOSE — and the reason is a kid's screen, not a trip. On a
+    // CACHED paint the board is already up, so holding the card for this read would make it arrive by
+    // the SESSION answer (~10.8 s on Mason's own numbers) instead of by its own status read (5.3-6.9 s),
+    // and a card that arrives after his first logged set is SKIPPED (R1078). That is seconds of a coach's
+    // REGEN data for a trip nobody is waiting on. On a COLD open there is nothing on screen to delay:
+    // the card cannot paint before the board does, the poll's paint and this answer are the SAME promise
+    // once the prefetch is joined, and this is exactly the way in that bought Mason's third trip at
+    // 17:02:41Z. The warm path's own `regen_status` is NAMED AND NOT TAKEN.
+    if (_ride9 && !cached) REGEN_RIDE_PENDING = 1;   // R1637: this read carries the card's question — the card must not buy a second one
     fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token) + _ride9)
       .then(function (data) {
         settled = true;

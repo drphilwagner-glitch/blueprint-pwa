@@ -4,6 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0b3d91">
+  <!-- HOPLEG2-PRECONNECT (K5, 2026-10-20) — A KID'S READ IS TWO NETWORK LEGS AND THE SECOND ONE WAS
+       HANDSHAKING FROM COLD. R1676 split the hop: an Apps Script web app answers /exec with a 302 into
+       script.googleusercontent.com and the BODY arrives only on that second request, to a second host,
+       which paid its own dns + tcp + tls on every cold open — 132 ms and 129 ms measured live on @1195
+       today (req-timing.sh, Phil, cold week), IN SERIES, after a leg 1 that is 4.5-5.0 s long. These two
+       hints overlap that handshake with a leg already in flight, so the cut is the WHOLE 132 ms rather
+       than a share of it. The door's own origin is first because leg 1 is asked first; it helps only the
+       first request of a session (the connection is reused after) and that first request is the workout
+       open. NOT A PIXEL: no copy, no tap target, nothing rendered, no request made — the browser opens a
+       socket and that is all. These are the only resource hints this shell carries, and the arms over
+       them (qa/harness/hopleg2-preconnect.mjs, on row 27's gate arm) prove the host is the one the live
+       door actually redirects to rather than one typed here, because a hint for a host nothing redirects
+       to reads as a cut and buys nothing. Reversing line: delete these two link elements. -->
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   <title>Blueprint Logger</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-192.png">

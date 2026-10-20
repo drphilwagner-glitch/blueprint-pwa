@@ -179,7 +179,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261018-r1650';   // SUNDAY 10-18 — R1650, THE MARK NAMES ITS CALLER (K5-MARKWALL's recorder half). K5 read GREEN 0.2 s on 2026-10-18 off a 187 ms `week` read OF OURS - a real athlete's token, no bg, no src, no dev key - replacing Mason's real 9.7 s open of the day before, on a day no kid opened a workout at all. Nothing could refuse it: R1581's three doors are words the CALLER sends, and a phone "sends what it always sent", so a curl of ours holding a kid's token was indistinguishable from the kid BY CONSTRUCTION. The per-caller guard had already failed twice. THE ONE CLIENT CUT: `bpTagDev` adds `dv=1` at fetchJson's one choke point for an UNDRIVEN browser only, so the engine's `phone` is AFFIRMATIVE - the device said so on that very request - and an undeclared read is `nosay` on the mark and on the error row alike. NOT A PIXEL: one query parameter on the read path, no copy, no tap target, no render, nothing served changed; `dv` is read only while a telemetry row is being written. AND NOTHING A KID WAITED FOR IS LAUNDERED: an undeclared request still WRITES its mark (an old bundle is still a kid's phone) and kpi.py refuses it only BELOW the target, so Mason's 9.7 s and his 6.1 s still count in full. Rig qa/harness/r1650-the-mark-names-its-caller.mjs 9/9, five mutants each convicted by its own arm (`wordphone` reproduces the live false green verbatim); r1581 13/13 with arm 10 re-aimed, r1580 8/8, r1591 35/35, r1629 10/10, r1636 13/13, r1637 12/12 beside it.   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it. AND THE CARD'S HALF IS SCOPED TO THE COLD OPEN (-r1637b, caught before signing): on a CACHED paint the board is already up, so holding the card for the session answer (~10.8 s) instead of its own status read (5.3-6.9 s) would push it past the first logged set, where R1078 SKIPS it - seconds of a coach's REGEN data for a trip nobody waits on. A cold open has nothing on screen to delay, and it is the way in that bought Mason's third trip. The warm path's own regen_status is named and NOT taken.
+  var APP_BUILD = '20261019-k4wedgeclock';   // MONDAY 10-19 EVENING — K4-WEDGECLOCK, AND THE STAMP IS THE WHOLE POINT OF SHIPPING IT: the one field below (drain_wedged hands over `ms=`) changes a number Phil reads at 03:05 and NOTHING a kid sees, and an unbumped stamp means no installed phone ever refetches the bundle (the self-update handshake returns early when pwaVer === APP_BUILD). A client fix on no phone proves nothing — CLIENTSHIP-BLIND, closed in this same tree 10-19.   // MONDAY 10-19 — R1667 (ORPHANSID-LOGGED), AND THE STAMP IS THE POINT: the client half above sat in this file all afternoon under the stamp the edge was ALREADY SERVING, so Phil's yes on A45 would have uploaded new bytes that no installed phone ever refetches (the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD — the 2026-08-14 bite, verbatim). clientship.sh's same-stamp trap existed to catch exactly this and was reading a PWA_VER string nothing prints (CLIENTSHIP-BLIND). Nothing is shipped by this bump and no pixel moves: R1667_PURGED_BOARD_STOPS is false, A45 is unanswered, and the bump is L179's own close — it makes his yes DELIVERABLE, it does not take it.   // SUNDAY 10-18 — R1650, THE MARK NAMES ITS CALLER (K5-MARKWALL's recorder half). K5 read GREEN 0.2 s on 2026-10-18 off a 187 ms `week` read OF OURS - a real athlete's token, no bg, no src, no dev key - replacing Mason's real 9.7 s open of the day before, on a day no kid opened a workout at all. Nothing could refuse it: R1581's three doors are words the CALLER sends, and a phone "sends what it always sent", so a curl of ours holding a kid's token was indistinguishable from the kid BY CONSTRUCTION. The per-caller guard had already failed twice. THE ONE CLIENT CUT: `bpTagDev` adds `dv=1` at fetchJson's one choke point for an UNDRIVEN browser only, so the engine's `phone` is AFFIRMATIVE - the device said so on that very request - and an undeclared read is `nosay` on the mark and on the error row alike. NOT A PIXEL: one query parameter on the read path, no copy, no tap target, no render, nothing served changed; `dv` is read only while a telemetry row is being written. AND NOTHING A KID WAITED FOR IS LAUNDERED: an undeclared request still WRITES its mark (an old bundle is still a kid's phone) and kpi.py refuses it only BELOW the target, so Mason's 9.7 s and his 6.1 s still count in full. Rig qa/harness/r1650-the-mark-names-its-caller.mjs 9/9, five mutants each convicted by its own arm (`wordphone` reproduces the live false green verbatim); r1581 13/13 with arm 10 re-aimed, r1580 8/8, r1591 35/35, r1629 10/10, r1636 13/13, r1637 12/12 beside it.   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it. AND THE CARD'S HALF IS SCOPED TO THE COLD OPEN (-r1637b, caught before signing): on a CACHED paint the board is already up, so holding the card for the session answer (~10.8 s) instead of its own status read (5.3-6.9 s) would push it past the first logged set, where R1078 SKIPS it - seconds of a coach's REGEN data for a trip nobody waits on. A cold open has nothing on screen to delay, and it is the way in that bought Mason's third trip. The warm path's own regen_status is named and NOT taken.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -207,6 +207,13 @@
   // hold — and nothing else (status, history, last_loads and the like change without moving a board).
   var PAINTED_SESSION = {};
   var R1490_FRESH_BOARD = true;
+  // ORPHANSID-LOGGED (Phil, 2026-10-19T21:06Z) — a board the server NO LONGER HAS is not a board a kid may
+  // train on. Held OFF until Phil passes the screen (rule 27; ship-pwa.sh copies this file whole), and the
+  // reversing line is written without the `var` keyword on purpose: server.mjs's BP_FLAGS seam matches a
+  // declaration BY STRING, so spelling one out in prose would let an arm rewrite this comment and report a
+  // world it never built (R1618 / FLAGLIT-PROSE).
+  // Reversing line: set R1667_PURGED_BOARD_STOPS to false (which is what it is today).
+  var R1667_PURGED_BOARD_STOPS = false;
   function boardSig(s) {
     try {
       return JSON.stringify((s && s.slots || []).map(function (sl) {
@@ -1390,7 +1397,12 @@
     if (draining) {
       drainAgain = true;   // rows queued while a drain runs are sent the moment it ends, not on the next 15 s tick
       if (!(drainingSince && (Date.now() - drainingSince) > DRAIN_WEDGE_MS)) return Promise.resolve();
-      reportError('drain_wedged', 'the send/confirm loop did not settle in ' + Math.round((Date.now() - drainingSince) / 1000) + 's — reset and re-sent (R1077)', 'drain', '');
+      // K4-WEDGECLOCK: this wait is MEASURED right here and was being handed over as PROSE ONLY. The engine
+      // admits a row to `errorfelt` on a bare `ms=` alone, so Phil's 114 s wedge of 2026-10-19 (and Mason's
+      // 62 s) reached kpi.py with no clock on it and K4 named the day's two longest waits "untimed" while K5
+      // offered him 7.0 s as the worst thing anyone felt. Same message, same count — the seconds now travel.
+      var wedgedMs = Date.now() - drainingSince;
+      reportError('drain_wedged', 'the send/confirm loop did not settle in ' + Math.round(wedgedMs / 1000) + 's — reset and re-sent (R1077)', 'drain', 'ms=' + wedgedMs);
       draining = false;   // the wedged cycle's own callbacks are dead or will find nothing to do; the queue is the truth
     }
     if (!navigator.onLine) return Promise.resolve();
@@ -6454,6 +6466,35 @@
   // late refresh only repaints while the screen is still untouched — once a set is logged or a
   // stepper is touched, the rendered view wins and the fresh payload is only cached for next time.
   function sessCacheKey(sid) { return 'bp_sess_' + CACHE_V + '_' + athlete + '_' + sid; }
+  // ORPHANSID-LOGGED — IS THE BOARD GONE, OR IS THE SERVER MID-WRITE? ASK IT TWICE.
+  // THE WEEK WAS THE FIRST ANSWER AND IT IS NOT AVAILABLE, measured rather than assumed: when the app
+  // restores straight into a workout it requests `enroll`, `regen_status`, `session`, `exercises` and NO
+  // `week` at all, so the week cache on that path is whatever the last calendar visit left — stale by
+  // exactly the re-lay this row is about. Nothing on the phone knows. (Arm 1a holds that measurement down.)
+  // WHAT DOES SEPARATE THEM IS TIME. R1003's branch is right to distrust ONE session-less answer, and its
+  // own comment says why: "a Plan mid-write, a refusal". A mid-write resolves on a re-ask; a purge does not.
+  // So a board is only taken away when the server says it has nothing TWICE, which costs one extra round
+  // trip on a path that is already broken and none at all on every healthy open (D1/A32 are about trip
+  // counts, and this adds zero to the ones a kid actually waits on).
+  // FAILS TOWARD R1003 BY CONSTRUCTION: a re-ask that returns a session, errors, or cannot be made at all
+  // leaves the board exactly where it is.
+  var BOARD_GONE_RECHECK_MS = 2500;
+  function askAgainIsItGone(sid, done) {
+    fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete)
+              + '&session_id=' + encodeURIComponent(sid) + '&token=' + encodeURIComponent(token))
+      .then(function (d2) { done(!!(d2 && d2.ok === true && !d2.session), d2); })
+      .catch(function () { done(false, null); });
+  }
+  // The one screen this row changes. Same shape as showRetryCard (the `.slowload` class, not `.err`: the
+  // journey helpers treat `.err` as terminal), because what an athlete does next is the same — go look at
+  // what he actually has.
+  function showBoardGone(sid) {
+    app.innerHTML = '';
+    app.appendChild(el('p', 'slowload', 'Your coach changed this workout — it is not on your plan any more.'));
+    var b = el('button', 'retry-open', 'See my workouts'); b.type = 'button';
+    b.addEventListener('click', function () { try { loadHome(); } catch (e) {} });
+    app.appendChild(b);
+  }
   function cacheSession(sid, session) {
     try { localStorage.setItem(sessCacheKey(sid), JSON.stringify({ at: Date.now(), session: session })); } catch (e) {}
   }
@@ -6583,6 +6624,48 @@
         // R1003 (Phil 2026-09-12: "A timeout says 'Try again', never 'no workout'"): this open was tapped from a calendar
         // tile the server itself listed, so an answer without a session is a transient — a Plan mid-write, a refusal — not
         // an empty day. Mason's DONE 08-31 session read "No workout that day." after a 20 s stall. The card re-fetches.
+        // ORPHANSID-LOGGED (Phil, 2026-10-19 21:06:09.577Z) — THE ONE CASE R1003's READING BELOW CANNOT SEE.
+        // That branch treats every session-less answer as a transient, which is RIGHT for a stall and is why
+        // Mason's DONE 08-31 session stopped printing "No workout that day". But when this open had already
+        // painted from the cache it returned in SILENCE, so a board the server had purged at 02:05 stayed
+        // fully usable: Phil tapped Begin 24 s later and logged 15 sets into a session on no Plan row, every
+        // one with an empty publish_id, which no board can ever read back.
+        // THE DISCRIMINATOR IS A SECOND ASK, NOT THE WEEK AND NOT DISTRUST OF THE ANSWER. `data.ok === true`
+        // with no session is the server answering successfully that it has nothing (the offline/server
+        // errors returned above). One of those is ambiguous exactly as R1003 says — "a Plan mid-write, a
+        // refusal" — and the week cannot settle it, because the restore-into-workout path never asks for a
+        // week (measured: enroll, regen_status, session, exercises, and nothing else). Twice settles it.
+        // AND IT NEVER YANKS A KID'S OWN WORK: with a logged set on screen (`.ex-row.done`, R1490's own test
+        // that a logged set is the athlete's record) the board stands and today's behaviour is kept whole.
+        // What to do about a board he has ALREADY logged into is Phil's call, not this line's — it is named
+        // in the ask and deliberately not decided here.
+        // Reversing line: delete this block (the flag's own reversing line is at its declaration).
+        // AND IT IS THE "NOT FOUND" ANSWER, NOT EVERY SESSION-LESS ONE. Two other answers come back ok with
+        // no session and mean something else entirely: `baseline complete` (the athlete finished the baseline
+        // pseudo-session) and R1500's `next round not open yet — …`. Telling either of those athletes "your
+        // coach changed this workout" would be a new false alarm shipped to fix a silence. The engine's own
+        // word is the test, the rig pins that exact string in its fixture, and arm 7 drives a different note
+        // and requires the board to stand.
+        if (R1667_PURGED_BOARD_STOPS && painted && data && data.ok === true && !data.session
+            && String(data.note || '') === 'session not found'
+            && !document.querySelector('.ex-row.done')) {
+          setTimeout(function () {
+            if (!isCurrent(_screen) || document.querySelector('.ex-row.done')) return;   // he moved on, or he started logging while we asked
+            askAgainIsItGone(sessionId, function (gone, d2) {
+              if (!isCurrent(_screen) || document.querySelector('.ex-row.done')) return;
+              if (!gone) {
+                // the Plan was mid-write: the board is back, so paint what the server now has and say nothing
+                if (d2 && d2.ok && d2.session) { cacheSession(sessionId, d2.session); adoptFreshFlags(d2.session); safeRender(d2.session, sessionId); }
+                return;
+              }
+              try { localStorage.removeItem(sessCacheKey(sessionId)); } catch (eBG) {}
+              try { sessionStorage.removeItem('bp_open_session'); } catch (eBG2) {}
+              reportError('board_gone', 'the server answered "no session" twice for a board painted from the cache — it was stopped before a set could be logged into it', sessionId, '');
+              showBoardGone(sessionId);
+            });
+          }, BOARD_GONE_RECHECK_MS);
+          return;
+        }
         if (!data.ok || !data.session) { if (!painted) showRetryCard(sessionId, 'This workout did not load.' + (data && data.error ? ' (' + data.error + ')' : '')); return; }
         // Re-render unless the athlete is actively logging over a cached paint. BUT a reopened session
         // the SERVER already has logged sets for must always show its review state — the stale cached

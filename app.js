@@ -143,7 +143,11 @@
       fetch(cfg.WEBAPP_URL + '?action=enroll&athlete=' + encodeURIComponent(athlete) +
             '&token=' + encodeURIComponent(urlToken) +
             '&ua=' + encodeURIComponent(String(navigator.userAgent || '').slice(0, 40)) +
-            (bpSrc ? '&src=' + bpSrc : ''))
+            (bpSrc ? '&src=' + bpSrc : '') +
+            // READER FIRST (Phil 2026-10-22, item 2: "Print the build each phone runs"): the boot enrol names this
+            // bundle's stamp, so the engine's device_enrolled row carries it and `phonebuilds` can print, per athlete,
+            // the build his phone last booted on. One query parameter on a fire-and-forget request; no pixel.
+            '&bld=' + encodeURIComponent(APP_BUILD))
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d && d.ok && d.device_token) {
@@ -179,7 +183,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261021-retryjoin';   // WEDNESDAY 10-21, SECOND SHIP — J34A-CORRUPTRETRY: `Try again` DID NOTHING FOR TWENTY SECONDS AND THIS STAMP IS WHAT PUTS THE CURE ON A PHONE. An athlete whose cached session is corrupt taps his workout, the render crashes, the retry card paints in milliseconds (R631 holds — never a dead screen), he taps Try again — and R1636's read-join handed his retry THE VERY READ THAT IS NOT ANSWERING, so the blank stayed blank. Measured on the live client at the tap: `joined:1, open:1`, rows=0 for the whole 45 s after. The control is in the same page and needed no second rig: ARM B's retry lands 25 s after its hung read, past READ_JOIN_MAX_MS (20 s), joins nothing and renders 20 rows. Dated, not guessed: the join landed on phones at a4518466 (2026-10-17 20:59, @20261017-r1636b), so this has been live for four days and no KPI could say so — journeys are in none of gate.sh's refusal arms and a blank workout through the RETRY writes no ErrorLog row. THE BUMP IS THE DELIVERY: the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD, so without a new stamp no installed phone ever refetches and the cure sits on the edge and on nobody. NO PIXEL MOVES — one `_writeEpochBump_('retry_tap')` on the retry handler; the card, its copy and its tap box are untouched. Reversing line: set this back to '20261021-norev'.   // WEDNESDAY 10-21 — A45 ANSWERED `no`, AND THE STAMP IS WHAT TAKES THE REFUSED BYTES OFF A PHONE. Phil answered A45 `no` ("leave it as the first picture and an athlete can keep training on a deleted workout"), so R1667's forty lines and the one flag declaration that gated them are DELETED from this file (named R1667_PURGED_BOARD_STOPS, written here WITHOUT its `var` form on purpose: row 27's FLAGLIT-PROSE clause makes a declaration quoted in a comment a refusal, and the guard caught this very line spelling one out) — REFUSALS row 27's `no` clause, which says a refusal is an end and not a hold. THE BUMP IS THE DELIVERY AND NOT A DECORATION: the bytes were byte-identical on the Pages edge (diffed live, 0 lines), the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD, so without a new stamp no installed phone ever refetches and a screen he refused stays on every athlete behind one boolean. NO PIXEL MOVES, and that is provable rather than asserted: every deleted line sat behind a flag that read false on BOTH sides of the diff, so the only reachable difference is the absence of an unreachable branch. Reversing line: 86a078cf holds the forty lines and the flag; set this back to '20261020-wedgehid'.   // TUESDAY 10-20 NIGHT, SECOND SHIP — K4-WEDGELOOP-HID. 20261020-wedgeloop (one hour earlier, this same lane) is ON THE EDGE and stamped into PWA_VER, so this bundle needs its own stamp or no installed phone refetches it. What it adds is one telemetry token: a declared wedge now says `hid=<the hidden ms the line above subtracted>` beside its `ms=`, because the wedge fix shipped at 20:32 is otherwise judged BY ABSENCE — and absence reads the same whether the fix worked, the kid did not train, or R1077 was broken. No pixel: `hid=` is written only while a telemetry row is being written, and it is inert to both readers on purpose (the engine lifts `hidden=`, not `hid=`). Reversing line: set this back to '20261020-wedgeloop'.   // TUESDAY 10-20 NIGHT — K4-WEDGELOOP, AND THE STAMP NAMES WHAT THIS BUNDLE ACTUALLY CARRIES. The 18:20 lane bumped this string to `20261020-wedgeclock` to make the wedge-clock field deliverable, but it never shipped (the freeze barred 17:30-19:00 and the window ended 18:30), and in the hours since, THIS FILE GAINED THE TWO K4-WEDGELOOP HALVES on top of it: the wedge is declared on VISIBLE elapsed time (:1407, :1412) and the stale abort deletes only the marks ITS OWN cycle wrote (:1431, :1512). Shipping those under a stamp that says `wedgeclock` would misname, on every phone and in every later forensic read, the build that stopped a kid's batch being sent a THIRD time. The handshake does not care which string this is — only that it differs from what the edge serves (20261020-hopleg2) — so the rename costs nothing and the stamp stays honest. Reversing line: set this back to '20261020-wedgeclock'.   // TUESDAY 10-20 EVENING — K4-WEDGECLOCK's CLIENT HALF (13f7aeb5, 18:02) EDITED THIS FILE AND CLOSED WITHOUT BUMPING, so drain_wedged's `ms=` hand-over sat committed under 20261020-hopleg2 — THE STAMP THE EDGE WAS ALREADY SERVING. The self-update handshake 3 lines down returns early when pwaVer === APP_BUILD, so an installed phone would never refetch the bundle and a ship under the old stamp would have reached nobody: the 2026-08-14 bite, verbatim, six hours after CLIENTSHIP-BLIND repaired the trap that catches it. clientship.sh FOUND it (SAME-STAMP TRAP fired live at 18:19 on this tree) — the detector built last night did its job on its first real recurrence. Nothing is shipped by this bump and NO PIXEL MOVES: the wedge-clock change is one telemetry field (`ms=` on a drain row) that moves a number Phil reads at 03:05 and nothing a kid sees. The bump is L179's own close — it makes the bytes DELIVERABLE, it does not deliver them.   // TUESDAY 10-20 — HOPLEG2-PRECONNECT, AND THE STAMP IS THE WHOLE REASON THIS FILE IS IN THE SHIP AT ALL: the change is two resource hints in index.html's head and NOTHING in this file but this string. An unbumped stamp means no installed phone ever refetches the bundle (the handshake below returns early when pwaVer === APP_BUILD) and a warm-recalled standalone PWA never navigates, so it would never see the new shell either — the 132 ms cut would be live on the edge and on no kid's phone, which is CLIENTSHIP-BLIND's own lesson. No pixel moves: the hints make no request, render nothing and move no tap target.   // MONDAY 10-19 EVENING — K4-WEDGECLOCK, AND THE STAMP IS THE WHOLE POINT OF SHIPPING IT: the one field below (drain_wedged hands over `ms=`) changes a number Phil reads at 03:05 and NOTHING a kid sees, and an unbumped stamp means no installed phone ever refetches the bundle (the self-update handshake returns early when pwaVer === APP_BUILD). A client fix on no phone proves nothing — CLIENTSHIP-BLIND, closed in this same tree 10-19.   // MONDAY 10-19 — R1667 (ORPHANSID-LOGGED), AND THE STAMP IS THE POINT: the client half above sat in this file all afternoon under the stamp the edge was ALREADY SERVING, so Phil's yes on A45 would have uploaded new bytes that no installed phone ever refetches (the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD — the 2026-08-14 bite, verbatim). clientship.sh's same-stamp trap existed to catch exactly this and was reading a PWA_VER string nothing prints (CLIENTSHIP-BLIND). Nothing is shipped by this bump and no pixel moves: R1667_PURGED_BOARD_STOPS is false, A45 is unanswered, and the bump is L179's own close — it makes his yes DELIVERABLE, it does not take it.   // SUNDAY 10-18 — R1650, THE MARK NAMES ITS CALLER (K5-MARKWALL's recorder half). K5 read GREEN 0.2 s on 2026-10-18 off a 187 ms `week` read OF OURS - a real athlete's token, no bg, no src, no dev key - replacing Mason's real 9.7 s open of the day before, on a day no kid opened a workout at all. Nothing could refuse it: R1581's three doors are words the CALLER sends, and a phone "sends what it always sent", so a curl of ours holding a kid's token was indistinguishable from the kid BY CONSTRUCTION. The per-caller guard had already failed twice. THE ONE CLIENT CUT: `bpTagDev` adds `dv=1` at fetchJson's one choke point for an UNDRIVEN browser only, so the engine's `phone` is AFFIRMATIVE - the device said so on that very request - and an undeclared read is `nosay` on the mark and on the error row alike. NOT A PIXEL: one query parameter on the read path, no copy, no tap target, no render, nothing served changed; `dv` is read only while a telemetry row is being written. AND NOTHING A KID WAITED FOR IS LAUNDERED: an undeclared request still WRITES its mark (an old bundle is still a kid's phone) and kpi.py refuses it only BELOW the target, so Mason's 9.7 s and his 6.1 s still count in full. Rig qa/harness/r1650-the-mark-names-its-caller.mjs 9/9, five mutants each convicted by its own arm (`wordphone` reproduces the live false green verbatim); r1581 13/13 with arm 10 re-aimed, r1580 8/8, r1591 35/35, r1629 10/10, r1636 13/13, r1637 12/12 beside it.   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it. AND THE CARD'S HALF IS SCOPED TO THE COLD OPEN (-r1637b, caught before signing): on a CACHED paint the board is already up, so holding the card for the session answer (~10.8 s) instead of its own status read (5.3-6.9 s) would push it past the first logged set, where R1078 SKIPS it - seconds of a coach's REGEN data for a trip nobody waits on. A cold open has nothing on screen to delay, and it is the way in that bought Mason's third trip. The warm path's own regen_status is named and NOT taken.
+  var APP_BUILD = '20261022-beginworkout';   // THURSDAY 10-22 — THE BEGIN WORKOUT BUTTON IS BACK, ON PHIL'S WORD THREE TIMES OVER (A39 no 10-19: "restore the Begin Workout button exactly as it was before A22. D28 stands."; 10-21: "still not on the phone 10-21. Deploy today"; 10-22: "on the phone today"). The reader lost his reason on A39 (it ledgered `A39 -> no` and a session read `no` as leave-it; READER FIRST item 1 fixes that reader), so six days passed with D28 marked DONE and the button on no phone. This bundle is c820e219 reversed hunk for hunk — the button, R685's running strip, the chain and its auto-advance, the wake lock on the chain — except A26's back glyph and the stamp; plus markBegin on the first timer start (REFUSALS row 11 holds for a kid who never taps Begin) and `bld=` on the boot enrol so the engine can print the build each phone runs. THE STAMP IS THE DELIVERY: the self-update handshake 3 lines down returns early when pwaVer === APP_BUILD. Reversing line: set this back to '20261021-retryjoin' and git revert the commit.   // (was) WEDNESDAY 10-21, SECOND SHIP — J34A-CORRUPTRETRY: WEDNESDAY 10-21, SECOND SHIP — J34A-CORRUPTRETRY: `Try again` DID NOTHING FOR TWENTY SECONDS AND THIS STAMP IS WHAT PUTS THE CURE ON A PHONE. An athlete whose cached session is corrupt taps his workout, the render crashes, the retry card paints in milliseconds (R631 holds — never a dead screen), he taps Try again — and R1636's read-join handed his retry THE VERY READ THAT IS NOT ANSWERING, so the blank stayed blank. Measured on the live client at the tap: `joined:1, open:1`, rows=0 for the whole 45 s after. The control is in the same page and needed no second rig: ARM B's retry lands 25 s after its hung read, past READ_JOIN_MAX_MS (20 s), joins nothing and renders 20 rows. Dated, not guessed: the join landed on phones at a4518466 (2026-10-17 20:59, @20261017-r1636b), so this has been live for four days and no KPI could say so — journeys are in none of gate.sh's refusal arms and a blank workout through the RETRY writes no ErrorLog row. THE BUMP IS THE DELIVERY: the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD, so without a new stamp no installed phone ever refetches and the cure sits on the edge and on nobody. NO PIXEL MOVES — one `_writeEpochBump_('retry_tap')` on the retry handler; the card, its copy and its tap box are untouched. Reversing line: set this back to '20261021-norev'.   // WEDNESDAY 10-21 — A45 ANSWERED `no`, AND THE STAMP IS WHAT TAKES THE REFUSED BYTES OFF A PHONE. Phil answered A45 `no` ("leave it as the first picture and an athlete can keep training on a deleted workout"), so R1667's forty lines and the one flag declaration that gated them are DELETED from this file (named R1667_PURGED_BOARD_STOPS, written here WITHOUT its `var` form on purpose: row 27's FLAGLIT-PROSE clause makes a declaration quoted in a comment a refusal, and the guard caught this very line spelling one out) — REFUSALS row 27's `no` clause, which says a refusal is an end and not a hold. THE BUMP IS THE DELIVERY AND NOT A DECORATION: the bytes were byte-identical on the Pages edge (diffed live, 0 lines), the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD, so without a new stamp no installed phone ever refetches and a screen he refused stays on every athlete behind one boolean. NO PIXEL MOVES, and that is provable rather than asserted: every deleted line sat behind a flag that read false on BOTH sides of the diff, so the only reachable difference is the absence of an unreachable branch. Reversing line: 86a078cf holds the forty lines and the flag; set this back to '20261020-wedgehid'.   // TUESDAY 10-20 NIGHT, SECOND SHIP — K4-WEDGELOOP-HID. 20261020-wedgeloop (one hour earlier, this same lane) is ON THE EDGE and stamped into PWA_VER, so this bundle needs its own stamp or no installed phone refetches it. What it adds is one telemetry token: a declared wedge now says `hid=<the hidden ms the line above subtracted>` beside its `ms=`, because the wedge fix shipped at 20:32 is otherwise judged BY ABSENCE — and absence reads the same whether the fix worked, the kid did not train, or R1077 was broken. No pixel: `hid=` is written only while a telemetry row is being written, and it is inert to both readers on purpose (the engine lifts `hidden=`, not `hid=`). Reversing line: set this back to '20261020-wedgeloop'.   // TUESDAY 10-20 NIGHT — K4-WEDGELOOP, AND THE STAMP NAMES WHAT THIS BUNDLE ACTUALLY CARRIES. The 18:20 lane bumped this string to `20261020-wedgeclock` to make the wedge-clock field deliverable, but it never shipped (the freeze barred 17:30-19:00 and the window ended 18:30), and in the hours since, THIS FILE GAINED THE TWO K4-WEDGELOOP HALVES on top of it: the wedge is declared on VISIBLE elapsed time (:1407, :1412) and the stale abort deletes only the marks ITS OWN cycle wrote (:1431, :1512). Shipping those under a stamp that says `wedgeclock` would misname, on every phone and in every later forensic read, the build that stopped a kid's batch being sent a THIRD time. The handshake does not care which string this is — only that it differs from what the edge serves (20261020-hopleg2) — so the rename costs nothing and the stamp stays honest. Reversing line: set this back to '20261020-wedgeclock'.   // TUESDAY 10-20 EVENING — K4-WEDGECLOCK's CLIENT HALF (13f7aeb5, 18:02) EDITED THIS FILE AND CLOSED WITHOUT BUMPING, so drain_wedged's `ms=` hand-over sat committed under 20261020-hopleg2 — THE STAMP THE EDGE WAS ALREADY SERVING. The self-update handshake 3 lines down returns early when pwaVer === APP_BUILD, so an installed phone would never refetch the bundle and a ship under the old stamp would have reached nobody: the 2026-08-14 bite, verbatim, six hours after CLIENTSHIP-BLIND repaired the trap that catches it. clientship.sh FOUND it (SAME-STAMP TRAP fired live at 18:19 on this tree) — the detector built last night did its job on its first real recurrence. Nothing is shipped by this bump and NO PIXEL MOVES: the wedge-clock change is one telemetry field (`ms=` on a drain row) that moves a number Phil reads at 03:05 and nothing a kid sees. The bump is L179's own close — it makes the bytes DELIVERABLE, it does not deliver them.   // TUESDAY 10-20 — HOPLEG2-PRECONNECT, AND THE STAMP IS THE WHOLE REASON THIS FILE IS IN THE SHIP AT ALL: the change is two resource hints in index.html's head and NOTHING in this file but this string. An unbumped stamp means no installed phone ever refetches the bundle (the handshake below returns early when pwaVer === APP_BUILD) and a warm-recalled standalone PWA never navigates, so it would never see the new shell either — the 132 ms cut would be live on the edge and on no kid's phone, which is CLIENTSHIP-BLIND's own lesson. No pixel moves: the hints make no request, render nothing and move no tap target.   // MONDAY 10-19 EVENING — K4-WEDGECLOCK, AND THE STAMP IS THE WHOLE POINT OF SHIPPING IT: the one field below (drain_wedged hands over `ms=`) changes a number Phil reads at 03:05 and NOTHING a kid sees, and an unbumped stamp means no installed phone ever refetches the bundle (the self-update handshake returns early when pwaVer === APP_BUILD). A client fix on no phone proves nothing — CLIENTSHIP-BLIND, closed in this same tree 10-19.   // MONDAY 10-19 — R1667 (ORPHANSID-LOGGED), AND THE STAMP IS THE POINT: the client half above sat in this file all afternoon under the stamp the edge was ALREADY SERVING, so Phil's yes on A45 would have uploaded new bytes that no installed phone ever refetches (the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD — the 2026-08-14 bite, verbatim). clientship.sh's same-stamp trap existed to catch exactly this and was reading a PWA_VER string nothing prints (CLIENTSHIP-BLIND). Nothing is shipped by this bump and no pixel moves: R1667_PURGED_BOARD_STOPS is false, A45 is unanswered, and the bump is L179's own close — it makes his yes DELIVERABLE, it does not take it.   // SUNDAY 10-18 — R1650, THE MARK NAMES ITS CALLER (K5-MARKWALL's recorder half). K5 read GREEN 0.2 s on 2026-10-18 off a 187 ms `week` read OF OURS - a real athlete's token, no bg, no src, no dev key - replacing Mason's real 9.7 s open of the day before, on a day no kid opened a workout at all. Nothing could refuse it: R1581's three doors are words the CALLER sends, and a phone "sends what it always sent", so a curl of ours holding a kid's token was indistinguishable from the kid BY CONSTRUCTION. The per-caller guard had already failed twice. THE ONE CLIENT CUT: `bpTagDev` adds `dv=1` at fetchJson's one choke point for an UNDRIVEN browser only, so the engine's `phone` is AFFIRMATIVE - the device said so on that very request - and an undeclared read is `nosay` on the mark and on the error row alike. NOT A PIXEL: one query parameter on the read path, no copy, no tap target, no render, nothing served changed; `dv` is read only while a telemetry row is being written. AND NOTHING A KID WAITED FOR IS LAUNDERED: an undeclared request still WRITES its mark (an old bundle is still a kid's phone) and kpi.py refuses it only BELOW the target, so Mason's 9.7 s and his 6.1 s still count in full. Rig qa/harness/r1650-the-mark-names-its-caller.mjs 9/9, five mutants each convicted by its own arm (`wordphone` reproduces the live false green verbatim); r1581 13/13 with arm 10 re-aimed, r1580 8/8, r1591 35/35, r1629 10/10, r1636 13/13, r1637 12/12 beside it.   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it. AND THE CARD'S HALF IS SCOPED TO THE COLD OPEN (-r1637b, caught before signing): on a CACHED paint the board is already up, so holding the card for the session answer (~10.8 s) instead of its own status read (5.3-6.9 s) would push it past the first logged set, where R1078 SKIPS it - seconds of a coach's REGEN data for a trip nobody waits on. A cold open has nothing on screen to delay, and it is the way in that bought Mason's third trip. The warm path's own regen_status is named and NOT taken.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1740,108 +1744,100 @@
   // different session still clears it, because that rest belongs to the workout you left.
   function clearTimerBar(sid) {
     if (ACTIVE_TIMER && ACTIVE_TIMER.running() && sid && sid === TIMER_SID) return;
-    if (typeof gapCancel === 'function') gapCancel();        // D3/R1590: a between-complex rest belongs to the session you left
-    if (typeof releaseWake === 'function') releaseWake();
     if (ACTIVE_TIMER) ACTIVE_TIMER.stop();
     ACTIVE_TIMER = null; TIMER_SID = null;
     if (TBAR) TBAR.hidden = true;
     document.body.classList.remove('has-tbar');
   }
 
-  // D3 / R1590 — ONE WAY TO START A TIMER. Phil's RESET 10-13 line, verbatim: "One timer only:
-  // delete the separate 'begin workout' timer option"; his A22 answer (2026-10-15 12:59Z) was B.
-  // THE WHOLE-SESSION CHAIN IS GONE: there is no "Begin Workout" button, nothing runs a session
-  // unattended, and every block is started by its own tap — one way to start a timer, not two.
-  // WHAT B KEEPS is the part an athlete feels: the between-complex rest countdown (R606-s5 / L301 —
-  // the FULL complex_switch cell, at every rendered boundary, warm-ups included per L311) and its ⏭
-  // (R850, from Grace 09-02), re-hung on the complex starts. A finished block still counts the rest
-  // owed before the next one; the countdown now ENDS IN A CUE instead of starting the next block
-  // for you. That last clause IS the delete — a countdown that auto-advances is the chain wearing
-  // another name, and the chain is the option Phil deleted.
-  // Also gone with it: R685 (the persisted chain `bp_chain_on` and the "Workout running" strip —
-  // both existed only to tell an athlete the chain was on) and the chain's "Workout done · all
-  // complexes run" cue, a claim only something that ran every complex could make.
-  var BLOCKS = { sid: null, keys: [], switchS: 0, t: null };
-  // R850 (Phil 2026-09-03, Grace 09-02): EVERY TRANSITION IS SKIPPABLE — the 2:30 between-complex
-  // countdown fired correctly but could not be skipped to keep moving (the bar's ⏭ was wired only
-  // to ACTIVE_TIMER, which during a transition is the FINISHED previous timer whose skip() no-ops).
-  // TRANS_SKIP is the gap's own skip hook: armed while it counts, cleared with it. The NAME is
-  // R850's own and R1589's ⏮ refusal reads it by name — it outlives the chain unchanged.
-  var TRANS_SKIP = null;
-  function gapCancel() { if (BLOCKS.t) { clearTimeout(BLOCKS.t); BLOCKS.t = null; } TRANS_SKIP = null; }
-  // Screen Wake Lock. Every one of its four call sites used to be gated on `CHAIN.on`, so deleting
-  // the chain would have left no wakeLock anywhere and every athlete's screen free to sleep mid-set
-  // — a kid-screen regression hidden inside a "delete one button" change. It is re-hung on the live
-  // timer and the live gap, which is the state it always existed for: a countdown whose cue must not
-  // fire late. Progressive: absent API = silently none.
-  var WAKE = null;
-  function wakeWanted() { return !!(ACTIVE_TIMER && ACTIVE_TIMER.running && ACTIVE_TIMER.running()) || !!BLOCKS.t; }
-  function requestWake() { try { if (navigator.wakeLock && !WAKE) navigator.wakeLock.request('screen').then(function (w) { WAKE = w; w.addEventListener('release', function () { WAKE = null; }); }).catch(function () {}); } catch (e) {} }
-  function releaseWake() { try { if (WAKE) { WAKE.release().catch(function () {}); WAKE = null; } } catch (e) {} }
-  document.addEventListener('visibilitychange', function () { if (!document.hidden && wakeWanted()) requestWake(); });
-  // RESET 10-13 (REFUSALS.md row 11) — THE DYNAMIC FREEZE'S FIRST MARK, RE-HOMED IN THIS COMMIT.
-  // `event_begin` was written by the Begin Workout click handler and by nothing else in the repo,
-  // and that button is deleted here. Its honest new home is the first timer start of a session — the
-  // tap that now means "this athlete is training", warm-up included, which is exactly the window a
-  // deploy or a re-row must not land in (from the first start until the first logged set the freeze
-  // would otherwise hold NO mark at all). A session OPEN is the wrong mark: a kid glancing at his
-  // plan is not a kid training, and that would freeze deploys on every look. reportError's own
-  // per-message dedupe (:433) makes this ONE row per session id per page life; a reload re-marks,
-  // and that direction only ever EXTENDS a freeze, never shortens one. Readers are unchanged and
-  // match on the KIND: LoggerApi.gs demo_liveFreeze (/^event_(begin|finish)$/), quiet-window.sh,
-  // kpi.py's INFO_KINDS.
+  // R606 slices 2-3 — THE WORKOUT CHAIN (Phil's corrected UI ruling 2026-08-28). One "Begin
+  // Workout" tap runs the whole session unattended: each slot's own timer, then a transition
+  // countdown between complexes (the R606-s5 law: gap = MAX(Thresholds complex_switch, trailing
+  // rest of the outgoing complex's final set) — the trailing rest has already elapsed inside the
+  // outgoing timer, so the transition adds only the EXCESS; warm-up slots never take one). Chain
+  // state survives re-renders (module scope, session-checked); render() rebuilds the slot list.
+  // A manual "Start Complex" mid-chain never breaks it: advance keys off whichever timer finishes
+  // while the chain is on, and a manual start only cancels the pending transition it supersedes.
+  var CHAIN = { on: false, sid: null, list: [], switchS: 0, transT: null };
+  // RESTORED 2026-10-22 (Phil: "A39 no: restore the Begin Workout button exactly as it was before A22. D28 stands."
+  // 10-19 12:41Z; "Begin Workout button is still not on the phone 10-21. Deploy today" 10-21; "on the phone today"
+  // 10-22). The whole chain above and below is c820e219 reversed, hunk for hunk, except A26's back glyph and the
+  // stamp. The one addition is markBegin: the freeze's first mark fires from the first timer start as well as from
+  // the Begin tap, so REFUSALS row 11 holds for a kid who never taps Begin. Reversing line: git revert this commit.
   function markBegin(sid) {
     if (!sid) return;
     try { reportError('event_begin', 'Begin ' + sid, 'tstart', '', false); } catch (eBegin) {}
   }
-  function gapRun(gapS) {
-    gapCancel();
+  // R850 (Phil 2026-09-03, Grace 09-02): EVERY TRANSITION IS SKIPPABLE — the 2:30 between-complex
+  // countdown fired correctly but could not be skipped to keep moving (the bar's ⏭ was wired only
+  // to ACTIVE_TIMER, which during a transition is the FINISHED previous timer whose skip() no-ops).
+  // TRANS_SKIP is the transition's own skip hook: armed while a transition counts, cleared with it.
+  var TRANS_SKIP = null;
+  function chainCancelTransition() { if (CHAIN.transT) { clearTimeout(CHAIN.transT); CHAIN.transT = null; } TRANS_SKIP = null; }
+  function chainStop() { CHAIN.on = false; chainCancelTransition(); releaseWake(); chainForget(); }
+  // R685 (Phil's 2026-08-29 session): CHAIN.on was in-memory only, so an iOS memory-kill reload
+  // silently ended the chain and every gap became trailing-rest-only with no tell. The running
+  // chain now persists (localStorage — sessionStorage dies with the killed process, the exact
+  // event this survives) and render() re-adopts it for the same session within 3 hours. Only the
+  // ON/OFF state persists: the running slot timer is honestly gone after a reload; the athlete
+  // restarts the current complex and every advance chains again from there.
+  var CHAIN_PERSIST_MS = 3 * 60 * 60 * 1000;
+  function chainRemember() { try { localStorage.setItem('bp_chain_on', CHAIN.sid + '|' + Date.now()); } catch (e) {} }
+  function chainForget() { try { localStorage.removeItem('bp_chain_on'); } catch (e) {} }
+  function chainRecall(sid) {
+    try {
+      var v = localStorage.getItem('bp_chain_on'); if (!v) return false;
+      var p = v.split('|');
+      if (p[0] !== String(sid)) return false;
+      if (Date.now() - Number(p[1] || 0) > CHAIN_PERSIST_MS) { chainForget(); return false; }
+      return true;
+    } catch (e) { return false; }
+  }
+  // Screen Wake Lock while the chain runs: an unattended chain on a locked phone would suspend its
+  // timers (they self-correct on wake — st.end is wall-clock — but the cue would fire late, which
+  // is the one thing a rest timer must not do). Progressive: absent API = silently none.
+  var WAKE = null;
+  function requestWake() { try { if (navigator.wakeLock && !WAKE) navigator.wakeLock.request('screen').then(function (w) { WAKE = w; w.addEventListener('release', function () { WAKE = null; }); }).catch(function () {}); } catch (e) {} }
+  function releaseWake() { try { if (WAKE) { WAKE.release().catch(function () {}); WAKE = null; } } catch (e) {} }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && CHAIN.on) requestWake(); });
+  function chainTransition(gapS, next) {
+    chainCancelTransition();
     var end = Date.now() + gapS * 1000;
-    requestWake();
     // R850: arm the skip AFTER the cancel above (which clears any prior hook). Skipping cancels the
-    // pending tick first, so one gap can never fire its cue twice.
+    // pending tick first, so the transition can never re-fire behind the started block.
     TRANS_SKIP = function () {
-      if (!BLOCKS.t) return;                           // stale hook (superseded/stopped): never double-fire
-      gapCancel();
-      gapOver();
+      if (!CHAIN.transT) return;                     // stale hook (superseded/stopped): never double-start
+      chainCancelTransition();
+      beep(); timerAlert('Next complex', 'go', '', true);
+      next.start();
     };
     (function tickT() {
+      if (!CHAIN.on) { TRANS_SKIP = null; return; }
       var left = Math.max(0, Math.round((end - Date.now()) / 1000));
       var b = tbar(); b.hidden = false; document.body.classList.add('has-tbar');
       b._l.textContent = 'Next complex'; b._v.textContent = 'in ' + fmt(left); b._p.hidden = true;
-      if (b._b) b._b.hidden = true;                    // R1589: a gap has no previous set to go back to
-      b._s.hidden = false;                             // R850: the same ⏭ affordance the rest timer has
-      if (left <= 0) { BLOCKS.t = null; TRANS_SKIP = null; gapOver(); return; }
-      BLOCKS.t = setTimeout(tickT, 250);
+      b._s.hidden = false;                           // R850: the same ⏭ affordance the rest timer has
+      if (left <= 0) { CHAIN.transT = null; TRANS_SKIP = null; beep(); timerAlert('Next complex', 'go', '', true); next.start(); return; }
+      CHAIN.transT = setTimeout(tickT, 250);
     })();
   }
-  // The END of the rest, not the start of the next block: the cue says the gap is served and the bar
-  // gives the space back. Nothing starts itself — that is D3. If the athlete has already started the
-  // next block early (which cancels the gap, but a cue can still land on a superseded one), the
-  // running timer keeps the bar.
-  function gapOver() {
-    beep(); timerAlert('Rest done', 'start the next complex', '', true);
-    if (ACTIVE_TIMER && ACTIVE_TIMER.running && ACTIVE_TIMER.running()) return;
-    // The finished block's handle goes with the bar. Its own unpub refuses to fire while a rest is
-    // counting (:1540) so that the bar never blinks out from under the countdown — which means this
-    // is the one place left that gives the handle back, exactly as unpub would have.
-    ACTIVE_TIMER = null;
-    if (TBAR) TBAR.hidden = true;
-    document.body.classList.remove('has-tbar');
-    releaseWake();
-  }
-  // R606-s5 / L301 / L311 — THE REST BETWEEN BLOCKS, keyed off the block that just finished.
-  // L301 (Phil 2026-08-29): the gap is the FULL complex_switch_min cell, ADDED per boundary — the
-  // excess-over-trailing reading is DEAD and may never return. L311 (Phil 2026-08-30, "5 blocks = 4
-  // transitions"): EVERY rendered block takes one, warm-up blocks included. The LAST block takes
-  // none — there is no next complex to rest before, and with the chain gone there is nothing to
-  // announce either.
-  function gapAfter(key) {
-    if (!SESSION || BLOCKS.sid !== (SESSION.session_id || SESSION.date)) return;
-    var i = BLOCKS.keys.indexOf(key);
-    if (i < 0 || i >= BLOCKS.keys.length - 1) return;             // outside this session, or the last block
-    var gap = (BLOCKS.switchS || 0);
-    if (gap > 0) gapRun(gap);
+  function chainAdvance(key) {
+    if (!CHAIN.on) return;
+    if (!SESSION || CHAIN.sid !== (SESSION.session_id || SESSION.date)) return;
+    var i = -1;
+    for (var x = 0; x < CHAIN.list.length; x++) if (CHAIN.list[x].key === key) { i = x; break; }
+    if (i < 0) return;                                            // a timer outside the chain's list
+    var next = CHAIN.list[i + 1];
+    if (!next) { chainStop(); timerAlert('Workout done', 'all complexes run', '', true); return; }
+    // L301 (Phil 2026-08-29): the transition is the FULL complex_switch_min cell, ADDED per
+    // boundary — the excess-over-trailing reading is DEAD (the server's own reversing-line note
+    // names the old expression here as the thing that must never return). L311 (Phil 2026-08-30,
+    // "5 blocks = 4 transitions"): every rendered block takes one, warm-up blocks included — the
+    // isComp gate was the same dead 08-28 reading. Phil's 08-31 session convicted all three faces
+    // live: WUp1→Comp1 nothing, Comp1→Comp2 15s (150−135 excess), Comp2→Comp3 nothing (150−150).
+    var gap = (CHAIN.switchS || 0);
+
+    if (gap > 0) chainTransition(gap, next); else next.start();
   }
   function makeTimer(node, pauseBtn, intervals, label, roundsOf, key) {
     var seq = (intervals && intervals.length) ? intervals.slice() : [120];
@@ -1876,11 +1872,9 @@
     function unpub() {
       if (ACTIVE_TIMER !== api) return;
       if (st.running) return;              // never blank the bar out from under a live countdown
-      if (typeof BLOCKS === 'object' && BLOCKS.t) return;   // R850: a counting gap owns the bar it repaints
       ACTIVE_TIMER = null;
       if (TBAR) TBAR.hidden = true;
       document.body.classList.remove('has-tbar');
-      if (typeof releaseWake === 'function') releaseWake();   // D3/R1590: nothing counts — give the screen back
     }
     function tick() {
       var left = Math.max(0, Math.round((st.end - Date.now()) / 1000));
@@ -1892,7 +1886,7 @@
           node.textContent = 'complex done'; pauseBtn.hidden = true;
           pub('complex done'); laterUnpub(8000);          // hold the last cue, then give the space back
           beep(); timerAlert('Complex done', 'move on', '', true);   // sticky — the last cue must not be missed
-          if (typeof gapAfter === 'function') gapAfter(key);   // R606-s5: the rest before the next block
+          if (typeof chainAdvance === 'function') chainAdvance(key);   // R606: the chain rolls on
           return;
         }
         idx += 1;
@@ -1913,7 +1907,7 @@
         clearTimeout(st.t); st.running = false; st.t = null;
         node.textContent = 'complex done'; pauseBtn.hidden = true;
         pub('complex done'); laterUnpub(4000);
-        if (typeof gapAfter === 'function') gapAfter(key);   // R606-s5: a skipped-out complex still takes its boundary rest
+        if (typeof chainAdvance === 'function') chainAdvance(key);   // R606: a skipped-out complex still chains
         return;
       }
       idx += 1;
@@ -1989,16 +1983,15 @@
         // one timer at a time — this is what lets the pinned bar be unambiguous
         if (ACTIVE_TIMER && ACTIVE_TIMER !== api) ACTIVE_TIMER.stop();
         cancelUnpub();                     // a restart cancels any pending "give the space back"
-        // A manual start supersedes a pending between-complex rest: an athlete who taps Start
-        // Complex has decided the rest is over, and a gap left counting behind a running timer would
-        // fire its cue into the middle of her first set.
-        if (typeof gapCancel === 'function') gapCancel();
-        // D3/R1590: the wake lock now hangs on the LIVE TIMER (every call site was gated on CHAIN.on),
-        // and this start is also the dynamic freeze's first mark (REFUSALS.md row 11), re-homed off
-        // the deleted Begin Workout tap. Both are typeof-guarded because makeTimer is extracted and
-        // driven standalone by qa/harness/complex-timer.mjs.
-        if (typeof requestWake === 'function') requestWake();
+        // R606: a manual start supersedes any pending between-complex transition — the chain then
+        // continues from THIS slot (advance keys off whichever timer finishes), never broken.
+        if (typeof chainCancelTransition === 'function') chainCancelTransition();
+        if (typeof CHAIN === 'object' && CHAIN.on) requestWake();
         ACTIVE_TIMER = api; TIMER_SID = SESSION && (SESSION.session_id || SESSION.date);
+        // READER FIRST (Phil 2026-10-22, item 2 / A39 no / D28): the Begin Workout button is back exactly as it stood
+        // before A22, and the freeze's first mark KEEPS its second source — a kid who skips Begin and taps Start Complex
+        // still marks the dynamic freeze (REFUSALS row 11). reportError dedupes per message, so Begin and the first start
+        // are at most two rows and never a storm. Reversing line: delete this call and markBegin.
         if (typeof markBegin === 'function') markBegin(TIMER_SID);
         primeAudio(); st.running = true; st.end = Date.now() + interval * 1000; pauseBtn.hidden = false; tick();
       }
@@ -4393,17 +4386,42 @@
     var back = el('button', 'back', '← Calendar'); back.type = 'button';
     back.addEventListener('click', function () { loadHome(); });
     app.appendChild(back);
-    // D3/R1590: the blocks of ONE session, in render order. That list is all the between-complex
-    // rest needs to know — which block is last (the last takes no rest) and the switch cell. It is
-    // rebuilt every render; opening a different session cancels a rest that belongs to the session
-    // you left (the R589 adoption still keeps a live timer across a post-log refresh).
-    // THE "Begin Workout" BUTTON STOOD HERE and is deleted on Phil's A22 B — with it go R685's
-    // running strip and persisted chain, and the whole-session auto-advance. The freeze's first mark
-    // and the wake lock, the two things that had no other door, are re-homed at :1402 and :1610.
-    if (BLOCKS.sid && BLOCKS.sid !== (s.session_id || s.date)) gapCancel();
-    BLOCKS.sid = s.session_id || s.date;
-    BLOCKS.keys = [];
-    BLOCKS.switchS = Number(s.switch_s || 0);   // older cached payloads: 0 = no between-complex rest
+    // R606 slices 2-3: the chain belongs to ONE session; opening a different one ends it. The slot
+    // list is rebuilt every render (fresh start closures over fresh cards); on/sid survive, so a
+    // post-log refresh never kills a running chain (the R589 adoption keeps the live timer too).
+    if (CHAIN.on && CHAIN.sid !== (s.session_id || s.date)) chainStop();
+    CHAIN.list = [];
+    CHAIN.switchS = Number(s.switch_s || 0);   // older cached payloads: 0 = advance on the trailing rest
+    // R685: a reload killed the chain silently — re-adopt a remembered running chain for THIS
+    // session (bounded 3h; the athlete restarts the current complex, advances chain from there).
+    if (!CHAIN.on && chainRecall(s.session_id || s.date)) {
+      CHAIN.on = true; CHAIN.sid = s.session_id || s.date; requestWake();
+    }
+    var beginWo = el('button', 'begin-wo', 'Begin Workout'); beginWo.type = 'button';
+    // R685 tell (staged): an armed chain used to render as NOTHING (the button just hid), so
+    // "running" and "never started" looked identical — the exact ambiguity behind Phil's
+    // trailing-rest-only report. The button now becomes a quiet running strip instead of
+    // vanishing; when the chain dies (expiry, other session), the tappable button returns.
+    function chainTell() {
+      if (CHAIN.on && CHAIN.sid === (s.session_id || s.date)) {
+        beginWo.textContent = 'Workout running'; beginWo.classList.add('chain-on'); beginWo.disabled = true;
+      } else {
+        beginWo.textContent = 'Begin Workout'; beginWo.classList.remove('chain-on'); beginWo.disabled = false;
+      }
+    }
+    beginWo.addEventListener('click', function () {
+      if (!CHAIN.list.length) return;
+      CHAIN.on = true; CHAIN.sid = s.session_id || s.date; requestWake(); chainRemember();
+      // RESET 10-13 (REFUSALS.md row 11): the Begin tap is the dynamic freeze's first mark — one fire-and-forget event_begin row, never an error
+      try { reportError('event_begin', 'Begin Workout ' + (s.session_id || s.date), 'begin-wo', '', false); } catch (eBegin) {}
+      // start at the first slot with unlogged work, so a resumed workout begins where the athlete is
+      var target = null;
+      for (var ci = 0; ci < CHAIN.list.length; ci++) if (!CHAIN.list[ci].doneAll()) { target = CHAIN.list[ci]; break; }
+      (target || CHAIN.list[0]).start();
+      chainTell();
+    });
+    chainTell();
+    app.appendChild(beginWo);
     // Moving a workout lives on the CALENDAR (S16), not here. Phil: "We don't need to move to
     // another day on the workout that's shown. I would remove it." You decide what to shuffle while
     // looking at the week, not while standing in the gym with the session open.
@@ -4471,10 +4489,17 @@
       slotSum.appendChild(sumBegin);
       slotSum.addEventListener('click', function () { card.classList.toggle('open'); });
       card.appendChild(slotSum);
-      // D3/R1590: this block's seat in the session's ORDER — the key, and nothing else. The chain
-      // needed a start closure and a doneAll() here to run the session for the athlete; both are
-      // deleted with it, and what remains answers only "is there a next block to rest before?".
-      BLOCKS.keys.push(slotKey);
+      // R606: this slot's seat in the workout chain — start through the startBtn path (one timer
+      // authority), trailing = its final set's own rest (already elapsed when the chain advances,
+      // so the transition adds only the excess over it).
+      CHAIN.list.push({
+        key: slotKey, isComp: isComp, trailing: Number(ivs[ivs.length - 1] || 0),
+        start: function () { card.classList.add('open'); if (!startBtn.hidden) startBtn.click(); },
+        doneAll: function () {
+          var rows = card.querySelectorAll('.ex-row');
+          return rows.length > 0 && card.querySelectorAll('.ex-row:not(.done)').length === 0;
+        }
+      });
 
       var body = el('div', 'sets');
       var aSide = slot.exercises[0];
@@ -5083,12 +5108,37 @@
       // BP_PULL_DEADLINE_MS is j76's seam for the pre-fix client (0 = no deadline), nothing else.
       var PULL_BUDGET_MS = 12000;
       try { if (window.BP_PULL_DEADLINE_MS != null) PULL_BUDGET_MS = Number(window.BP_PULL_DEADLINE_MS); } catch (ePB) {}
+      // R1695 — A PRESS WE NEVER GOT TO THE ENGINE WITH IS NOT A ROUND BEING BUILT (K4-FELT item (6),
+      // found 2026-10-21). R1551 chose its 'timeout' class DELIBERATELY over 'offline' and 'server'
+      // because "the network may be perfect — we never heard one", and the three classes it separated
+      // at the instrument were collapsed again at this one call site: the `else` below is the line
+      // written for a server that ANSWERED and had nothing to unlock yet, and it also caught the two
+      // answers that mean we never reached a server at all — with `go.disabled` still true from the
+      // handler's first line. A kid in a dead spot therefore read that his round was being built when
+      // nothing was, and F6's press — his ONLY way back into a mid-round early start — was dead until
+      // he reloaded, which nothing on screen told him to do. The `.catch` one line down is the only
+      // branch that re-enabled the button on a non-timeout failure and it cannot fire for either
+      // class: fetchJson RETURNS an object on every failure path it has, retries included, so the
+      // only throw that reaches that catch is one from this very then-body (a refused
+      // location.reload), which is what it now says it is for.
+      // The two new lines reuse words already on the phone — MOVE_ERR.offline and SERVER_HICCUP's
+      // sentence — so nothing a kid has to learn is invented here, and the ANSWERED press keeps every
+      // pixel it had (j76 arm A12). HELD OFF EVERY PHONE until Phil answers A46: a kid screen ships on
+      // his yes and a 390px shot, never on ours (CLAUDE.md APPROVALS, REFUSALS row 27).
+      // A46 ANSWERED `pass` (Phil, 2026-10-22 13:18Z, read by the reader the same morning): the press tells the truth about
+      // a phone that never reached us. Ships on the 20261022-beginworkout bundle beside the Begin Workout restore.
+      var R1695_PRESS_REACHED_ON = true;
       go.addEventListener('click', function () {
         go.disabled = true; go.textContent = 'Unlocking your next round…';
         fetchJson(cfg.WEBAPP_URL + '?action=pullforward&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token), null, PULL_BUDGET_MS)
           .then(function (r) {
             if (r && (r.minted || r.unlocked)) { location.reload(); }
             else if (r && r.timeout) { go.disabled = false; go.textContent = 'Next round is being built — tap to check again'; }
+            else if (R1695_PRESS_REACHED_ON && r && (r.error === 'offline' || r.error === 'server')) {
+              go.disabled = false;
+              go.textContent = (r.error === 'offline') ? 'No connection — reconnect and tap again'
+                                                       : 'The server hiccuped — tap again';
+            }
             else { go.textContent = 'Next round is being built — check back soon 💪'; }
           })
           .catch(function () { go.disabled = false; go.textContent = 'Start next round'; });
@@ -6667,13 +6717,13 @@
             }
           }
         }
-        else if (typeof BLOCKS === 'object') {
-          // Phil's 2026-08-29 session: when the athlete is already logging over a cached paint, the
-          // fresh render is lawfully skipped — but the SCALAR the between-complex rest reads must not
-          // stay stale. His pre-@626 cached payload had no switch_s, so the gap held 0 for the whole
-          // session and every boundary ran with no rest at all. Adopting the scalar is safe without a
-          // repaint: nothing rendered depends on it.
-          BLOCKS.switchS = Number(data.session.switch_s || 0);
+        else if (typeof CHAIN === 'object') {
+          // R685 (Phil's 2026-08-29 session): when the athlete is already logging over a cached
+          // paint, the fresh render is lawfully skipped — but the SCALARS the chain reads must not
+          // stay stale. His pre-@626 cached payload had no switch_s, so CHAIN.switchS held 0 for
+          // the whole session and every between-complex gap ran trailing-rest-only. Adopting the
+          // scalar is safe without a repaint: nothing rendered depends on it.
+          CHAIN.switchS = Number(data.session.switch_s || 0);
         }
       });
   }

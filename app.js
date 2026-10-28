@@ -104,10 +104,25 @@
       // K4-BGROT: a background read is handed an abortable signal HERE, at the one choke point that
       // already knows a call is a background one, so the hide handler above can end it before the page
       // freezes. Only when the caller brought no signal of its own (`fetchT`'s budget path owns its
-      // controller and is left alone) and only on a `bg=` call — every other request, and every POST,
-      // reaches `_rawFetch` with the very arguments it was given.
-      var _args = arguments, _ac = null;
-      if (bg && typeof AbortController === 'function' && !(init && init.signal)) {
+      // controller and is left alone).
+      // K4-BGROT-UNTAGGED (D68, 2026-10-28) — AND THE GATE IS THE METHOD, NOT THE TAG. The 10-27 ship
+      // registered `bg &&` alone, and 5 h 44 m after it reached Mason's phone his own open path wrote
+      // the same row twice over reads that carry no tag at all: `00:32:30.461Z session round trip 695.0s
+      // (failed) ms=694989 hidden=694989` and `00:32:31.121Z exercises ... ms=694886 hidden=694886`, over
+      // a server that answered the same question in 0.1-0.2 s eight times in that row's own `srvread`
+      // list. `bg=` WAS A PROXY FOR "nobody is waiting on this" AND THE PROXY WAS WRONG: only the
+      // calendar's prefetch sends one (:5022), so the open's own `session` and `exercises` reads were
+      // never registered and were invisible to the hide handler. What gates it now is the three guards
+      // that are real safety properties and not proxies: NEVER A POST (the method itself — REFUSALS
+      // row 1: a queued set is forgotten only on the server's own word), never a call that brought its
+      // own controller (`fetchT`'s budget path), and never a read A TAP HAS JOINED (the handler's own
+      // `_feltRead_` skip, R1637). AND THE WIDENING LAUNDERS NOTHING: the abort still runs
+      // `done('aborted')`, so a read the kid had ALREADY waited past the 8 s cell for writes its row with
+      // the wall he felt — the only row that stops being written is one whose whole length was hidden.
+      // Reversing line: put `bg &&` back in place of the `_meth === 'GET' &&` clause below.
+      var _args = arguments, _ac = null, _meth = 'GET';
+      try { _meth = String((init && init.method) || 'GET').toUpperCase(); } catch (eM0) {}
+      if (_meth === 'GET' && typeof AbortController === 'function' && !(init && init.signal)) {
         try {
           _ac = new AbortController();
           var _i2 = {}; if (init) { for (var _k in init) { if (Object.prototype.hasOwnProperty.call(init, _k)) _i2[_k] = init[_k]; } }
@@ -250,7 +265,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261027-bgrot';   // TUESDAY 10-27 — K4-BGROT (D68), AND THE STAMP IS THE WHOLE DELIVERY AGAIN: the bundle stops leaving a background read in flight across an iOS suspension. Mason's own phone wrote `session round trip 6800.3s (failed, ... hidden=6800344)` this morning over a session the server had answered in 0.7 s, because the calendar's prefetch is the one read on the open path carrying no bound at all — and the answer he had already paid for was discarded, so his next tap opened cold. The self-update handshake 3 lines down returns early when pwaVer === APP_BUILD, so WITHOUT THIS BUMP no installed phone ever refetches and the cure sits on the Pages edge and on nobody (the 2026-08-14 bite, verbatim). NO PIXEL MOVES: no copy, no tap target, nothing rendered — a `bg=` fetch is aborted at `visibilitychange -> hidden`, never a POST and never a read a tap has joined, and the warm is re-taken on wake. Reversing line: set this back to '20261025-openclock'.   // (was) SUNDAY 10-25 — K5-CLOCKUNWRITTEN, AND THE STAMP IS THE WHOLE DELIVERY: the bundle now writes the KID'S OWN CLOCK for every workout open (`workout_open`, a kind K4 does not count), and until today the phone wrote NO clock at all under 8,000 ms while K5's target is 3.0 s — so across the whole band [3.0, 8.0) the athlete's wall was never recorded and no later lane could recover it. The self-update handshake 3 lines down returns early when pwaVer === APP_BUILD, so WITHOUT THIS BUMP no installed phone ever refetches and the clock is on the Pages edge and on nobody — every open until the next ship stays unrecorded for good, which is the one loss this row cannot undo later. NO PIXEL MOVES but this string in the build-id line: the clock is written only while a telemetry row is being written, it rides R1245's hold so it never competes with the open it times, and it is the DAY'S HIGH-WATER per device and not a row per open. Reversing line: set this back to '20261022-beginworkout-b'.   // (was) THURSDAY 10-22, SECOND SHIP (-b): every read now says its build (`bld=` at bpTagDev) so `phonebuilds` can print the build each phone runs — the boot enrol alone is one-time and would never be heard from a phone enrolled before today. Same button, same A46 flip; the stamp moves because the handshake returns early when pwaVer === APP_BUILD. Reversing line: set this back to '20261022-beginworkout'.   // (was) THURSDAY 10-22 — THURSDAY 10-22 — THE BEGIN WORKOUT BUTTON IS BACK, ON PHIL'S WORD THREE TIMES OVER (A39 no 10-19: "restore the Begin Workout button exactly as it was before A22. D28 stands."; 10-21: "still not on the phone 10-21. Deploy today"; 10-22: "on the phone today"). The reader lost his reason on A39 (it ledgered `A39 -> no` and a session read `no` as leave-it; READER FIRST item 1 fixes that reader), so six days passed with D28 marked DONE and the button on no phone. This bundle is c820e219 reversed hunk for hunk — the button, R685's running strip, the chain and its auto-advance, the wake lock on the chain — except A26's back glyph and the stamp; plus markBegin on the first timer start (REFUSALS row 11 holds for a kid who never taps Begin) and `bld=` on the boot enrol so the engine can print the build each phone runs. THE STAMP IS THE DELIVERY: the self-update handshake 3 lines down returns early when pwaVer === APP_BUILD. Reversing line: set this back to '20261021-retryjoin' and git revert the commit.   // (was) WEDNESDAY 10-21, SECOND SHIP — J34A-CORRUPTRETRY: WEDNESDAY 10-21, SECOND SHIP — J34A-CORRUPTRETRY: `Try again` DID NOTHING FOR TWENTY SECONDS AND THIS STAMP IS WHAT PUTS THE CURE ON A PHONE. An athlete whose cached session is corrupt taps his workout, the render crashes, the retry card paints in milliseconds (R631 holds — never a dead screen), he taps Try again — and R1636's read-join handed his retry THE VERY READ THAT IS NOT ANSWERING, so the blank stayed blank. Measured on the live client at the tap: `joined:1, open:1`, rows=0 for the whole 45 s after. The control is in the same page and needed no second rig: ARM B's retry lands 25 s after its hung read, past READ_JOIN_MAX_MS (20 s), joins nothing and renders 20 rows. Dated, not guessed: the join landed on phones at a4518466 (2026-10-17 20:59, @20261017-r1636b), so this has been live for four days and no KPI could say so — journeys are in none of gate.sh's refusal arms and a blank workout through the RETRY writes no ErrorLog row. THE BUMP IS THE DELIVERY: the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD, so without a new stamp no installed phone ever refetches and the cure sits on the edge and on nobody. NO PIXEL MOVES — one `_writeEpochBump_('retry_tap')` on the retry handler; the card, its copy and its tap box are untouched. Reversing line: set this back to '20261021-norev'.   // WEDNESDAY 10-21 — A45 ANSWERED `no`, AND THE STAMP IS WHAT TAKES THE REFUSED BYTES OFF A PHONE. Phil answered A45 `no` ("leave it as the first picture and an athlete can keep training on a deleted workout"), so R1667's forty lines and the one flag declaration that gated them are DELETED from this file (named R1667_PURGED_BOARD_STOPS, written here WITHOUT its `var` form on purpose: row 27's FLAGLIT-PROSE clause makes a declaration quoted in a comment a refusal, and the guard caught this very line spelling one out) — REFUSALS row 27's `no` clause, which says a refusal is an end and not a hold. THE BUMP IS THE DELIVERY AND NOT A DECORATION: the bytes were byte-identical on the Pages edge (diffed live, 0 lines), the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD, so without a new stamp no installed phone ever refetches and a screen he refused stays on every athlete behind one boolean. NO PIXEL MOVES, and that is provable rather than asserted: every deleted line sat behind a flag that read false on BOTH sides of the diff, so the only reachable difference is the absence of an unreachable branch. Reversing line: 86a078cf holds the forty lines and the flag; set this back to '20261020-wedgehid'.   // TUESDAY 10-20 NIGHT, SECOND SHIP — K4-WEDGELOOP-HID. 20261020-wedgeloop (one hour earlier, this same lane) is ON THE EDGE and stamped into PWA_VER, so this bundle needs its own stamp or no installed phone refetches it. What it adds is one telemetry token: a declared wedge now says `hid=<the hidden ms the line above subtracted>` beside its `ms=`, because the wedge fix shipped at 20:32 is otherwise judged BY ABSENCE — and absence reads the same whether the fix worked, the kid did not train, or R1077 was broken. No pixel: `hid=` is written only while a telemetry row is being written, and it is inert to both readers on purpose (the engine lifts `hidden=`, not `hid=`). Reversing line: set this back to '20261020-wedgeloop'.   // TUESDAY 10-20 NIGHT — K4-WEDGELOOP, AND THE STAMP NAMES WHAT THIS BUNDLE ACTUALLY CARRIES. The 18:20 lane bumped this string to `20261020-wedgeclock` to make the wedge-clock field deliverable, but it never shipped (the freeze barred 17:30-19:00 and the window ended 18:30), and in the hours since, THIS FILE GAINED THE TWO K4-WEDGELOOP HALVES on top of it: the wedge is declared on VISIBLE elapsed time (:1407, :1412) and the stale abort deletes only the marks ITS OWN cycle wrote (:1431, :1512). Shipping those under a stamp that says `wedgeclock` would misname, on every phone and in every later forensic read, the build that stopped a kid's batch being sent a THIRD time. The handshake does not care which string this is — only that it differs from what the edge serves (20261020-hopleg2) — so the rename costs nothing and the stamp stays honest. Reversing line: set this back to '20261020-wedgeclock'.   // TUESDAY 10-20 EVENING — K4-WEDGECLOCK's CLIENT HALF (13f7aeb5, 18:02) EDITED THIS FILE AND CLOSED WITHOUT BUMPING, so drain_wedged's `ms=` hand-over sat committed under 20261020-hopleg2 — THE STAMP THE EDGE WAS ALREADY SERVING. The self-update handshake 3 lines down returns early when pwaVer === APP_BUILD, so an installed phone would never refetch the bundle and a ship under the old stamp would have reached nobody: the 2026-08-14 bite, verbatim, six hours after CLIENTSHIP-BLIND repaired the trap that catches it. clientship.sh FOUND it (SAME-STAMP TRAP fired live at 18:19 on this tree) — the detector built last night did its job on its first real recurrence. Nothing is shipped by this bump and NO PIXEL MOVES: the wedge-clock change is one telemetry field (`ms=` on a drain row) that moves a number Phil reads at 03:05 and nothing a kid sees. The bump is L179's own close — it makes the bytes DELIVERABLE, it does not deliver them.   // TUESDAY 10-20 — HOPLEG2-PRECONNECT, AND THE STAMP IS THE WHOLE REASON THIS FILE IS IN THE SHIP AT ALL: the change is two resource hints in index.html's head and NOTHING in this file but this string. An unbumped stamp means no installed phone ever refetches the bundle (the handshake below returns early when pwaVer === APP_BUILD) and a warm-recalled standalone PWA never navigates, so it would never see the new shell either — the 132 ms cut would be live on the edge and on no kid's phone, which is CLIENTSHIP-BLIND's own lesson. No pixel moves: the hints make no request, render nothing and move no tap target.   // MONDAY 10-19 EVENING — K4-WEDGECLOCK, AND THE STAMP IS THE WHOLE POINT OF SHIPPING IT: the one field below (drain_wedged hands over `ms=`) changes a number Phil reads at 03:05 and NOTHING a kid sees, and an unbumped stamp means no installed phone ever refetches the bundle (the self-update handshake returns early when pwaVer === APP_BUILD). A client fix on no phone proves nothing — CLIENTSHIP-BLIND, closed in this same tree 10-19.   // MONDAY 10-19 — R1667 (ORPHANSID-LOGGED), AND THE STAMP IS THE POINT: the client half above sat in this file all afternoon under the stamp the edge was ALREADY SERVING, so Phil's yes on A45 would have uploaded new bytes that no installed phone ever refetches (the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD — the 2026-08-14 bite, verbatim). clientship.sh's same-stamp trap existed to catch exactly this and was reading a PWA_VER string nothing prints (CLIENTSHIP-BLIND). Nothing is shipped by this bump and no pixel moves: R1667_PURGED_BOARD_STOPS is false, A45 is unanswered, and the bump is L179's own close — it makes his yes DELIVERABLE, it does not take it.   // SUNDAY 10-18 — R1650, THE MARK NAMES ITS CALLER (K5-MARKWALL's recorder half). K5 read GREEN 0.2 s on 2026-10-18 off a 187 ms `week` read OF OURS - a real athlete's token, no bg, no src, no dev key - replacing Mason's real 9.7 s open of the day before, on a day no kid opened a workout at all. Nothing could refuse it: R1581's three doors are words the CALLER sends, and a phone "sends what it always sent", so a curl of ours holding a kid's token was indistinguishable from the kid BY CONSTRUCTION. The per-caller guard had already failed twice. THE ONE CLIENT CUT: `bpTagDev` adds `dv=1` at fetchJson's one choke point for an UNDRIVEN browser only, so the engine's `phone` is AFFIRMATIVE - the device said so on that very request - and an undeclared read is `nosay` on the mark and on the error row alike. NOT A PIXEL: one query parameter on the read path, no copy, no tap target, no render, nothing served changed; `dv` is read only while a telemetry row is being written. AND NOTHING A KID WAITED FOR IS LAUNDERED: an undeclared request still WRITES its mark (an old bundle is still a kid's phone) and kpi.py refuses it only BELOW the target, so Mason's 9.7 s and his 6.1 s still count in full. Rig qa/harness/r1650-the-mark-names-its-caller.mjs 9/9, five mutants each convicted by its own arm (`wordphone` reproduces the live false green verbatim); r1581 13/13 with arm 10 re-aimed, r1580 8/8, r1591 35/35, r1629 10/10, r1636 13/13, r1637 12/12 beside it.   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it. AND THE CARD'S HALF IS SCOPED TO THE COLD OPEN (-r1637b, caught before signing): on a CACHED paint the board is already up, so holding the card for the session answer (~10.8 s) instead of its own status read (5.3-6.9 s) would push it past the first logged set, where R1078 SKIPS it - seconds of a coach's REGEN data for a trip nobody waits on. A cold open has nothing on screen to delay, and it is the way in that bought Mason's third trip. The warm path's own regen_status is named and NOT taken.
+  var APP_BUILD = '20261028-bguntagged';   // WEDNESDAY 10-28 — K4-BGROT-UNTAGGED (D68), AND THE STAMP IS THE DELIVERY ONE MORE TIME: yesterday's bundle stopped a `bg=` read rotting in a pocket, and 5 h 44 m after Mason took it his OWN OPEN PATH wrote the same row twice over reads that carry no tag at all — `00:32:30.461Z session round trip 695.0s (failed) ms=694989 hidden=694989` and `00:32:31.121Z exercises ... ms=694886 hidden=694886`, 1389.9 s of one day's wall over a server that answered those same questions in 0.1-0.2 s eight times in that row's own `srvread` list. `bg=` was a PROXY for "nobody is waiting on this" and only the calendar's prefetch ever sends it, so the gate is the METHOD now: every GET through the wrapper is abortable at `visibilitychange -> hidden`, NEVER A POST (REFUSALS row 1), never a call that brought its own controller, never a read a TAP HAS JOINED. AND THE RETRY READS THE PAGE: `fetchJson`'s backoff waits its 1200 ms AND for a page someone is LOOKING AT, because the retry the hide abort triggers would otherwise re-enter on a freezing page and rot exactly as before — which is why yesterday's ship had to hand the prefetch `0` tries by hand, a hand-fix that cannot be repeated on `session` and `exercises` because their retry is what answers the kid when the network blips. NOTHING IS LAUNDERED: the abort still runs `done('aborted')`, so a wait he had ALREADY felt past the 8 s cell keeps its row with his own wall (rig arm 5); what stops being written is a row whose whole length was hidden. NO PIXEL MOVES: no copy, no tap target, nothing rendered. The self-update handshake 3 lines down returns early when pwaVer === APP_BUILD, so WITHOUT THIS BUMP no installed phone ever refetches and the cure sits on the Pages edge and on nobody (the 2026-08-14 bite, verbatim). Reversing line: set this back to '20261027-bgrot'.   // (was) TUESDAY 10-27 — K4-BGROT (D68), AND THE STAMP IS THE WHOLE DELIVERY AGAIN: the bundle stops leaving a background read in flight across an iOS suspension. Mason's own phone wrote `session round trip 6800.3s (failed, ... hidden=6800344)` this morning over a session the server had answered in 0.7 s, because the calendar's prefetch is the one read on the open path carrying no bound at all — and the answer he had already paid for was discarded, so his next tap opened cold. The self-update handshake 3 lines down returns early when pwaVer === APP_BUILD, so WITHOUT THIS BUMP no installed phone ever refetches and the cure sits on the Pages edge and on nobody (the 2026-08-14 bite, verbatim). NO PIXEL MOVES: no copy, no tap target, nothing rendered — a `bg=` fetch is aborted at `visibilitychange -> hidden`, never a POST and never a read a tap has joined, and the warm is re-taken on wake. Reversing line: set this back to '20261025-openclock'.   // (was) SUNDAY 10-25 — K5-CLOCKUNWRITTEN, AND THE STAMP IS THE WHOLE DELIVERY: the bundle now writes the KID'S OWN CLOCK for every workout open (`workout_open`, a kind K4 does not count), and until today the phone wrote NO clock at all under 8,000 ms while K5's target is 3.0 s — so across the whole band [3.0, 8.0) the athlete's wall was never recorded and no later lane could recover it. The self-update handshake 3 lines down returns early when pwaVer === APP_BUILD, so WITHOUT THIS BUMP no installed phone ever refetches and the clock is on the Pages edge and on nobody — every open until the next ship stays unrecorded for good, which is the one loss this row cannot undo later. NO PIXEL MOVES but this string in the build-id line: the clock is written only while a telemetry row is being written, it rides R1245's hold so it never competes with the open it times, and it is the DAY'S HIGH-WATER per device and not a row per open. Reversing line: set this back to '20261022-beginworkout-b'.   // (was) THURSDAY 10-22, SECOND SHIP (-b): every read now says its build (`bld=` at bpTagDev) so `phonebuilds` can print the build each phone runs — the boot enrol alone is one-time and would never be heard from a phone enrolled before today. Same button, same A46 flip; the stamp moves because the handshake returns early when pwaVer === APP_BUILD. Reversing line: set this back to '20261022-beginworkout'.   // (was) THURSDAY 10-22 — THURSDAY 10-22 — THE BEGIN WORKOUT BUTTON IS BACK, ON PHIL'S WORD THREE TIMES OVER (A39 no 10-19: "restore the Begin Workout button exactly as it was before A22. D28 stands."; 10-21: "still not on the phone 10-21. Deploy today"; 10-22: "on the phone today"). The reader lost his reason on A39 (it ledgered `A39 -> no` and a session read `no` as leave-it; READER FIRST item 1 fixes that reader), so six days passed with D28 marked DONE and the button on no phone. This bundle is c820e219 reversed hunk for hunk — the button, R685's running strip, the chain and its auto-advance, the wake lock on the chain — except A26's back glyph and the stamp; plus markBegin on the first timer start (REFUSALS row 11 holds for a kid who never taps Begin) and `bld=` on the boot enrol so the engine can print the build each phone runs. THE STAMP IS THE DELIVERY: the self-update handshake 3 lines down returns early when pwaVer === APP_BUILD. Reversing line: set this back to '20261021-retryjoin' and git revert the commit.   // (was) WEDNESDAY 10-21, SECOND SHIP — J34A-CORRUPTRETRY: WEDNESDAY 10-21, SECOND SHIP — J34A-CORRUPTRETRY: `Try again` DID NOTHING FOR TWENTY SECONDS AND THIS STAMP IS WHAT PUTS THE CURE ON A PHONE. An athlete whose cached session is corrupt taps his workout, the render crashes, the retry card paints in milliseconds (R631 holds — never a dead screen), he taps Try again — and R1636's read-join handed his retry THE VERY READ THAT IS NOT ANSWERING, so the blank stayed blank. Measured on the live client at the tap: `joined:1, open:1`, rows=0 for the whole 45 s after. The control is in the same page and needed no second rig: ARM B's retry lands 25 s after its hung read, past READ_JOIN_MAX_MS (20 s), joins nothing and renders 20 rows. Dated, not guessed: the join landed on phones at a4518466 (2026-10-17 20:59, @20261017-r1636b), so this has been live for four days and no KPI could say so — journeys are in none of gate.sh's refusal arms and a blank workout through the RETRY writes no ErrorLog row. THE BUMP IS THE DELIVERY: the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD, so without a new stamp no installed phone ever refetches and the cure sits on the edge and on nobody. NO PIXEL MOVES — one `_writeEpochBump_('retry_tap')` on the retry handler; the card, its copy and its tap box are untouched. Reversing line: set this back to '20261021-norev'.   // WEDNESDAY 10-21 — A45 ANSWERED `no`, AND THE STAMP IS WHAT TAKES THE REFUSED BYTES OFF A PHONE. Phil answered A45 `no` ("leave it as the first picture and an athlete can keep training on a deleted workout"), so R1667's forty lines and the one flag declaration that gated them are DELETED from this file (named R1667_PURGED_BOARD_STOPS, written here WITHOUT its `var` form on purpose: row 27's FLAGLIT-PROSE clause makes a declaration quoted in a comment a refusal, and the guard caught this very line spelling one out) — REFUSALS row 27's `no` clause, which says a refusal is an end and not a hold. THE BUMP IS THE DELIVERY AND NOT A DECORATION: the bytes were byte-identical on the Pages edge (diffed live, 0 lines), the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD, so without a new stamp no installed phone ever refetches and a screen he refused stays on every athlete behind one boolean. NO PIXEL MOVES, and that is provable rather than asserted: every deleted line sat behind a flag that read false on BOTH sides of the diff, so the only reachable difference is the absence of an unreachable branch. Reversing line: 86a078cf holds the forty lines and the flag; set this back to '20261020-wedgehid'.   // TUESDAY 10-20 NIGHT, SECOND SHIP — K4-WEDGELOOP-HID. 20261020-wedgeloop (one hour earlier, this same lane) is ON THE EDGE and stamped into PWA_VER, so this bundle needs its own stamp or no installed phone refetches it. What it adds is one telemetry token: a declared wedge now says `hid=<the hidden ms the line above subtracted>` beside its `ms=`, because the wedge fix shipped at 20:32 is otherwise judged BY ABSENCE — and absence reads the same whether the fix worked, the kid did not train, or R1077 was broken. No pixel: `hid=` is written only while a telemetry row is being written, and it is inert to both readers on purpose (the engine lifts `hidden=`, not `hid=`). Reversing line: set this back to '20261020-wedgeloop'.   // TUESDAY 10-20 NIGHT — K4-WEDGELOOP, AND THE STAMP NAMES WHAT THIS BUNDLE ACTUALLY CARRIES. The 18:20 lane bumped this string to `20261020-wedgeclock` to make the wedge-clock field deliverable, but it never shipped (the freeze barred 17:30-19:00 and the window ended 18:30), and in the hours since, THIS FILE GAINED THE TWO K4-WEDGELOOP HALVES on top of it: the wedge is declared on VISIBLE elapsed time (:1407, :1412) and the stale abort deletes only the marks ITS OWN cycle wrote (:1431, :1512). Shipping those under a stamp that says `wedgeclock` would misname, on every phone and in every later forensic read, the build that stopped a kid's batch being sent a THIRD time. The handshake does not care which string this is — only that it differs from what the edge serves (20261020-hopleg2) — so the rename costs nothing and the stamp stays honest. Reversing line: set this back to '20261020-wedgeclock'.   // TUESDAY 10-20 EVENING — K4-WEDGECLOCK's CLIENT HALF (13f7aeb5, 18:02) EDITED THIS FILE AND CLOSED WITHOUT BUMPING, so drain_wedged's `ms=` hand-over sat committed under 20261020-hopleg2 — THE STAMP THE EDGE WAS ALREADY SERVING. The self-update handshake 3 lines down returns early when pwaVer === APP_BUILD, so an installed phone would never refetch the bundle and a ship under the old stamp would have reached nobody: the 2026-08-14 bite, verbatim, six hours after CLIENTSHIP-BLIND repaired the trap that catches it. clientship.sh FOUND it (SAME-STAMP TRAP fired live at 18:19 on this tree) — the detector built last night did its job on its first real recurrence. Nothing is shipped by this bump and NO PIXEL MOVES: the wedge-clock change is one telemetry field (`ms=` on a drain row) that moves a number Phil reads at 03:05 and nothing a kid sees. The bump is L179's own close — it makes the bytes DELIVERABLE, it does not deliver them.   // TUESDAY 10-20 — HOPLEG2-PRECONNECT, AND THE STAMP IS THE WHOLE REASON THIS FILE IS IN THE SHIP AT ALL: the change is two resource hints in index.html's head and NOTHING in this file but this string. An unbumped stamp means no installed phone ever refetches the bundle (the handshake below returns early when pwaVer === APP_BUILD) and a warm-recalled standalone PWA never navigates, so it would never see the new shell either — the 132 ms cut would be live on the edge and on no kid's phone, which is CLIENTSHIP-BLIND's own lesson. No pixel moves: the hints make no request, render nothing and move no tap target.   // MONDAY 10-19 EVENING — K4-WEDGECLOCK, AND THE STAMP IS THE WHOLE POINT OF SHIPPING IT: the one field below (drain_wedged hands over `ms=`) changes a number Phil reads at 03:05 and NOTHING a kid sees, and an unbumped stamp means no installed phone ever refetches the bundle (the self-update handshake returns early when pwaVer === APP_BUILD). A client fix on no phone proves nothing — CLIENTSHIP-BLIND, closed in this same tree 10-19.   // MONDAY 10-19 — R1667 (ORPHANSID-LOGGED), AND THE STAMP IS THE POINT: the client half above sat in this file all afternoon under the stamp the edge was ALREADY SERVING, so Phil's yes on A45 would have uploaded new bytes that no installed phone ever refetches (the self-update handshake 8 lines down returns early when pwaVer === APP_BUILD — the 2026-08-14 bite, verbatim). clientship.sh's same-stamp trap existed to catch exactly this and was reading a PWA_VER string nothing prints (CLIENTSHIP-BLIND). Nothing is shipped by this bump and no pixel moves: R1667_PURGED_BOARD_STOPS is false, A45 is unanswered, and the bump is L179's own close — it makes his yes DELIVERABLE, it does not take it.   // SUNDAY 10-18 — R1650, THE MARK NAMES ITS CALLER (K5-MARKWALL's recorder half). K5 read GREEN 0.2 s on 2026-10-18 off a 187 ms `week` read OF OURS - a real athlete's token, no bg, no src, no dev key - replacing Mason's real 9.7 s open of the day before, on a day no kid opened a workout at all. Nothing could refuse it: R1581's three doors are words the CALLER sends, and a phone "sends what it always sent", so a curl of ours holding a kid's token was indistinguishable from the kid BY CONSTRUCTION. The per-caller guard had already failed twice. THE ONE CLIENT CUT: `bpTagDev` adds `dv=1` at fetchJson's one choke point for an UNDRIVEN browser only, so the engine's `phone` is AFFIRMATIVE - the device said so on that very request - and an undeclared read is `nosay` on the mark and on the error row alike. NOT A PIXEL: one query parameter on the read path, no copy, no tap target, no render, nothing served changed; `dv` is read only while a telemetry row is being written. AND NOTHING A KID WAITED FOR IS LAUNDERED: an undeclared request still WRITES its mark (an old bundle is still a kid's phone) and kpi.py refuses it only BELOW the target, so Mason's 9.7 s and his 6.1 s still count in full. Rig qa/harness/r1650-the-mark-names-its-caller.mjs 9/9, five mutants each convicted by its own arm (`wordphone` reproduces the live false green verbatim); r1581 13/13 with arm 10 re-aimed, r1580 8/8, r1591 35/35, r1629 10/10, r1636 13/13, r1637 12/12 beside it.   // SATURDAY 10-17 — R1637, ONE QUESTION ONE TRIP ON THE OPEN PATH. Mason's worst open today (9.7 s felt, K5's red) was ONE question paid for THREE times at 17:02:41-43Z: the calendar's prefetch of that same workout (10.8 s, `bg=prefetch`), his tap's own duplicate still pending beside it, and the card's `regen_status` on the cache-paint way in — and the first two serialise at the same /exec door, which is what makes the last one slow. THREE CUTS: the prefetch now asks R1612's ride-along question too, so it IS the same question; the `bg=` tag is telemetry and not the question, so the join key ignores it and a tap JOINS the read already on the wire; and `regenCardMaybe` opens no status read while the answer carrying it is in flight. AND THE KID'S WAIT SURVIVES THE JOIN (the hazard R1636 named): an untagged join re-grades the trip it joined — the tag is dropped and the row is timed FROM THE TAP — because removing a request may never remove the evidence that a kid waited for it. NOT A PIXEL: no copy, no tap target, no render — the same screens, fewer trips. Rig qa/harness/r1637-one-question-one-trip.mjs 12/12, four mutants each convicted by its own arm; r1636 13/13 and the D1 census 11/11 beside it. AND THE CARD'S HALF IS SCOPED TO THE COLD OPEN (-r1637b, caught before signing): on a CACHED paint the board is already up, so holding the card for the session answer (~10.8 s) instead of its own status read (5.3-6.9 s) would push it past the first logged set, where R1078 SKIPS it - seconds of a coach's REGEN data for a trip nobody waits on. A cold open has nothing on screen to delay, and it is the way in that bought Mason's third trip. The warm path's own regen_status is named and NOT taken.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -547,7 +562,7 @@
   // spelled out in this prose on purpose: FLAGLIT-PROSE, 2026-10-16 — the seam that drives a flag matches
   // a DECLARATION by string, and a declaration quoted in a comment is a silent green. Arm 1 refuses it.)
   var READ_JOIN_ON = true;
-  var READ_JOINABLE = { session: 1, week: 1, plan: 1, profile: 1, exercises: 1, regen_status: 1, history: 1, summary: 1, exscheme: 1 };
+  var READ_JOINABLE = { session: 1, week: 1, plan: 1, profile: 1, exercises: 1, regen_status: 1, history: 1, summary: 1, exscheme: 1, regen_module: 1 };   // R1707: regen_module is a READ — left off this list `fetchJson` calls `_writeEpochBump_` on it and closes every open read to joiners for a read that writes nothing
   // AND A HUNG READ MAY NEVER WEDGE THE READS AFTER IT (R1077's defect class, the one this law could
   // have re-created wholesale). `fetchJson` without a budget rides a bare `fetch`, which has no timeout
   // of its own — Grace's 2026-09-15 16:36 fetch never settled and wedged her drain for the rest of the
@@ -618,6 +633,35 @@
   //     caller that asked for a budget can ever see it.
   // Reversing line: the two added parameters, the `endBy` block, the `fetchT` branch, the retry
   // condition's second clause, and the timeout class.
+  // K4-BGROT-UNTAGGED's SECOND HALF, AND WITHOUT IT THE FIRST ONE BUYS A KID NOTHING: `fetchJson` retries
+  // twice by default, 1200 ms apart, so the read the hide handler just aborted RE-ENTERS ON A PAGE THAT IS
+  // ALREADY FREEZING and rots exactly as it did before — which is why the 10-27 ship had to hand the
+  // prefetch `0` tries by hand (:5022). That hand-fix cannot be repeated on the open path: `session` and
+  // `exercises` are a kid's own reads and their retry is what answers him when the network blips.
+  // SO THE BACKOFF ITSELF LEARNS THE PAGE: a retry waits its 1200 ms AND then waits to be LOOKED AT,
+  // because nobody is waiting on an answer that lands on a frozen page. A visible page behaves exactly as
+  // it did before (the visibility read is false and the promise is already resolved); a hidden one re-takes
+  // the read on wake, which is the same answer the aborted call was going to give and is the cache warm the
+  // kid's next tap reads. The listener is removed on the first wake, so a long session grows no handlers.
+  // IT LIVES HERE, BESIDE THE RETRY IT GOVERNS AND INSIDE `fetchJson`'s OWN SPAN, because the rigs that
+  // judge this function lift that span by text (r1636's anchors are `var READ_JOIN_ON` -> `var
+  // SERVER_HICCUP`) — declared one slice up, the retry could be lifted without its backoff and the rig
+  // threw instead of judging (caught by re-running r1636 before this shipped).
+  // Reversing line: use `new Promise(function (res) { setTimeout(res, 1200); })` at the retry below.
+  function _backoff_(ms) {
+    return new Promise(function (res) { setTimeout(res, ms); }).then(function () {
+      try { if (typeof document === 'undefined' || document.visibilityState !== 'hidden') return null; } catch (eK1) { return null; }
+      return new Promise(function (res2) {
+        var seen = 0, fn = function () {
+          try { if (document.visibilityState === 'hidden') return; } catch (eK2) {}
+          if (seen) return; seen = 1;
+          try { document.removeEventListener('visibilitychange', fn); } catch (eK3) {}
+          res2(null);
+        };
+        try { document.addEventListener('visibilitychange', fn); } catch (eK4) { res2(null); }
+      });
+    });
+  }
   function fetchJson(url, tries, budgetMs, _endBy, _nojoin) {
     url = bpTagSrc(url);   // R1581: a driven browser says so on every read; a phone sends what it always sent
     url = bpTagDev(url);   // R1650: and an UNDRIVEN one says it is a device, so `phone` on a mark is affirmative
@@ -652,7 +696,7 @@
       });
     }).catch(function (err) {
       _ifEnd();   // R1331: release whether the fetch rejected or the JSON did — a counter that only counts up is worse than none
-      if (tries > 0 && !(endBy && endBy - Date.now() <= 1200)) return new Promise(function (res) { setTimeout(res, 1200); }).then(function () { return fetchJson(url, tries - 1, 0, endBy, 1); });
+      if (tries > 0 && !(endBy && endBy - Date.now() <= 1200)) return _backoff_(1200).then(function () { return fetchJson(url, tries - 1, 0, endBy, 1); });   // K4-BGROT-UNTAGGED: 1200 ms AND a page someone is looking at — a retry onto a frozen page is the rot itself
       if (spent()) return { ok: false, error: 'timeout', timeout: true };
       return { ok: false, error: (err && err._server) ? 'server' : 'offline' };
     });
@@ -979,6 +1023,22 @@
         tisChips.push(b); tis.appendChild(b);
       });
       q3.appendChild(tis);
+      // R1709 (F1 item F, Phil 2026-09-20: "Module done credits the card's tissue minutes") — THE CHIP IS
+      // PRE-SELECTED, NEVER THE ANSWER. The server computes the credit from HIS module minutes on the day
+      // this question asks about (`tissue_credit`, engine-side); the athlete may tap a different number and
+      // his tap wins, which is what every other cell of this row already is. The line under it says where
+      // the number came from, because a chip that lights up on its own and explains nothing is a number a
+      // kid did not give. NOTHING HERE FIRES WITHOUT A MODULE TAP: no credit exists until the fifth icon is
+      // reachable (REGEN_MODULE_ON / A48), so on today's build this block cannot change one pixel.
+      var cr = st && st.tissue_credit;
+      if (cr && cr.sessions > 0) {
+        var want = tisChips[Number(cr.sessions)];   // the chips are 0 · 1 · 2; a cap he raises past them credits nothing rather than guessing a chip
+        if (want) {
+          one(tis, tisChips, want); want.classList.add('on'); taps.tissue_sessions = Number(cr.sessions);
+          q3.appendChild(el('div', 'regen-qt regen-credit', 'Counted from your REGEN module' + (cr.slots ? ' — ' + cr.slots : '') + '. Change it if that is not right.'));
+          arm();
+        }
+      }
     }
     if (q9.reset) {   // stage 3: reset — Yes / No
       var q4 = q('RESET', 'Yesterday — 10+ min reset (breathwork, meditation, sauna/hot tub, cold plunge, visualization):');   // #5
@@ -2733,6 +2793,16 @@
   // goal on the floor and demoted it to an accessory. Anything else really is a different movement
   // with its own rep scheme, and keeps the old behaviour.
   function altIsSame(a) { return String(a && a.reps || '').trim().toLowerCase() === 'same'; }
+  // R1708 — OFF UNTIL HIS A-ID. A swapped row that shows a distance goal and a distance box instead
+  // of a rep count is a kid's screen (REFUSALS row 27), so the bundle may ship with this false and
+  // change nothing a kid sees: with it off, his 20yd cell behaves EXACTLY as it did before this row
+  // (the alternate's reps arrive blank instead of as the string '20yd', and both roads lead to the
+  // same `numReps == null` branch — arm 10 of qa/harness/f2-ydscheme.mjs runs both and compares).
+  // ONE DOOR AND IT IS A LITERAL, for the reason R1707's own flag records: the journey seam drives
+  // the declaration below (`BP_FLAGS=R1708_ALT_DISTANCE=true`) for the 390px shot the approval
+  // carries, and it refuses a flag it cannot find in exactly one place. Phil's yes flips it; nothing
+  // else can. Reversing line: the declaration below, back to false.
+  var R1708_ALT_DISTANCE = false;
   // R686 (Phil's Band Walks -> 90-90 SW swap, 2026-08-29): does this alternate arrive with NO rep
   // prescription of its own? swapTarget's blank-reps branch falls back to the OUTGOING lift's reps
   // (his 90-90 SW field read Band Walks' 15 against its own 5) — his law: a swap inherits the
@@ -2741,6 +2811,11 @@
   function altNeedsScheme(a) {
     if (!a || a.main || altIsSame(a) || isMaxVal(a.reps)) return false;
     if (a.duration_s != null) return false;                       // duration IS the prescription (L39)
+    // R1708 (F2 `yd scheme`): so is a DISTANCE. His `20yd` cell for Inchworms used to land here —
+    // isNaN('20yd') is true, so this read "no prescription of its own" and asked exscheme for a
+    // movement that exists in ONE cell of his whole Workbook, got nothing, and left the screen
+    // showing Jefferson Curl's reps. The twenty yards IS the prescription; there is nothing to ask.
+    if (R1708_ALT_DISTANCE && a.distance != null) return false;
     return a.reps === '' || a.reps == null || isNaN(a.reps);
   }
   function swapTarget(a, oEx, oT) {
@@ -2751,6 +2826,10 @@
     // Phil's "single-leg calf raise bodyweight gave me 10 reps instead of max" (#29).
     var altMax = isMaxVal(a.reps);
     var numReps = (!altMax && a.reps !== '' && a.reps != null && !isNaN(a.reps)) ? Number(a.reps) : null;
+    // R1708: a DISTANCE-prescribed alternate (Alternates `reps` = 20yd). It takes the one row the app
+    // already has for "the number you record is a distance" — conditioningRow — rather than a second
+    // distance control invented for the swap path; `mode: 'conditioning'` is how a row reaches it.
+    var altDist = (R1708_ALT_DISTANCE && !same && a.distance != null && a.distance !== '' && !isNaN(a.distance)) ? Number(a.distance) : null;
     // R687 PREVENTION (Phil's 08-23 variant-identity law; the 08-24 mislabel forensics): a swap to
     // a sibling VARIANT restamps variant_name and keeps the ROOT as the exercise identity — never
     // forking the variant into a new exercise name, which orphans its history/PRs from the variant
@@ -2769,7 +2848,7 @@
         // Bulgarian Split Squat / 1-leg Step Down were showing BSS's / Step Down's goal, which is wrong.
         // A SEARCHED swap still carries its OWN prescription (a.level_goal from exscheme) when there is one.
         level_goal: (a.level_goal || null),
-        mode: same ? oEx.mode : 'accessory',
+        mode: same ? oEx.mode : (altDist != null ? 'conditioning' : 'accessory'),   // R1708
         // A SEARCHED swap carries its own answer: Level Standards says whether that exercise is
         // loaded. Forcing false gave a reps-only Bent Row with nowhere to record the weight — a set
         // logged as "16 reps of Bent Row" is not a record of anything.
@@ -2801,8 +2880,13 @@
                           : (a.prefill_load != null ? a.prefill_load : ''),
         // L39 (Phil 2026-08-08, Resisted Drag): a duration-prescribed alternate ('60s') must never
         // fall back to the ORIGINAL exercise's reps — duration is the prescription.
-        target_reps: altMax ? 'max' : (a.duration_s != null ? '' : (numReps == null ? oT.target_reps : numReps)),
+        // R1708: `altDist != null` joins L39's duration clause in the one place that matters — the
+        // branch that otherwise reads oT.target_reps, the OUTGOING lift's count.
+        target_reps: altMax ? 'max' : ((a.duration_s != null || altDist != null) ? '' : (numReps == null ? oT.target_reps : numReps)),
         duration_s: same ? oT.duration_s : (a.duration_s != null ? a.duration_s : null),
+        wants_distance: altDist != null ? true : undefined,
+        distance_goal: altDist != null ? altDist : undefined,
+        distance_unit: altDist != null ? (a.distance_unit || 'yd') : undefined,
         rest_s: oT.rest_s }
     };
   }
@@ -3271,8 +3355,14 @@
     l1.appendChild(hb);
     row.appendChild(l1);
     noteUnder(row, ex, isMaxVal(t.target_reps));
-    var scheme = t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
-      : ((t.target_reps || 1) + (t.work_s ? ('×' + t.work_s + 's') : ' reps'));
+    // R1708: a DISTANCE prescription says the distance. Without this the label fell through to the
+    // rep branch and read "1 reps" over a distance box — the two halves of one row contradicting each
+    // other, and neither of them Phil's number. His cell says 20yd, so the goal line says 20 yd.
+    var distGoal = (t.distance_goal != null && t.distance_goal !== '')
+      ? (t.distance_goal + ' ' + (t.distance_unit || 'yd')) : '';
+    var scheme = distGoal ? distGoal
+      : (t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
+      : ((t.target_reps || 1) + (t.work_s ? ('×' + t.work_s + 's') : ' reps')));
     var dist = { v: '' }, repsOut = { v: '' };
     var l2 = el('div', 'l2');
     // Only a DISTANCE prescription gets a distance box. Depth Jump ("4x") and Overhead Slam ("6x")
@@ -3309,7 +3399,9 @@
       l2.appendChild(lane('c-actual', 'reps', st));
     } else {
     var di = el('input', wantsDist ? 'dist-in' : 'reps-in'); di.type = 'number';
-    di.placeholder = wantsDist ? '—' : String(t.target_reps || '');
+    // R1708: the prescribed distance is the box's own placeholder when there is one — same as every
+    // rep box on the screen, which shows the number you are being asked for rather than a dash.
+    di.placeholder = wantsDist ? (distGoal ? String(t.distance_goal) : '—') : String(t.target_reps || '');
     di.inputMode = wantsDist ? 'decimal' : 'numeric';
     di.addEventListener('input', function () { if (wantsDist) dist.v = di.value; else repsOut.v = di.value; });
     l2.appendChild(lane('c-goal', 'prescribed', el('span', 'cv goal-v', scheme)));
@@ -3348,7 +3440,11 @@
       var rawReps = (!wantsDist && repsOut.v !== '' && repsOut.v != null) ? repsOut.v : t.target_reps;
       // Never log the word. An untouched "max" means the athlete did not tell us the count, so the
       // reps go blank rather than as a string no report can read.
-      var doneReps = isMaxVal(rawReps) ? '' : Number(rawReps);
+      // R1708: a distance-prescribed row logs NO reps. `Number('')` is 0, so without this the swap
+      // would have written a 0-rep set beside the distance — a row no report can read as anything.
+      // Keyed on distance_goal, a key only the R1708 swap path sets, so no existing row moves.
+      var doneReps = (t.distance_goal != null && t.distance_goal !== '') ? ''
+        : (isMaxVal(rawReps) ? '' : Number(rawReps));
       var l = mkLog(slot, ex.exercise, t, { load: '', reps: doneReps }, ex.variant_name);
       if (!l) return;                         // athlete left the workout mid-interval; nothing to log
       l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';
@@ -5392,18 +5488,131 @@
     document.body.appendChild(t);
     setTimeout(function () { try { t.remove(); } catch (e) {} }, 2500);
   }
+  // ══ R1707 (F1 item F, Phil's Library Phase 5 block 2026-09-20) — THE FIFTH ICON AND THE MODULE IT SERVES. ══
+  // His line, verbatim: "F. APP — fifth icon REGEN (Calendar · Workout · Profile · Tell Coach · Regen).
+  // Serves today's module per C11: one or two exercises, session A or B alternating on consecutive days,
+  // minutes from the tab." The engine half is R1706 (`action=regen_module`); this screen PAINTS what that
+  // read returns and decides nothing — the key, the pattern, the session, the exercises and the minutes
+  // are all his cells, so a wrong module on this screen is read back as a wrong CELL and not as a bug here.
+  //
+  // OFF UNTIL HIS A-ID. A fifth icon is a kid's screen (REFUSALS row 27: "a kid-screen change ships only
+  // after its 390px screenshot is in an approval"), so the bundle may ship with this flag false and change
+  // nothing a kid sees — the flip is then the whole ship, the way REGEN_IN_SESSION_ON / A35 was done.
+  // `BP_FLAGS=REGEN_MODULE_ON=true` arms it for a journey and for the 390px shot the approval carries
+  // (K4-FELT item 6, 2026-10-21 — the seam built so a held-off change can face real WebKit without
+  // being shipped). Reversing line: REGEN_MODULE_ON = false.
+  //
+  // THE TAP TARGET SHRINKS AND IS MEASURED, NOT ASSUMED: .nav is `repeat(4, 1fr)` and becomes
+  // `repeat(5, 1fr)`, so at 390px each button goes 97.5px -> 78.0px WIDE; the height is untouched (the
+  // same 8px/7px padding over the icon and label). 78 x ~44 px still clears the 44pt floor, and row 27's
+  // refusal is that a tap target never GROWS — this one shrinks and the approval says so in numbers.
+  //
+  // THE DONE TAP IS R1709 AND IT IS BUILT, ON HIS OWN ORDERING: "Module done credits the card's tissue
+  // minutes (lowest priority; build after serving works)." Serving is R1706/R1707 and it works as of
+  // 2026-10-27 20:55, so the clause that was waiting on it is below — the tap, and the credit it puts on
+  // tomorrow's REGEN card's third question. It rides THIS flag and asks for no second one: the tap lives
+  // on a screen no phone can reach until A48 flips the fifth icon on, so it cannot write before his yes.
+  // ONE DOOR AND IT IS A LITERAL. The first cut of this flag was an IIFE reading `&regenmod=1` and a
+  // localStorage key, and the journey seam REFUSED it by name — "no `var REGEN_MODULE_ON = …;` in
+  // app.js — the flag moved, so this arm proves nothing" (FLAGLIT-PROSE's own law, qa/harness/
+  // server.mjs flagWorld). The refusal is right twice over: a held-off kid-screen change wants ONE
+  // way on, not a link parameter any phone could carry, and the literal is what BP_FLAGS drives for
+  // the 390px shot the approval needs. Phil's yes flips this to true; nothing else can.
+  var REGEN_MODULE_ON = false;
+  function regenModuleScreen(d) {
+    var sec = el('section', 'rm-wrap');
+    sec.appendChild(el('div', 'rm-h', 'REGEN — today'));
+    if (!d || d.ok !== true) {
+      sec.appendChild(el('p', 'rm-none', 'Coach has not set this up yet. Nothing for you to do.'));
+      return sec;
+    }
+    if (!d.module) {
+      // his own words back to the athlete, never a guessed module (R1706's `reason`)
+      sec.appendChild(el('p', 'rm-none', 'Nothing today. Coach sets the area this works on.'));
+      return sec;
+    }
+    sec.appendChild(el('div', 'rm-sub', 'Session ' + d.session + ' · ' + d.module.minutes_total + ' min'));
+    if (d.why) sec.appendChild(el('p', 'rm-why', d.why));
+    var list = el('div', 'rm-list');
+    (d.module.slots || []).forEach(function (s) {
+      var row = el('div', 'rm-row');
+      row.appendChild(el('span', 'rm-ex', s.exercise));
+      row.appendChild(el('span', 'rm-min', s.minutes + ' min'));
+      list.appendChild(row);
+    });
+    sec.appendChild(list);
+    if (d.module.rule) sec.appendChild(el('p', 'rm-rule', d.module.rule));
+    sec.appendChild(el('p', 'rm-tell', 'Bodyweight or a band.'));
+    // ══ R1709 — THE DONE TAP. One control, no form, no numbers: the minutes are his tab's and the engine
+    // re-reads them at write (a phone never says how long his module is). A day already tapped paints the
+    // state instead of the button — `d.done` is the server's own answer, so a second device shows it too.
+    if (d.done && d.done.minutes > 0) {
+      sec.appendChild(el('p', 'rm-done', 'Done \u2713 — ' + d.done.minutes + ' min. It counts on tomorrow\u2019s REGEN card.'));
+      return sec;
+    }
+    var doneB = el('button', 'rm-done-b', 'Mark done'); doneB.type = 'button';
+    doneB.addEventListener('click', function () {
+      if (doneB.disabled) return;
+      doneB.disabled = true; doneB.textContent = 'Saving…';
+      regenModuleQueue(d.date);
+      // the queue drains on its own; the screen says what the phone knows now and the next open reads the
+      // server's word. It is deliberately NOT a refetch: this screen is its own round trip (R1706) and a
+      // kid who tapped Done does not stand in a second one to be told he did.
+      var p2 = el('p', 'rm-done', 'Done \u2713 — ' + d.module.minutes_total + ' min. It counts on tomorrow\u2019s REGEN card.');
+      doneB.replaceWith(p2);
+    });
+    sec.appendChild(doneB);
+    return sec;
+  }
+  /** R1709 — the module tap rides the EXISTING queue and session-save path, his §6 ("do not add a second
+   *  path"): one row, flag `regen_module`, drained with the sets. The payload carries the DATE and nothing
+   *  else that matters — the engine reads his minutes off the tab at write. */
+  function regenModuleQueue(dateStr) {
+    var row = { log_id: uuid(), session_id: '', complex_name: '', exercise: '', set_no: '', side: '', target_load: '', target_reps: '',
+                actual_load: '', actual_reps: '', flag: 'regen_module', regen_date: dateStr, regen: JSON.stringify({ module_done: true }), app_ver: APP_VERSION };
+    qAdd(row).then(function () { drain(); }).catch(function () {});
+  }
+  function loadRegen() {
+    var mine = newScreen();
+    renderNav('regen');
+    show('Loading today\'s regen…');
+    var d = regenToday();   // item 16 (Phil 2026-09-16): the phone's own calendar day, the day it is served
+    fetchJson(cfg.WEBAPP_URL + '?action=regen_module&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
+      .then(function (data) {
+        if (!isCurrent(mine)) return;
+        app.innerHTML = '';
+        app.appendChild(regenModuleScreen(data));
+      })
+      .catch(function () { if (isCurrent(mine)) show('Could not load today\'s regen. Try again.', 'err'); });
+  }
+
   function renderNav(active) {
     if (!NAV) {
       NAV = el('nav', 'nav');
       [['cal', '📅', 'Calendar', function () { loadHome(); }],
        ['wo', '🏋️', 'Workout', function () { openToday(); }],
        ['prof', '📈', 'Profile', function () { loadProfile(); }],
-       ['msg', '💬', 'Tell coach', function () { tellCoachNote(); }]].forEach(function (d) {
+       ['msg', '💬', 'Tell coach', function () { tellCoachNote(); }]]
+        .concat(REGEN_MODULE_ON ? [['regen', '🧘', 'Regen', function () { loadRegen(); }]] : [])   // R1707: his fifth icon, off until the A-id
+        .forEach(function (d) {
         var b = el('button', 'nav-b'); b.type = 'button'; b.dataset.k = d[0];
         b.appendChild(el('span', 'nav-i', d[1])); b.appendChild(el('span', 'nav-t', d[2]));
         b.addEventListener('click', d[3]);
         NAV.appendChild(b);
       });
+      // R1710 (F1 item F): THE COLUMN COUNT IS SET BY THE CODE THAT CARRIES THE FLAG, NOT BY A
+      // STYLESHEET NO DOOR CAN HOLD. R1707 took the typed `repeat(4, 1fr)` out of `.nav` so the CSS
+      // could not disagree with this loop — but it put the answer in pwa/styles.css, and a stylesheet
+      // can hold no `var <FLAG> = false;`, so HOLD-NO-SITE and kidscreen-guard are both structurally
+      // blind to it and the hold lives in whichever file happens to travel. The edge still types four:
+      // measured in real WebKit at 390x844 against `~/blueprint-pwa-pages/styles.css`, the bytes on a
+      // kid's phone this minute — five buttons under it lay out in TWO ROWS (97.5px each, the fifth
+      // under the first four, over a fixed bottom bar), and `SHIP_ONLY='app.js'` is a documented path.
+      // One inline declaration makes the nav right against ANY shipped stylesheet: 5 buttons -> one row
+      // of 78.0px under the edge's CSS and under HEAD's. WITH THE FLAG OFF IT MOVES NO PIXEL — 4
+      // buttons measure one row of 97.5px in all four combinations, which is the hold.
+      // Reversing line: delete this line (and `.nav`'s grid-auto-flow becomes load-bearing again).
+      NAV.style.gridTemplateColumns = 'repeat(' + NAV.childElementCount + ', 1fr)';
       document.body.appendChild(NAV);
     }
     Array.prototype.forEach.call(NAV.querySelectorAll('.nav-b'), function (b) { b.classList.toggle('on', b.dataset.k === active); });

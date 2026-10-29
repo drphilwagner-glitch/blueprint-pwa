@@ -400,7 +400,10 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
    ========================================================================== */
 /* R704: four columns — the 💬 Tell coach button joined the nav (the 3-col grid wrapped it onto a
    second row on the first 390px look; rule 2 caught it before anyone shipped it). */
-.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(4, 1fr);
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid;
+  /* R1707 (F1 item F): the columns are the BUTTONS there are, never a typed count — `repeat(4, 1fr)` would
+     have laid his fifth icon on a second row and left the CSS free to disagree with renderNav. */
+  grid-auto-flow: column; grid-auto-columns: 1fr;
   background: var(--veil); border-top: 1px solid var(--line); backdrop-filter: blur(8px);
   padding-bottom: env(safe-area-inset-bottom); }
 .nav-b { border: 0; background: none; padding: 8px 4px 7px; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); color: var(--muted); }
@@ -1324,3 +1327,27 @@ body #app { padding-bottom: 108px; }
 .regen-row.toggle-row { margin-top: 12px; }
 .pain-chips.areas .pain-chip, .pain-chips.sides .pain-chip { min-width: 0; padding: 6px 10px; }
 .pain-chips.sides { margin-top: 2px; }
+
+/* R1707 (F1 item F) — the fifth icon's screen: his module, read-only. One card, no taps. */
+.rm-wrap { display: grid; gap: var(--sp-7); padding: 2px 0 6px; }
+.rm-h { font-size: var(--fs-15); font-weight: 800; letter-spacing: .2px; }
+.rm-sub { font-size: var(--fs-11); font-weight: 700; color: var(--bp); }
+.rm-why { margin: 0; font-size: var(--fs-13); color: var(--muted); }
+.rm-list { display: grid; gap: var(--sp-7); }
+.rm-row { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-14); padding: 12px 13px;
+  box-shadow: 0 1px 2px var(--sh-card); display: flex; align-items: baseline; gap: var(--sp-8); }
+.rm-ex { flex: 1 1 auto; min-width: 0; font-size: var(--fs-15); font-weight: 700; overflow-wrap: break-word; }
+.rm-min { flex: none; font-size: var(--fs-11); font-weight: 800; color: var(--bp); background: var(--bp-tint);
+  border-radius: var(--r-pill); padding: 3px 9px; letter-spacing: .3px; }
+.rm-rule { margin: 0; font-size: var(--fs-11); color: var(--muted); }
+.rm-tell { margin: 0; font-size: var(--fs-11); color: var(--muted); }
+.rm-none { margin: 0; font-size: var(--fs-13); color: var(--muted); }
+/* R1709 (F1 item F, "Module done credits the card's tissue minutes") — the Done tap and the state it
+   leaves. NO NEW THEME VALUES (UI-gov rule 3): the button is .regen-skip's shape filled with --bp, the
+   same accent .rm-min and .rm-sub already carry on this screen; the done line is .rm-tell in that accent.
+   The button is full width so this screen keeps exactly one primary action (DESIGN.md rule 2) and sits in
+   the thumb zone at the end of the list (rule 7). Reversing line: delete these three rules. */
+.rm-done-b { width: 100%; padding: 14px; border-radius: var(--r-pill); border: 1px solid var(--bp); background: var(--bp); color: var(--bg); font-size: var(--fs-15); font-weight: 800; }
+.rm-done-b:disabled { opacity: .45; filter: grayscale(1); }
+.rm-done { margin: 0; font-size: var(--fs-13); font-weight: 700; color: var(--bp); }
+.regen-credit { color: var(--bp); font-weight: 700; }

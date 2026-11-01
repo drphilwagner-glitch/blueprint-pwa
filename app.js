@@ -101,6 +101,12 @@
       // on its URL (prefetchNext: bg=prefetch); the row keeps the wall time but says "background — no wait felt", and the report files
       // it as a machine row, never a device error. A tap's own read never carries bg.
       var bg = ''; try { bg = new URL(url, location.href).searchParams.get('bg') || ''; } catch (eG) {}
+      // K4-FELT (2026-11-01 run 1) — A SLOW READ NAMES THE LIFT IT ASKED FOR. Phil's 18:36Z `history round trip
+      // 9.3s` could not be told apart between two causes because no row on record says WHICH exercise's history
+      // the phone asked for (the server ring keeps epoch:ms:action; this extra had no lift). A read that carries
+      // `exercise=` now writes ` ex=<that name, URL-encoded>` at the END of its api_slow extra, so the next felt
+      // history wait names its key. No pixel, no request moves. Reversing line: delete this line and `+ exW` below.
+      var exW = ''; try { var _ex9 = new URL(url, location.href).searchParams.get('exercise') || ''; if (_ex9) exW = ' ex=' + encodeURIComponent(_ex9.slice(0, 60)); } catch (eX9) {}
       // K4-BGROT: a background read is handed an abortable signal HERE, at the one choke point that
       // already knows a call is a background one, so the hide handler above can end it before the page
       // freezes. Only when the caller brought no signal of its own (`fetchT`'s budget path owns its
@@ -157,8 +163,8 @@
           // (Phil 09-18 item 2). Under half, the row still carries the number so the wait can be read honestly.
           var hidWord = hid > 0 ? (hid >= ms / 2 ? ', the app was in the background for ' + (hid / 1000).toFixed(1) + 's of it — no wait felt'
                                                  : ', ' + (hid / 1000).toFixed(1) + 's of it in the background') : '';
-          if (ms > API_SLOW_MS) { try { (window.__bpApiSlow = window.__bpApiSlow || []).push({ action: action || 'api', ms: ms, how: how, bg: bg9, hidden_ms: hid, joined: !!_fj }); } catch (eS) {}   // the journeys' seam (j34 precedent): a localhost build never posts
-          reportError('api_slow', (action || 'api') + ' round trip ' + (ms / 1000).toFixed(1) + 's (' + how + ', over the 8 s cell' + (bg9 ? ', background ' + bg9 + ' — no wait felt' : '') + hidWord + joinWord + ')', '', 'ms=' + ms + ' action=' + (action || '?') + ' how=' + how + (bg9 ? ' bg=' + bg9 : '') + (hid > 0 ? ' hidden=' + hid : '')); } } catch (eR) {} };
+          if (ms > API_SLOW_MS) { try { (window.__bpApiSlow = window.__bpApiSlow || []).push({ action: action || 'api', ms: ms, how: how, bg: bg9, hidden_ms: hid, joined: !!_fj, ex: exW ? exW.slice(4) : '' }); } catch (eS) {}   // the journeys' seam (j34 precedent): a localhost build never posts
+          reportError('api_slow', (action || 'api') + ' round trip ' + (ms / 1000).toFixed(1) + 's (' + how + ', over the 8 s cell' + (bg9 ? ', background ' + bg9 + ' — no wait felt' : '') + hidWord + joinWord + ')', '', 'ms=' + ms + ' action=' + (action || '?') + ' how=' + how + (bg9 ? ' bg=' + bg9 : '') + (hid > 0 ? ' hidden=' + hid : '') + exW); } } catch (eR) {} };
       var p = _rawFetch.apply(window, _args);
       return p.then(function (r) { done('settled'); return r; }, function (err) { done(err && err.name === 'AbortError' ? 'aborted' : 'failed'); throw err; });
     };
@@ -305,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261101-uncheckkind';   // SUNDAY 11-01 — K4-UNCHECK: an athlete's own uncheck reports `queue_unchecked`, not `queue_dropped`; no pixel moves.
+  var APP_BUILD = '20261101-slowreadex';   // SUNDAY 11-01 — K4-FELT: a slow read that asked for one exercise names it (` ex=`) in its api_slow row; no pixel moves.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;

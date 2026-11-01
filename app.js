@@ -305,7 +305,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261031-missedweight';   // SATURDAY 10-31, FIFTH SHIP — F15: Skip on a weighted set offers "Missed weight" (A56 pass, Phil 12:00); it writes skip:missed, a record and never a set.
+  var APP_BUILD = '20261101-uncheckkind';   // SUNDAY 11-01 — K4-UNCHECK: an athlete's own uncheck reports `queue_unchecked`, not `queue_dropped`; no pixel moves.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1460,8 +1460,11 @@
   function qMirrorAdd(id) { if (!id) return; var m = qMirror(); if (m.indexOf(id) < 0) { m.push(id); qMirrorSet(m); } }
   function qMirrorDrop(ids) { try { var m = qMirror().filter(function (x) { return (ids || []).indexOf(x) < 0; }); qMirrorSet(m); } catch (e) {} }
   function queueDropped(id, door, why, ex) {
-    // reportError dedupes on kind|message — the id makes every drop a distinct message, so each one lands
-    reportError('queue_dropped', 'id=' + String(id || '').slice(0, 8) + ' door=' + door + ' why=' + why + (ex ? ' ex=' + ex : ''), 'queue', 'id=' + id);
+    // reportError dedupes on kind|message — the id makes every drop a distinct message, so each one lands.
+    // K4-UNCHECK (2026-11-01): the athlete's OWN undo still sends its one line naming the door (L381), under
+    // its own kind `queue_unchecked`, which K4 lists as info — 9 of 11 "phone errors" on 11-01 were Phil
+    // unchecking his own sets. refused / vanished stay `queue_dropped`. Reversing line: 'queue_dropped' for all.
+    reportError(door === 'uncheck' ? 'queue_unchecked' : 'queue_dropped','id=' + String(id || '').slice(0, 8) + ' door=' + door + ' why=' + why + (ex ? ' ex=' + ex : ''), 'queue', 'id=' + id);
     if (door === 'vanished') showDroppedCard(ex);
   }
   function showDroppedCard(ex) {

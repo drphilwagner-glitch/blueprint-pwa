@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261101-slowreadex';   // SUNDAY 11-01 — K4-FELT: a slow read that asked for one exercise names it (` ex=`) in its api_slow row; no pixel moves.
+  var APP_BUILD = '20261101-maxconttile';   // SUNDAY 11-01 — F2 (A57 pass): a swapped-in alternate with his col M seconds gets the hold's ▶ (MAX 30s); the dose does not move.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2936,7 +2936,7 @@
   // stops it early, and the set logs the reps and load he prescribed, as it does today. The seconds
   // are a clock, never a dose. A `same` alternate keeps the rung verbatim (his 08-05 law). HELD OFF
   // EVERY PHONE until he answers the A-id that carries the shot (rule 27). Reversing line: false.
-  var R1742_ALT_MAXCONT_TILE = false;
+  var R1742_ALT_MAXCONT_TILE = true;   // A57 pass (Phil, 2026-11-01); reversing line: false
   // F1 PHASE 6 (R1716) — the client half of the Speed seat, held off every phone until Phil answers
   // A53. False: `exerciseRow`'s dispatch reads the word 'conditioning' exactly as it has, so not one
   // rendered row moves. True: a served `mode: 'speed'` row — which no board in the Workbook carries,

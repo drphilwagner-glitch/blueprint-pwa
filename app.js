@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261103-readdoor';   // TUESDAY 11-03 — K4-FELT (WINDOW 11-03 item 1): the eight read GETs leave by the READ DOOR (447 KB, deployment @1349) instead of the kid's 1.75 MB door; no pixel moves.   // SUNDAY 11-01 — F2 (A57 pass): a swapped-in alternate with his col M seconds gets the hold's ▶ (MAX 30s); the dose does not move.
+  var APP_BUILD = '20261103-youngprefetch';   // TUESDAY 11-03 — ORPHANSID-PURGEUP: the calendar never prefetches a workout off a list served over an hour ago (a cached week from before a night's re-lay asked for a dead id); no pixel moves.   // TUESDAY 11-03 — K4-FELT (WINDOW 11-03 item 1): the eight read GETs leave by the READ DOOR (447 KB, deployment @1349) instead of the kid's 1.75 MB door; no pixel moves.   // SUNDAY 11-01 — F2 (A57 pass): a swapped-in alternate with his col M seconds gets the hold's ▶ (MAX 30s); the dose does not move.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -5140,7 +5140,7 @@
       var rawO = raw ? JSON.parse(raw) : null;
       cachedWk = rawO ? rawO.sessions : null; cachedWkAt = rawO ? rawO.at : 0; cachedWkPlain = !!(rawO && rawO.plain === true);
     } catch (e) {}
-    if (cachedWk && cachedWk.length) { renderCalendar(cachedWk); prefetchNext(cachedWk); } else show('Loading your plan…');
+    if (cachedWk && cachedWk.length) { renderCalendar(cachedWk); prefetchNext(cachedWk, cachedWkAt); } else show('Loading your plan…');
     // R1385: the calendar is PAINTED with a dated grid and its payload is fresh, plain and
     // un-superseded — there is nothing a cold round trip can add, so no request is made. See the block
     // above patchWeekCacheDate for why each of the four conditions is there; drop any one of them and
@@ -5191,7 +5191,7 @@
         }
         WEEK_WIN_END = String(data.round_window_end || '');   // R1428: the move picker's ceiling, from the server's own window read
         renderCalendar(data.sessions, data.next_round_preview, data.round_pending);
-        prefetchNext(data.sessions);
+        prefetchNext(data.sessions, Date.now());
         // BW SELF-ENTRY (Phil 2026-08-29 launch ruling: the athlete types their own body weight;
         // the server writes BLANK cells only, so a coach-typed value is never touched). One quiet
         // card above the calendar; it disappears on success and never returns (planver bump drops
@@ -5283,10 +5283,20 @@
   // only when no cached copy exists, never over a tap in flight, silently (no render, no card, no report). The next workout is the
   // tile the calendar itself marks next (`wo-next`: the first open-round session not done or missed). Reversing line: the two
   // `prefetchNext(...)` calls at the calendar's render sites.
-  var PREFETCH_INFLIGHT = {}, PREFETCH_LAST = null;   // K4-BGROT: the list the re-warm below re-asks with
-  function prefetchNext(sessions) {
+  // ORPHANSID-PURGEUP (2026-11-03): A LIST OLDER THAN AN HOUR IS NEVER PREFETCHED FROM. A session id dies when a mint or a
+  // re-row re-lays its round, and the phone held the dead one in a list the server served before that: 11-03 13:37Z Phil's
+  // phone asked bg=prefetch for Phil_2026-11-02, killed by 03:06Z's re-lay, off its CACHED WEEK (loadHome paints it and used
+  // to prefetch from it before the fresh week landed) — K4's session_not_found. All four measured dead asks (10-27/28 Mason
+  // x3, 11-03 Phil) came 5-10 h after the death, so every one rode a list over an hour old. `at` = when the server served
+  // the list (the week cache's own `at`; omitted = served just now). Cost: an open on a stale cache warms the next workout
+  // one week round trip later, off the fresh week. Reversing line: PREFETCH_TRUST_MS = Infinity.
+  var PREFETCH_INFLIGHT = {}, PREFETCH_LAST = null, PREFETCH_LAST_AT = 0;   // K4-BGROT: the list the re-warm below re-asks with
+  var PREFETCH_TRUST_MS = 60 * 60 * 1000;
+  function prefetchNext(sessions, at) {
     try {
-      if (sessions && sessions.length) PREFETCH_LAST = sessions;   // K4-BGROT: so the wake can re-ask the same question
+      var servedAt = (at === undefined) ? Date.now() : (Number(at) || 0);
+      if (!(servedAt > 0 && Date.now() - servedAt <= PREFETCH_TRUST_MS)) return;
+      if (sessions && sessions.length) { PREFETCH_LAST = sessions; PREFETCH_LAST_AT = servedAt; }   // K4-BGROT: so the wake can re-ask the same question
       var nxt = null;
       (sessions || []).forEach(function (s) { if (!nxt && s && s.open_round && s.status !== 'done' && s.status !== 'missed' && s.session_id) nxt = s; });
       if (!nxt) return;
@@ -5316,7 +5326,7 @@
         if (document.hidden || !PREFETCH_LAST) return;
         var openSid = ''; try { openSid = sessionStorage.getItem('bp_open_session') || ''; } catch (eW1) {}
         if (openSid) return;
-        setTimeout(function () { try { prefetchNext(PREFETCH_LAST); } catch (eW2) {} }, 0);
+        setTimeout(function () { try { prefetchNext(PREFETCH_LAST, PREFETCH_LAST_AT); } catch (eW2) {} }, 0);
       } catch (eW3) {}
     });
   } catch (eW4) {}

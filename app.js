@@ -91,7 +91,7 @@
   try {
     if (typeof _rawFetch === 'function' && cfg.WEBAPP_URL) window.fetch = function (input, init) {
       var url = ''; try { url = (typeof input === 'string') ? input : String(input && input.url || ''); } catch (eU) {}
-      if (url.indexOf(cfg.WEBAPP_URL) !== 0 && !(cfg.LOG_URL && url.indexOf(String(cfg.LOG_URL)) === 0)) return _rawFetch.apply(window, arguments);   // R1720: the log door is the same door to the clock
+      if (url.indexOf(cfg.WEBAPP_URL) !== 0 && !(cfg.LOG_URL && url.indexOf(String(cfg.LOG_URL)) === 0) && !(cfg.READ_URL && url.indexOf(String(cfg.READ_URL)) === 0)) return _rawFetch.apply(window, arguments);   // R1720: the log door is the same door to the clock; D-READDOOR: and so is the read door
       var action = '';
       try { action = new URL(url, location.href).searchParams.get('action') || ''; } catch (eA) {}
       if (!action) { try { var b = JSON.parse((init && typeof init.body === 'string') ? init.body : '{}'); action = String(b.action || ''); } catch (eB) {} }
@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261101-maxconttile';   // SUNDAY 11-01 — F2 (A57 pass): a swapped-in alternate with his col M seconds gets the hold's ▶ (MAX 30s); the dose does not move.
+  var APP_BUILD = '20261103-readdoor';   // TUESDAY 11-03 — K4-FELT (WINDOW 11-03 item 1): the eight read GETs leave by the READ DOOR (447 KB, deployment @1349) instead of the kid's 1.75 MB door; no pixel moves.   // SUNDAY 11-01 — F2 (A57 pass): a swapped-in alternate with his col M seconds gets the hold's ▶ (MAX 30s); the dose does not move.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -354,7 +354,7 @@
   function todayISO() { return new Date().toLocaleDateString('en-CA'); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function uuid() { return (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2); }
-  function planUrl() { return cfg.WEBAPP_URL + '?action=plan&athlete=' + encodeURIComponent(athlete) + '&date=' + todayISO() + '&token=' + encodeURIComponent(token); }
+  function planUrl() { return readUrl() + '?action=plan&athlete=' + encodeURIComponent(athlete) + '&date=' + todayISO() + '&token=' + encodeURIComponent(token); }
   function show(msg, cls) { app.innerHTML = ''; app.appendChild(el('p', cls || 'empty', msg)); }
 
   // ---- offline queue (IndexedDB): fire-and-forget idempotent POST + retry; badge never sticks ----
@@ -376,6 +376,13 @@
   // reporter — keeps the kid's door. With no LOG_URL in config the save goes exactly where it went: the fallback
   // is the whole of the reversing line (delete LOG_URL from pwa/config.js and ship).
   function logUrl() { return (cfg.LOG_URL && String(cfg.LOG_URL)) || cfg.WEBAPP_URL; }
+  // D-READDOOR (K4-FELT 2026-11-03): THE EIGHT READ GETs HAVE THEIR OWN DOOR. `cfg.READ_URL` is a further deployment of
+  // the same engine carrying only what session, week, regen_status, exercises, logack, plan, profile and history can
+  // reach (~447 KB against the kid's door's 1.75 MB; qa/harness/k4-read-payload.mjs), because the platform hop on
+  // every read scales with the deployment's bytes. Same project, same properties, same tabs, the same handlers byte
+  // for byte. pullforward, move, complete, every other GET and every POST keep the kid's door. An empty or absent
+  // READ_URL sends every read exactly where it went: the fallback is the whole of the reversing line.
+  function readUrl() { return (cfg.READ_URL && String(cfg.READ_URL)) || cfg.WEBAPP_URL; }
   function sendLog(rows) {
     var p9 = fetchT(logUrl(), { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'log', athlete: athlete, token: token, rows: rows }) }, SEND_TIMEOUT_MS);
@@ -544,7 +551,7 @@
   // Did the write land? The week route is the Plan's own answer. Unreachable or silent on this
   // session -> we still do not know, and 'offline' is the honest word for that.
   function verifyMoved(sessionId, toDate) {
-    return fetchJson(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) +
+    return fetchJson(readUrl() + '?action=week&athlete=' + encodeURIComponent(athlete) +
       '&token=' + encodeURIComponent(token)).then(function (d) {
         var ss = (d && d.sessions) || [];
         for (var i = 0; i < ss.length; i++) {
@@ -1040,7 +1047,7 @@
   }
   // after Start: the server scores the row and computes trend + pairing on the second pass — read them back into the strip
   function regenRefresh(d, tries) {
-    fetchJson(cfg.WEBAPP_URL + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
+    fetchJson(readUrl() + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
       .then(function (st) {
         if (!(st && st.ok && st.logged)) { if (tries > 0) setTimeout(function () { regenRefresh(d, tries - 1); }, 3500); return; }
         var sc = st.score || {};
@@ -1314,7 +1321,7 @@
     // is exactly today's behaviour — the slow path is the FALLBACK, so this can make an open no worse.
     if (REGEN_IN_SESSION_ON && stPre && stPre.ok && String(stPre.for_date || '') === d) { try { settle(stPre); } catch (eRs) {} return; }
     if (REGEN_RIDE_PENDING) return;   // R1637: the open's own read is carrying this very question — its answer calls back here
-    fetchJson(cfg.WEBAPP_URL + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
+    fetchJson(readUrl() + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
       .then(settle).catch(function () {});   // offline: no card, no state change — the workout stands
   }
   function regenProfileBlock(hist, mean, meta) {
@@ -1516,7 +1523,7 @@
   // A set is only forgotten once the server says it has it.
   var ackTimedOut = false;   // R1077: set when the read-back hit its deadline — the confirm loop stops polling instead of holding the drain
   function ackLogs(ids) {
-    var url = cfg.WEBAPP_URL + '?action=logack&athlete=' + encodeURIComponent(athlete) +
+    var url = readUrl() + '?action=logack&athlete=' + encodeURIComponent(athlete) +
       '&token=' + encodeURIComponent(token) + '&ids=' + encodeURIComponent(ids.join(','));
     ackTimedOut = false;
     return fetchT(url, {}, ACK_TIMEOUT_MS).then(function (r) { return r.json(); }, function (err) { if (err && err.name === 'AbortError') ackTimedOut = true; throw err; })
@@ -3233,7 +3240,7 @@
     // Phil and Grace both hit it and force-closed the app for what was a hiccup. `fetchJson` already
     // rides out the hiccup with two retries and classifies the failure; the panel now uses it and
     // offers the tap, exactly as the profile detail panel has since 2026-08-05.
-    fetchJson(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
+    fetchJson(readUrl() + '?action=history&athlete=' + encodeURIComponent(athlete) +
               '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(ex.exercise))
       .then(function (d) {
         if (d && d.ok && d.days) { paint(d.days); return; }
@@ -3441,7 +3448,7 @@
     // R1724: THE WORD THIS LEG EARNS DEPENDS ON ITS OWN RUN. If the cache above already called back,
     // the search panel is up and this trip is a refresh nobody waits on; with no cache it IS the wait.
     var served = !!(EXLIST && EXLIST.length);
-    fetch(bpTagRead(cfg.WEBAPP_URL + '?action=exercises&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token), served ? 'exlist' : ''))
+    fetch(bpTagRead(readUrl() + '?action=exercises&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token), served ? 'exlist' : ''))
       .then(function (r) { return r.json(); }).then(function (d) {
         if (!d.ok || !d.exercises) { if (!EXLIST) cb([], 'bad'); return; }
         EXLIST = d.exercises;
@@ -4050,7 +4057,7 @@
     // cold, because the Finish bumps the plan version that keys the profile cache). Pre-warm it in
     // the background while the athlete reads this screen: by the time they tap Profile, the server
     // has rebuilt and cached it. Fire-and-forget — a failure costs nothing but the old cold path.
-    try { fetch(bpTagRead(cfg.WEBAPP_URL + '?action=profile&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token), 'prewarm')).catch(function () {}); } catch (eW) {}   // R1724: NOBODY WAITS ON THIS ONE. It is fired while the athlete reads the finish screen, and until today its whole wall was recorded as the athlete's own profile open — the 7.5 s `nosay` mark of 10-29 was this call. It declares `bg=prewarm` and may NEVER declare the device word.
+    try { fetch(bpTagRead(readUrl() + '?action=profile&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token), 'prewarm')).catch(function () {}); } catch (eW) {}   // R1724: NOBODY WAITS ON THIS ONE. It is fired while the athlete reads the finish screen, and until today its whole wall was recorded as the athlete's own profile open — the 7.5 s `nosay` mark of 10-29 was this call. It declares `bg=prewarm` and may NEVER declare the device word.
     app.innerHTML = '';
     // Phil: "You've got a massive 'Back to Calendar' button. You can take out that button. Make it
     // really small. Put that at the bottom. At the top should be the AI summary, and then any sort of
@@ -4972,7 +4979,7 @@
       var finSid = SESSION ? SESSION.session_id : '';
       sendComplete(finSid).then(function () {
         try { localStorage.removeItem('bp_week_' + CACHE_V + '_' + athlete); weekTouch(); } catch (e) {}   // R1385: a completion is a local change to the week
-        fetchJson(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+        fetchJson(readUrl() + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
           .then(function (d) {
             if (d && d.ok && d.sessions && d.sessions.length) {
               try { localStorage.setItem('bp_week_' + CACHE_V + '_' + athlete, JSON.stringify({ at: Date.now(), plain: weekPlain(d), sessions: d.sessions })); } catch (e) {}
@@ -5143,7 +5150,7 @@
       return;   // renderCalendar above already set the nav and the screen — this path draws nothing new
     }
     WEEK_BOOTED = true;
-    fetchJson(cfg.WEBAPP_URL + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+    fetchJson(readUrl() + '?action=week&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
       .then(function (data) {
         if (data && data.pwa_ver) versionHandshake(data.pwa_ver);   // stale-client self-heal (P0 2026-08-12)
         if (data && (data.error === 'offline' || data.error === 'server')) {
@@ -5292,7 +5299,7 @@
       // which is why a tap could never join it and a cold open cost two builds of the same workout. With
       // the param on both, the pair differs by `&bg=prefetch` alone — the one thing the join key ignores
       // — so the tap joins this trip and is handed the status the card paints from, with no second read.
-      fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sid) + '&token=' + encodeURIComponent(token) + '&bg=prefetch' + regenAskParam(), 0)   // K4-BGROT: `0` tries. A prefetch is a cache warm and its retry is the kid's own tap, and the default two would re-enter `fetchJson` 1200 ms after the hide abort — on a page that is already freezing, which is the very call this row ends. bg=prefetch: a background call — its slowness reports as such, never as a wait (Phil 09-18 item 2)
+      fetchJson(readUrl() + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sid) + '&token=' + encodeURIComponent(token) + '&bg=prefetch' + regenAskParam(), 0)   // K4-BGROT: `0` tries. A prefetch is a cache warm and its retry is the kid's own tap, and the default two would re-enter `fetchJson` 1200 ms after the hide abort — on a page that is already freezing, which is the very call this row ends. bg=prefetch: a background call — its slowness reports as such, never as a wait (Phil 09-18 item 2)
         .then(function (data) { delete PREFETCH_INFLIGHT[sid]; if (data && data.ok && data.session && !cachedSession(sid)) cacheSession(sid, data.session); })
         .catch(function () { delete PREFETCH_INFLIGHT[sid]; });
     } catch (ePf) {}
@@ -6064,7 +6071,7 @@
     // R1724: the act the live board caught, and the word is the truth about THIS open — with a cached
     // paint already on screen this is a refresh behind the athlete's back; with none they are sitting
     // on 'Loading your progress…' and the wait is theirs.
-    fetch(bpTagRead(cfg.WEBAPP_URL + '?action=profile&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token), painted ? 'profrefresh' : ''))
+    fetch(bpTagRead(readUrl() + '?action=profile&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token), painted ? 'profrefresh' : ''))
       .then(function (r) { return r.json(); }).then(function (data) {
         if (!isCurrent(mine)) return;                 // the athlete has moved on; do not yank them back
         if (!data.ok) { if (!painted) show('Access denied — check your link.', 'err'); return; }
@@ -6445,7 +6452,7 @@
     // failure Phil and Grace both hit. fetchJson retries twice and classes server vs offline; the
     // load-time stamp feeds the 2-second budget check (measured, never guessed).
     var tH0 = Date.now();
-    fetchJson(cfg.WEBAPP_URL + '?action=history&athlete=' + encodeURIComponent(athlete) +
+    fetchJson(readUrl() + '?action=history&athlete=' + encodeURIComponent(athlete) +
           '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(x.exercise))
       .then(function (d) {
         try { window.BP_lastHistMs = Date.now() - tH0; } catch (eT) {}
@@ -7050,7 +7057,7 @@
     // R1000 §6: the REGEN block under Levels — date · total · S N T D · LOW, last 10 rows + the 4-week mean (logged rows only)
     if (REGEN_ON) {
       var regenSec = regenProfileBlock([], null); app.appendChild(regenSec);
-      fetchJson(cfg.WEBAPP_URL + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+      fetchJson(readUrl() + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
         .then(function (st) { if (st && st.ok && regenSec.parentNode) regenSec.replaceWith(regenProfileBlock(st.history || [], st.mean4w, { stage: st.stage, logs: st.logs, next_unlock: st.next_unlock, window_mean: st.window_mean, window_n: st.window_n })); }).catch(function () {});
     }
 
@@ -7335,7 +7342,7 @@
     // once the prefetch is joined, and this is exactly the way in that bought Mason's third trip at
     // 17:02:41Z. The warm path's own `regen_status` is NAMED AND NOT TAKEN.
     if (_ride9 && !cached) REGEN_RIDE_PENDING = 1;   // R1637: this read carries the card's question — the card must not buy a second one
-    fetchJson(cfg.WEBAPP_URL + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token) + _ride9)
+    fetchJson(readUrl() + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token) + _ride9)
       .then(function (data) {
         settled = true;
         REGEN_RIDE_PENDING = 0;   // R1637: released at the HEAD of the answer, on every way out of it — an open that errors must never suppress the card

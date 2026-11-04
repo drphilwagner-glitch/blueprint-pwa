@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261104-timerinfo';   // WEDNESDAY 11-04 — F14 (A63 pass): an ⓘ beside Complex 1 opens the timer lesson; nothing moves for a kid who never taps it.   // TUESDAY 11-03 — ORPHANSID-PURGEUP: the calendar never prefetches a workout off a list served over an hour ago (a cached week from before a night's re-lay asked for a dead id); no pixel moves.   // TUESDAY 11-03 — K4-FELT (WINDOW 11-03 item 1): the eight read GETs leave by the READ DOOR (447 KB, deployment @1349) instead of the kid's 1.75 MB door; no pixel moves.   // SUNDAY 11-01 — F2 (A57 pass): a swapped-in alternate with his col M seconds gets the hold's ▶ (MAX 30s); the dose does not move.
+  var APP_BUILD = '20261104-resendask';   // WEDNESDAY 11-04 — LOGID-DOUBLED-1027: a failed save asks what landed before it resends, so a set still landing is not written twice; no pixel moves.   // WEDNESDAY 11-04 — F14 (A63 pass): an ⓘ beside Complex 1 opens the timer lesson; nothing moves for a kid who never taps it.   // TUESDAY 11-03 — ORPHANSID-PURGEUP: the calendar never prefetches a workout off a list served over an hour ago (a cached week from before a night's re-lay asked for a dead id); no pixel moves.   // TUESDAY 11-03 — K4-FELT (WINDOW 11-03 item 1): the eight read GETs leave by the READ DOOR (447 KB, deployment @1349) instead of the kid's 1.75 MB door; no pixel moves.   // SUNDAY 11-01 — F2 (A57 pass): a swapped-in alternate with his col M seconds gets the hold's ▶ (MAX 30s); the dose does not move.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1530,6 +1530,17 @@
       .then(function (d) { return (d && d.ok && d.present) ? d.present : []; })
       .catch(function () { return []; });
   }
+  // LOGID-DOUBLED-1027: A FAILED SEND IS NOT A SET THAT DID NOT LAND. Mason 10-27: a readable POST failed on his phone while
+  // its execution still ran, the opaque resend left the same instant, the two overlapped by 692 ms and three log_ids landed
+  // twice, past rule 1's no-op. So a rejection asks what landed first and the opaque send carries only the rest; that ask is
+  // also the gap that lets a still-running first write finish. No answer is [], so a dead read-back still resends (R1607's
+  // P0). Only a failed send pays this one trip. Reversing line: the drain's fallback calls sendLog(rows) again.
+  function sendLogBehindAck(rows) {
+    return ackLogs(rows.map(function (x) { return x.log_id; })).then(function (present) {
+      var rest = rows.filter(function (x) { return present.indexOf(x.log_id) < 0; });
+      return rest.length ? sendLog(rest) : null;
+    });
+  }
   // R669 — which queued log_ids did the server explicitly REFUSE (L161 impossible load, D8
   // side-disagree)? `ackLogs` can only answer "present"; the POST is opaque no-cors, so a refusal
   // ack never reaches the client. Without this read-back a refused row stayed queued FOREVER —
@@ -1686,7 +1697,7 @@
       // batch goes out exactly as it does today and the read-backs settle it. `ans` is the parsed answer
       // or null, and null means "no verdict", which is the world every phone is in right now.
       var sent = LOG_ACK_READABLE_ON
-        ? sendLogRead(rows).then(null, function () { return sendLog(rows).then(function () { return null; }); })
+        ? sendLogRead(rows).then(null, function () { return sendLogBehindAck(rows).then(function () { return null; }); })
         : sendLog(rows).then(function () { return null; });
       return sent.then(function (ans) {
         done();   // R1204 (2): the send is the drain — the read-back below runs detached; the next tap's send never waits on it

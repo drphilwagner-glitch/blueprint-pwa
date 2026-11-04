@@ -797,6 +797,13 @@ span.ex-name { display: block; }
 /* a complex you can't start yet shouldn't offer a timer to start */
 .slot.slot-later:not(.open) .tstart, .slot.slot-later:not(.open) .timer, .slot.slot-later:not(.open) .pause,
 .slot.slot-done:not(.open) .tstart, .slot.slot-done:not(.open) .timer, .slot.slot-done:not(.open) .pause { display: none; }
+/* F14 (A63 pass): the ⓘ sits beside the title; its lesson is 14px like the shot he passed, and neither shows on a collapsed complex. */
+.slot-head.has-info { justify-content: flex-start; }
+.slot-head.has-info .slot-title { flex: 0 0 auto; }
+.slot-head.has-info .tstart { margin-left: auto; }
+.p-clk-n.slot-lesson { font-size: 14px; }
+.slot.slot-later:not(.open) .slot-head .p-info, .slot.slot-later:not(.open) > .slot-lesson,
+.slot.slot-done:not(.open) .slot-head .p-info, .slot.slot-done:not(.open) > .slot-lesson { display: none; }
 .slot.slot-done:not(.open) > .slot-sum { border-color: var(--ok-line); background: var(--ok-bg-2); color: var(--ok); }
 
 /* ============================================================================

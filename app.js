@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261103-youngprefetch';   // TUESDAY 11-03 — ORPHANSID-PURGEUP: the calendar never prefetches a workout off a list served over an hour ago (a cached week from before a night's re-lay asked for a dead id); no pixel moves.   // TUESDAY 11-03 — K4-FELT (WINDOW 11-03 item 1): the eight read GETs leave by the READ DOOR (447 KB, deployment @1349) instead of the kid's 1.75 MB door; no pixel moves.   // SUNDAY 11-01 — F2 (A57 pass): a swapped-in alternate with his col M seconds gets the hold's ▶ (MAX 30s); the dose does not move.
+  var APP_BUILD = '20261104-timerinfo';   // WEDNESDAY 11-04 — F14 (A63 pass): an ⓘ beside Complex 1 opens the timer lesson; nothing moves for a kid who never taps it.   // TUESDAY 11-03 — ORPHANSID-PURGEUP: the calendar never prefetches a workout off a list served over an hour ago (a cached week from before a night's re-lay asked for a dead id); no pixel moves.   // TUESDAY 11-03 — K4-FELT (WINDOW 11-03 item 1): the eight read GETs leave by the READ DOOR (447 KB, deployment @1349) instead of the kid's 1.75 MB door; no pixel moves.   // SUNDAY 11-01 — F2 (A57 pass): a swapped-in alternate with his col M seconds gets the hold's ▶ (MAX 30s); the dose does not move.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2390,6 +2390,9 @@
     if (node) d.appendChild(node);
     return d;
   }
+  var F14_TIMER_INFO = true;   // A63 pass 2026-11-04; reversing line: false
+  var COMPLEX_TIMER_LESSON = 'Start Complex runs the clock. Each set on it covers your lifts and your rest, and the beep starts the next set. ' +
+    'If you finish early, ⏭ moves you on, and ⏮ goes back one set. A skipped lift makes that set shorter.';
   function slotLabel(s) {                              // "WUp1" -> "Warm Up 1"; "Comp1" -> "Complex 1"
     s = String(s || '');
     var m = s.match(/^W\s*U\s*p?\s*(\d+)/i); if (m) return 'Warm Up ' + m[1];
@@ -4794,8 +4797,19 @@
       var startWord = isComp ? 'Start Complex' : (/^W\s*U\s*p?\s*\d/i.test(String(slot.slot || '')) ? 'Start Warm Up' : 'Start');
       var startBtn = el('button', 'tstart', startWord + ' · ' + fmt(ivs[0])); startBtn.type = 'button';
       var pauseBtn = el('button', 'pause', '⏸'); pauseBtn.type = 'button'; pauseBtn.hidden = true;
+      // F14 (A63 pass, Phil 2026-11-04): the Profile's own ⓘ beside Complex 1 opens the timer lesson and a tap closes it;
+      // nothing moves for a kid who never taps it. Complex 1 alone, the one he passed.
+      var timerLesson = null;
+      if (F14_TIMER_INFO && isComp && compSeen === 1) {
+        var infoBtn = el('button', 'p-info', 'ⓘ'); infoBtn.type = 'button'; infoBtn.title = 'How the complex timer works';
+        timerLesson = el('div', 'p-clk-n slot-lesson', COMPLEX_TIMER_LESSON); timerLesson.hidden = true;
+        infoBtn.addEventListener('click', function (ev) { ev.stopPropagation(); timerLesson.hidden = !timerLesson.hidden; });
+        timerLesson.addEventListener('click', function () { timerLesson.hidden = true; });
+        head.classList.add('has-info'); head.appendChild(infoBtn);
+      }
       head.appendChild(startBtn); head.appendChild(timerNode); head.appendChild(pauseBtn);
       card.appendChild(head);
+      if (timerLesson) card.appendChild(timerLesson);
       // Round titles in interval order, so the pinned bar can say "Complex 1 · Set 3".
       var roundTitles = [];
       (function () {

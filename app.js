@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261104-resendask';   // WEDNESDAY 11-04 — LOGID-DOUBLED-1027: a failed save asks what landed before it resends, so a set still landing is not written twice; no pixel moves.   // WEDNESDAY 11-04 — F14 (A63 pass): an ⓘ beside Complex 1 opens the timer lesson; nothing moves for a kid who never taps it.   // TUESDAY 11-03 — ORPHANSID-PURGEUP: the calendar never prefetches a workout off a list served over an hour ago (a cached week from before a night's re-lay asked for a dead id); no pixel moves.   // TUESDAY 11-03 — K4-FELT (WINDOW 11-03 item 1): the eight read GETs leave by the READ DOOR (447 KB, deployment @1349) instead of the kid's 1.75 MB door; no pixel moves.   // SUNDAY 11-01 — F2 (A57 pass): a swapped-in alternate with his col M seconds gets the hold's ▶ (MAX 30s); the dose does not move.
+  var APP_BUILD = '20261106-onetapcard';   // FRIDAY 11-06 — F20: the REGEN card is his one pain question (A65 pass) and the module's Done line stops promising a credit no screen shows (A68 pass).
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1037,6 +1037,7 @@
   // Phil 06:0x change 2: the pre-workout strip is ONE line — "REGEN {total}/{max} {trend}", nothing else above the workout; the
   // pairing line waits for the completion screen (change 3); the Coach note is gone (change 4: nothing AI-written reaches a kid).
   function regenStrip(d) {
+    if (REGEN_ONETAP_ON) return;   // F20: the strip reads a score the one tap no longer asks for
     var st = regenKnown(d); if (!st || !st.logged) return;
     var old = app.querySelector('.regen-strip'); if (old) old.remove();
     var strip = el('div', 'regen-strip');
@@ -1064,8 +1065,58 @@
                 actual_load: '', actual_reps: '', flag: 'regen', regen_date: d, regen: JSON.stringify(skipped ? { skipped: true } : taps), app_ver: APP_VERSION };
     qAdd(row).then(function () { drain(); }).catch(function () {});
   }
+  // ══ F20 (Phil 2026-11-04, verbatim: "the regen card shrinks to one tap in the intro, since nobody logs it; the pain ask
+  // (F3) lives on it.") + his A61 A: PAIN is the whole card. 0 asks nothing more and the workout opens on that tap; 1 or
+  // higher opens Where (SESSION.pain_areas, his own vocabulary, the same one the skip's pain row reads) and the area tap
+  // opens it. Skip stays (R1304, his own line) and logs a skip. THE ROW IS A SKIP THAT CARRIES A NUMBER: sleep, fuel,
+  // tissue and reset were not asked, so they are blank and never zeros, and an engine that cannot read `pain` still
+  // writes a lawful skip. His 09-08 hurt rule stands: the number tells him and moves no level.
+  // GUARD: held off every phone until his A-id answers (REFUSALS row 27). BP_FLAGS=REGEN_ONETAP_ON=true arms it for
+  // qa/journeys/f20-onetap-shot.mjs. Reversing line: REGEN_ONETAP_ON = false (the full card and the strip return).
+  var REGEN_ONETAP_ON = true;   // A65 pass (Phil, Decisions tab 2026-11-05 14:06Z); reversing line: false
+  // F20 — the one-tap card has no TISSUE question, so 'It counts on tomorrow's REGEN card' would promise a credit nothing shows.
+  // GUARD: held off every phone until his A-id answers (REFUSALS row 27). BP_FLAGS=REGEN_ONETAP_ON=true,REGEN_DONE_PLAIN_ON=true arms it
+  // for qa/journeys/f20-moduledone-shot.mjs. Reversing line: REGEN_DONE_PLAIN_ON = false (the old sentence returns).
+  var REGEN_DONE_PLAIN_ON = true;   // A68 pass (Phil, Decisions tab 2026-11-06 14:24Z); reversing line: false
+  function regenDoneLine(min) {
+    return 'Done \u2713 — ' + min + ' min.' + (REGEN_ONETAP_ON && REGEN_DONE_PLAIN_ON ? '' : ' It counts on tomorrow\u2019s REGEN card.');
+  }
+  function regenOneTapCard(d, st) {
+    var stage = (st && st.stage) || 1;
+    var wrap = el('div', 'regen-wrap onetap'), card = el('div', 'regen-card');
+    var row = el('div', 'regen-row'), s = el('div', 'regen-q'), h = el('div', 'regen-qh');
+    h.appendChild(el('span', 'regen-qi', '🚑')); h.appendChild(el('span', 'regen-qh-t', 'PAIN')); s.appendChild(h);
+    s.appendChild(el('div', 'regen-qt', 'Anything hurt right now? 0 = nothing. Coach sees this.'));
+    function done(pain, where) {
+      if (pain == null) regenQueue(d, null, true); else regenQueue(d, { skipped: true, pain: pain, where: where || '' }, false);
+      regenRemember(d, { logged: true, skipped: true, score: {}, stage: stage, max: (st && st.max) || REGEN_MAX_DEFAULT[stage] || 10, trend: '', pair: null });
+      wrap.remove();
+    }
+    var whereBox = null, areas = (SESSION && SESSION.pain_areas && SESSION.pain_areas.length) ? SESSION.pain_areas : [];
+    for (var n = 0; n <= 10; n++) (function (v) {
+      var b = el('button', 'regen-chip one', String(v)); b.type = 'button';
+      b.addEventListener('click', function () {
+        if (v === 0 || !areas.length) { done(v, ''); return; }
+        [].slice.call(row.children).forEach(function (x) { x.classList.toggle('on', x === b); });
+        if (whereBox) whereBox.remove();
+        whereBox = el('div', 'regen-where');
+        whereBox.appendChild(el('div', 'regen-qt', 'Where?'));
+        var w = el('div', 'regen-row');
+        areas.forEach(function (nm) { var c = el('button', 'regen-chip one', nm); c.type = 'button'; c.addEventListener('click', function () { done(v, nm); }); w.appendChild(c); });
+        whereBox.appendChild(w); s.appendChild(whereBox);
+      });
+      row.appendChild(b);
+    })(n);
+    s.appendChild(row); card.appendChild(s);
+    var skip = el('button', 'regen-skip', 'Skip'); skip.type = 'button';
+    skip.addEventListener('click', function () { done(null); });
+    h.appendChild(skip);   // R1304: on the glass at 390x664 whatever Where adds below, so it rides the card's own head and never its foot
+    wrap.appendChild(card);
+    return wrap;
+  }
   // the card — his copy verbatim for the questions present; per-athlete numbers from the server's targets (the BW cell, live)
   function regenCard(d, st) {
+    if (REGEN_ONETAP_ON) return regenOneTapCard(d, st);
     var targets = st && st.targets, q9 = (st && st.questions) || { sleep: true, fuel: true, tissue: true, same: true, reset: true }, stage = (st && st.stage) || 1;
     var wrap = el('div', 'regen-wrap');
     var card = el('div', 'regen-card');
@@ -5844,7 +5895,7 @@
     // re-reads them at write (a phone never says how long his module is). A day already tapped paints the
     // state instead of the button — `d.done` is the server's own answer, so a second device shows it too.
     if (d.done && d.done.minutes > 0) {
-      sec.appendChild(el('p', 'rm-done', 'Done \u2713 — ' + d.done.minutes + ' min. It counts on tomorrow\u2019s REGEN card.'));
+      sec.appendChild(el('p', 'rm-done', regenDoneLine(d.done.minutes)));
       return sec;
     }
     var doneB = el('button', 'rm-done-b', 'Mark done'); doneB.type = 'button';
@@ -5855,7 +5906,7 @@
       // the queue drains on its own; the screen says what the phone knows now and the next open reads the
       // server's word. It is deliberately NOT a refetch: this screen is its own round trip (R1706) and a
       // kid who tapped Done does not stand in a second one to be told he did.
-      var p2 = el('p', 'rm-done', 'Done \u2713 — ' + d.module.minutes_total + ' min. It counts on tomorrow\u2019s REGEN card.');
+      var p2 = el('p', 'rm-done', regenDoneLine(d.module.minutes_total));
       doneB.replaceWith(p2);
     });
     sec.appendChild(doneB);

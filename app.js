@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261106-onetapcard';   // FRIDAY 11-06 — F20: the REGEN card is his one pain question (A65 pass) and the module's Done line stops promising a credit no screen shows (A68 pass).
+  var APP_BUILD = '20261108-regenswap';   // SUNDAY 11-08 — D171: every Regen module exercise wears the workout's ⇄ Swap, and a name with no clip says video coming (A69 pass).
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1081,14 +1081,50 @@
   function regenDoneLine(min) {
     return 'Done \u2713 — ' + min + ' min.' + (REGEN_ONETAP_ON && REGEN_DONE_PLAIN_ON ? '' : ' It counts on tomorrow\u2019s REGEN card.');
   }
-  function regenOneTapCard(d, st) {
+  // ══ F22 (Phil 2026-11-07, his F1 of ORDER 11-07): "Nutrition replaces the Regen opener card. No skip." The daily log at
+  // workout open, about yesterday: Water (bottles), Protein (fists), Fruit & veg (fists). "Steppers start blank; Next locked
+  // until all three are tapped." No defaults: a blank stepper is no answer, and its first tap (− or +) is the answer 0 or 1.
+  // Next hands the three numbers to his F20 pain tap (A65 pass), now with no Skip, and the row is the one-tap row carrying
+  // `water` `protein` `plants` beside `pain` `where` - still a skip to the old scorer, so no REGEN score is invented from it.
+  // GUARD: held off every phone until his A-id answers (REFUSALS row 27). BP_FLAGS=NUTRITION_CARD_ON=true arms it for
+  // qa/journeys/f22-nutrition-shot.mjs. Reversing line: NUTRITION_CARD_ON = false (the F20 one-tap card returns, Skip and all).
+  var NUTRITION_CARD_ON = false;
+  var NUTRI_MAX = 20;
+  function nutritionCard(d, st) {
+    var wrap = el('div', 'regen-wrap onetap nutri'), card = el('div', 'regen-card');
+    var s = el('div', 'regen-q'), h = el('div', 'regen-qh');
+    h.appendChild(el('span', 'regen-qi', '🥤')); h.appendChild(el('span', 'regen-qh-t', 'YESTERDAY')); s.appendChild(h);
+    s.appendChild(el('div', 'regen-qt', 'How much did you have yesterday? Coach sees this.'));
+    var items = [['water', 'Water', 'bottles'], ['protein', 'Protein', 'fists'], ['plants', 'Fruit & veg', 'fists']], vals = {};
+    var next = el('button', 'regen-start nutri-next', 'Next'); next.type = 'button'; next.disabled = true;
+    function sync() { var all = items.every(function (it) { return vals[it[0]] != null; }); next.disabled = !all; next.classList.toggle('ready', all); }
+    items.forEach(function (it) {
+      var r = el('div', 'nutri-row'), lab = el('div', 'nutri-lab');
+      lab.appendChild(el('span', 'nutri-name', it[1])); lab.appendChild(el('span', 'nutri-unit', it[2])); r.appendChild(lab);
+      var minus = el('button', 'regen-chip one nutri-step', '−'), val = el('span', 'nutri-val blank', ''), plus = el('button', 'regen-chip one nutri-step', '+');
+      minus.type = plus.type = 'button'; minus.setAttribute('aria-label', it[1] + ' less'); plus.setAttribute('aria-label', it[1] + ' more');
+      function set(v) { vals[it[0]] = Math.max(0, Math.min(NUTRI_MAX, v)); val.textContent = String(vals[it[0]]); val.classList.remove('blank'); r.classList.add('on'); sync(); }
+      minus.addEventListener('click', function () { set(vals[it[0]] == null ? 0 : vals[it[0]] - 1); });
+      plus.addEventListener('click', function () { set(vals[it[0]] == null ? 1 : vals[it[0]] + 1); });
+      r.appendChild(minus); r.appendChild(val); r.appendChild(plus); s.appendChild(r);
+    });
+    next.addEventListener('click', function () {
+      if (next.disabled) return;
+      var pain = regenOneTapCard(d, st, { water: vals.water, protein: vals.protein, plants: vals.plants });
+      wrap.parentNode && wrap.parentNode.replaceChild(pain, wrap);
+    });
+    s.appendChild(next); card.appendChild(s); wrap.appendChild(card);
+    return wrap;
+  }
+  function regenOneTapCard(d, st, nutri) {
     var stage = (st && st.stage) || 1;
     var wrap = el('div', 'regen-wrap onetap'), card = el('div', 'regen-card');
     var row = el('div', 'regen-row'), s = el('div', 'regen-q'), h = el('div', 'regen-qh');
     h.appendChild(el('span', 'regen-qi', '🚑')); h.appendChild(el('span', 'regen-qh-t', 'PAIN')); s.appendChild(h);
     s.appendChild(el('div', 'regen-qt', 'Anything hurt right now? 0 = nothing. Coach sees this.'));
     function done(pain, where) {
-      if (pain == null) regenQueue(d, null, true); else regenQueue(d, { skipped: true, pain: pain, where: where || '' }, false);
+      if (pain == null) regenQueue(d, null, true);
+      else { var t = { skipped: true, pain: pain, where: where || '' }; if (nutri) { t.water = nutri.water; t.protein = nutri.protein; t.plants = nutri.plants; } regenQueue(d, t, false); }
       regenRemember(d, { logged: true, skipped: true, score: {}, stage: stage, max: (st && st.max) || REGEN_MAX_DEFAULT[stage] || 10, trend: '', pair: null });
       wrap.remove();
     }
@@ -1108,14 +1144,17 @@
       row.appendChild(b);
     })(n);
     s.appendChild(row); card.appendChild(s);
-    var skip = el('button', 'regen-skip', 'Skip'); skip.type = 'button';
-    skip.addEventListener('click', function () { done(null); });
-    h.appendChild(skip);   // R1304: on the glass at 390x664 whatever Where adds below, so it rides the card's own head and never its foot
+    if (!nutri) {   // F22: "No skip." The nutrition step that leads here has none, so neither does its pain tap
+      var skip = el('button', 'regen-skip', 'Skip'); skip.type = 'button';
+      skip.addEventListener('click', function () { done(null); });
+      h.appendChild(skip);   // R1304: on the glass at 390x664 whatever Where adds below, so it rides the card's own head and never its foot
+    }
     wrap.appendChild(card);
     return wrap;
   }
   // the card — his copy verbatim for the questions present; per-athlete numbers from the server's targets (the BW cell, live)
   function regenCard(d, st) {
+    if (NUTRITION_CARD_ON) return nutritionCard(d, st);
     if (REGEN_ONETAP_ON) return regenOneTapCard(d, st);
     var targets = st && st.targets, q9 = (st && st.questions) || { sleep: true, fuel: true, tissue: true, same: true, reset: true }, stage = (st && st.stage) || 1;
     var wrap = el('div', 'regen-wrap');
@@ -2323,6 +2362,30 @@
   // killed a rest timer and the late workout fetch that stole the profile: an old response overwriting
   // a screen the athlete is actively using.
   var HOLDS_RUNNING = 0;
+  // D172 (Phil 2026-11-07, his D2): every timed tile runs play -> lead-in with 3-2-1 beeps -> go beep -> the
+  // hold -> end beep, stop logs the seconds really held, and the seconds are a field like reps. The lead-in is
+  // his Thresholds cell `hold lead-in s`, carried as SESSION.hold_lead_s; no cell, no lead-in.
+  // GUARD: held off every phone until his A-id answers (REFUSALS row 27). BP_FLAGS=D172_HOLD_TILE=true arms it
+  // for qa/journeys/d172-hold-tile-shot.mjs. Reversing line: D172_HOLD_TILE = false.
+  var D172_HOLD_TILE = false;
+  function holdLeadIn(btn, go) {
+    var lead = D172_HOLD_TILE ? (Number(SESSION && SESSION.hold_lead_s) || 0) : 0;
+    if (!(lead > 0)) { go(); return; }
+    primeAudio();                                          // unlock audio on the tap that starts it (iOS)
+    var rem = lead;
+    HOLDS_RUNNING++;                                       // a re-render must not detach the tile mid lead-in
+    btn.classList.add('holding'); btn.textContent = String(rem);
+    miniToast('Get set');
+    var iv = setInterval(function () {
+      if (!btn.isConnected) { clearInterval(iv); HOLDS_RUNNING = Math.max(0, HOLDS_RUNNING - 1); return; }   // left the workout: no beep, no set
+      rem--;
+      if (rem > 0) { btn.textContent = String(rem); if (rem <= 3) beep(); return; }
+      clearInterval(iv);
+      HOLDS_RUNNING = Math.max(0, HOLDS_RUNNING - 1);
+      beep(); miniToast('Go');
+      go();
+    }, 1000);
+  }
   function startHold(btn, secs, done) {                    // duration items: countdown then log
     // Phil, after a full session: "There's no way to stop the exercise timer... I should be able to
     // tap and stop it because I should be able to log it without the timer. It forced me to do the
@@ -2362,7 +2425,7 @@
   function startRepHolds(btn, reps, secs, done) {
     var n = 0, held = [];
     function next() {
-      startHold(btn, secs, function (h) {
+      holdLeadIn(btn, function () { startHold(btn, secs, function (h) {
         held.push(h); n++;
         if (n >= reps) { btn._holdNextArm = false; done(held); return; }
         miniToast('Rep ' + n + ' of ' + reps + ' — tap for the next hold');
@@ -2374,7 +2437,7 @@
           btn._holdNextArm = false; btn.removeEventListener('click', go); next();
         };
         btn.addEventListener('click', go);
-      });
+      }); });
     }
     next();
   }
@@ -2519,6 +2582,7 @@
     // which is born without `.unconfirmed` and so looked "confirmed" to screenTouched() even though
     // nobody touched it (#38).
     function touched() { f.classList.remove('unconfirmed'); f.classList.add('confirmed'); if (onTouch) onTouch(); }
+    f._draw = draw;
     function btn(sign) {
       var b = el('button', 'step', sign > 0 ? '+' : '−'); b.type = 'button';
       b.addEventListener('click', function () {
@@ -3128,6 +3192,107 @@
         .then(function () { drain(); }).catch(function () {});
     } catch (eQ) {}
   }
+  // F24 (Phil 2026-11-07, his ORDER 11-07 F3): "When an athlete picks the same alternate for the same lift on two consecutive
+  // sessions, show once at the end of that set: 'Make <alternate> your default for <lift>? Yes / Not now'." The engine says WHEN
+  // (`default_alt_ask` on the lift: today would be the second pick in a row since any Not now); the phone asks only after a set of
+  // that alternate is logged today, once per session per lift. The answer is a MARKER row `default:<lift> -> <alt> yes|no` on the
+  // same durable queue as a swap record (`default:` is in both marker vocabularies), so it is never a set. Yes is served from the
+  // next mint. Reversing line: DEFAULT_ALT_ON = false. Shot: qa/journeys/f24-default-alt-shot.mjs.
+  var DEFAULT_ALT_ON = false;
+  function defaultAltAfterSet(slot, ex, cur) {
+    if (!DEFAULT_ALT_ON) return;
+    try {
+      var orig = (cur && cur._alt_of) || (ex && ex._alt_of) || ex;
+      var a = orig && orig.default_alt_ask; if (!a || !a.alt || !a.lift) return;
+      var got = (cur && orig && cur.exercise === orig.exercise) ? (cur.variant_name || '') : ((cur && cur.exercise) || '');
+      if (String(got).trim().toLowerCase() !== String(a.alt).trim().toLowerCase()) return;
+      var sid = SESSION ? SESSION.session_id : '';
+      if (!sid) { try { sid = sessionStorage.getItem('bp_open_session') || ''; } catch (eS) {} }
+      if (!sid) return;
+      var k = 'bp_f24_asked|' + sid + '|' + a.lift;
+      try { if (localStorage.getItem(k)) return; localStorage.setItem(k, '1'); } catch (eL) {}
+      var old = document.querySelector('.dalt-card'); if (old) old.remove();
+      var card = el('div', 'dalt-card');
+      card.appendChild(el('div', 'dalt-q', 'Make ' + a.alt + ' your default for ' + a.lift + '?'));
+      card.appendChild(el('div', 'dalt-sub', 'You picked it two workouts in a row.'));
+      var row = el('div', 'dalt-row');
+      var yes = el('button', 'dalt-yes', 'Yes'); yes.type = 'button';
+      var no = el('button', 'dalt-no', 'Not now'); no.type = 'button';
+      var answer = function (word) {
+        try {
+          qAdd({ log_id: uuid(), session_id: sid, complex_name: (slot && slot.complex_name) || '',
+            exercise: a.lift, set_no: '', side: '', target_load: '', target_reps: '',
+            actual_load: '', actual_reps: '', flag: 'default:' + a.lift + ' -> ' + a.alt + ' ' + word, variant_name: '' })
+            .then(function () { drain(); }).catch(function () {});
+        } catch (eQ) {}
+        card.remove();
+        if (word === 'yes') toast(a.alt + ' is your default for ' + a.lift + ' from your next workout.');
+      };
+      yes.addEventListener('click', function () { answer('yes'); });
+      no.addEventListener('click', function () { answer('no'); });
+      row.appendChild(no); row.appendChild(yes);
+      card.appendChild(row);
+      document.body.appendChild(card);
+    } catch (e) {}
+  }
+  // F24 THE PROFILE LIST: one row per default, "<lift> → <alt>", the date it was set, and Remove.
+  function defaultsBlock(sec, list) {
+    sec.innerHTML = '';
+    if (!list.length) { sec.hidden = true; return; }
+    sec.hidden = false;
+    sec.appendChild(el('div', 'p-block-h', 'Your defaults'));
+    list.forEach(function (d) {
+      var row = el('div', 'dflt-row');
+      var txt = el('div', 'dflt-txt');
+      txt.appendChild(el('div', 'dflt-name', d.lift + ' → ' + d.alt));
+      var ms = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d.set || ''));
+      if (ms) txt.appendChild(el('div', 'dflt-set', 'since ' + Number(ms[2]) + '/' + Number(ms[3])));
+      var rm = el('button', 'dflt-rm', 'Remove'); rm.type = 'button';
+      rm.addEventListener('click', function () {
+        if (!window.confirm('Stop serving ' + d.alt + ' for ' + d.lift + '? ' + d.lift + ' comes back from your next workout.')) return;
+        rm.disabled = true;
+        fetch(bpTagRead(cfg.WEBAPP_URL + '?action=default_remove&athlete=' + encodeURIComponent(athlete) +
+              '&token=' + encodeURIComponent(token) + '&lift=' + encodeURIComponent(d.lift)))
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            if (j && j.ok) { row.remove(); toast(d.lift + ' is back from your next workout.'); if (!sec.querySelector('.dflt-row')) sec.hidden = true; }
+            else { rm.disabled = false; toast('Could not remove — try again'); }
+          })
+          .catch(function () { rm.disabled = false; toast('Offline — try again when connected'); });
+      });
+      row.appendChild(txt); row.appendChild(rm);
+      sec.appendChild(row);
+    });
+  }
+  // F24 THE SERVE HALF (Phil 2026-11-07: "Yes → Athletes per-lift 'Serve alternate' cell; served from the next mint. Load = last
+  // logged set of that alternate, progressed by the 10-21 rule. Never touches the main lift's level, BEST or RX"). The engine hands
+  // `default_alt` {name, load, reps} on the lift; the phone makes the swap the athlete would have tapped, at that price, so the lift's
+  // own prescription is untouched and every logged set is the alternate's own. The swap record posts once per workout per lift; a
+  // tap back to the lift ("Keep original") holds the default off for that workout. Behind DEFAULT_ALT_ON.
+  function defaultAltOf(ex) {
+    var d = ex && ex.default_alt; if (!d || !d.name || d.refused) return null;
+    var hit = null; (ex.alternates || []).forEach(function (a) { if (!hit && a && !a.main && String(a.name || '').toLowerCase() === String(d.name).toLowerCase()) hit = a; });
+    if (!hit) return null;
+    var a2 = {}; Object.keys(hit).forEach(function (k) { a2[k] = hit[k]; });
+    if (d.load != null) a2.prefill_load = d.load;
+    if (d.reps != null) a2.reps = d.reps;
+    return a2;
+  }
+  function serveDefaultAlts(s) {
+    if (!DEFAULT_ALT_ON) return;
+    var sid = (s && (s.session_id || s.date)) || '';
+    Object.keys(ROW_REG).forEach(function (k) {
+      try {
+        var en = (ROW_REG[k] || [])[0]; if (!en) return;
+        var orig = en.ex._alt_of || en.ex, a = defaultAltOf(orig); if (!a) return;
+        if (en.ex._alt_of) return;   // already on an alternate this render
+        if (!(ROW_REG[k] || []).some(function (x) { return !x.row.classList.contains('done'); })) return;   // nothing left to serve it on
+        var kOff = 'bp_f24_off|' + sid + '|' + orig.exercise, kPost = 'bp_f24_served|' + sid + '|' + orig.exercise, posted = false;
+        try { if (localStorage.getItem(kOff)) return; posted = !!localStorage.getItem(kPost); localStorage.setItem(kPost, '1'); } catch (eL) {}
+        applySwapAll(k, a, { noEvent: posted, byDefault: true });
+      } catch (e) {}
+    });
+  }
   // R1489 (ORDER 10-09 item 1, Mason 10/8 watched by Phil: pain on Trap 3 Raise, "the UE-pain alternates would not respond to a
   // tap"): `opts.fromRow` is the row whose Swap button was tapped. The record of that night (Sessions tab): TWELVE
   // `swap:Trap 3 Raise -> Forearm Slides` events with distinct log_ids, drained 22:48:11-22:48:35Z. j72 reproduces it in his
@@ -3161,7 +3326,9 @@
         // tap (fromRow) returns here: the exscheme reconcile (R686/R633) re-applies the same name with its real reps and
         // must still rebuild — postSwapEvent's own from==to guard already keeps it off the record.
         if (R1489_SWAP_READS && fromRow && fromN && toN && String(fromN) === String(toN)) return;
-        postSwapEvent(e0.slot, fromN, toN || '');
+        if (!(opts && opts.noEvent)) postSwapEvent(e0.slot, fromN, toN || '');
+        // F24: the athlete tapping back to the lift itself holds the default off for this workout
+        if (DEFAULT_ALT_ON && a && a.main && !(opts && opts.byDefault)) { try { var o24 = e0.ex._alt_of || e0.ex; if (o24.default_alt) localStorage.setItem('bp_f24_off|' + ((SESSION && (SESSION.session_id || SESSION.date)) || '') + '|' + o24.exercise, '1'); } catch (eO24) {} }
       }
     } catch (eSw) {}
     ROW_REG[key] = [];                      // the rebuilt rows re-register themselves
@@ -3323,7 +3490,9 @@
   // Swap panel: pick a reason-tagged alternate → every set of that exercise becomes it, with the
   // alternate's own dosing. "Keep original" reverts. Works from an alternate row too (_alt_of).
   // PRINCIPLES 2: the list shows only the reason + movement — never the dosing.
-  function toggleSwap(row, ex) {
+  // D171: `onPick`, when a screen hands one, IS the whole answer to a tap: the Regen module takes the same menu and search, and has
+  // no ROW_REG row, no reps and no scheme to reconcile. Absent, every line below is the workout's as it was.
+  function toggleSwap(row, ex, onPick) {
     var open = row.querySelector('.swap-panel');
     if (open) { open.remove(); return; }
     var origEx = ex._alt_of || ex;
@@ -3348,12 +3517,13 @@
         b.appendChild(el('span', 'swap-name', a.name));
         // A `same` alternate keeps the whole prescription — worth saying, because it's the difference
         // between "swap and keep your working weight" and "swap into an accessory".
-        if (altIsSame(a)) b.appendChild(el('span', 'swap-same', 'same sets & reps'));
+        if (!onPick && altIsSame(a)) b.appendChild(el('span', 'swap-same', 'same sets & reps'));   // D171: a module has minutes, no sets to keep
         // "each with its note" — his own coach line for that movement, from the tab. Quiet, under the
         // name, and only when he has typed one (DESIGN.md rule 8).
         if (a.note) b.appendChild(el('span', 'swap-note', a.note));
       }
       b.addEventListener('click', function () {
+        if (onPick) { onPick(a.main ? null : a); return; }
         applySwapAll(origEx.exercise, a, { fromRow: row });   // R1489: the tapped row — a logged one stays, and the tap must still read
         // R686: a curated alternate with a blank reps cell applies instantly (above) but must not
         // STAY on the outgoing lift's reps — fetch the incoming lift's own prescription and
@@ -3412,6 +3582,7 @@
         if (x.region || x.tier_class) hb.appendChild(el('span', 'swap-cat', x.region || x.tier_class));
         hb.appendChild(el('span', 'swap-name', x.display_name || x.exercise));
         hb.addEventListener('click', function () {
+          if (onPick) { onPick({ name: x.display_name || x.exercise, video_url: x.video_url || '' }); return; }
           // INHERIT THE REAL PRESCRIPTION. Phil: "that exercise I choose should inherit the reps...
           // single-leg calf raise gave me 10 reps instead of max." Carrying only the ORIGINAL row's
           // numbers meant swapping a duration carry into Bent Row produced a load box and NO reps box,
@@ -3821,6 +3992,7 @@
     if (lgd) {
       if (lgd.load !== '' && lgd.load != null) state.load = Number(lgd.load);
       if (lgd.reps !== '' && lgd.reps != null) state.reps = Number(lgd.reps);
+      if (Number(lgd.dur) > 0) { state.held = Number(lgd.dur); state.heldSet = true; }   // D172
     }
     // R533 — A SET THIS DEVICE ALREADY LOGGED MUST NOT RE-RENDER SHOWING THE PRESCRIPTION.
     //
@@ -3850,6 +4022,7 @@
         var _p = String(_cs).split('|');
         if ((!lgd || lgd.load === '' || lgd.load == null) && _p[0] !== '' && _p[0] !== 'undefined') state.load = isNaN(Number(_p[0])) ? _p[0] : Number(_p[0]);
         if ((!lgd || lgd.reps === '' || lgd.reps == null) && _p[1] !== '' && _p[1] !== 'undefined') state.reps = isNaN(Number(_p[1])) ? _p[1] : Number(_p[1]);
+        if (D172_HOLD_TILE && !state.heldSet && Number(_p[2]) > 0) { state.held = Number(_p[2]); state.heldSet = true; }
       }
     }
 
@@ -3913,7 +4086,27 @@
     // carries a level goal, Phil 07-28), so every row keeps its three lanes.
     var capS = (!isDur && !gv && !isMaxReps && Number(t.max_cont_s) > 0) ? Number(t.max_cont_s) : 0;
     if (!gv && !isMaxReps && !capS) row.classList.add('no-goal');   // "collapse set to be shorter if no goal"
-    l2.appendChild(lane('c-goal', capS ? 'max' : 'level goal',
+    // D172: THE SECONDS ARE A FIELD LIKE REPS. It opens at the prescription and reads `held` once the clock or
+    // the athlete has spoken. A number typed on a set not yet logged turns the ▶ into a ✓ that logs it with no
+    // clock; on a logged set it appends a correction, after a pause so a typed 14 is not also a logged 1.
+    var heldLanes = [], secsTyped = false, editT = null, secsStep = null;
+    function markHeld() { heldLanes.forEach(function (n) { n.textContent = 'held'; }); if (secsStep && secsStep._draw) secsStep._draw(); }
+    function secsTouched() {
+      state.heldSet = true; markHeld();
+      if (row.classList.contains('done')) {
+        clearTimeout(editT);
+        editT = setTimeout(function () { if (Number(state.held) > 0) commit(Number(state.held)); }, 1200);
+      } else { secsTyped = Number(state.held) > 0; check.textContent = secsTyped ? '✓' : '▶'; }
+    }
+    function secsLane(cls, label, secs) {
+      if (state.held == null) state.held = secs;
+      secsStep = stepper(state, 'held', 1, '', cls === 'c-goal' ? 'secs-bare' : '', secsTouched, null, true, true);   // the goal lane has no room for ±
+      var inp = secsStep.querySelector('input'); if (inp) inp.setAttribute('aria-label', 'seconds');
+      var ln = lane(cls, state.heldSet ? 'held' : label, secsStep);
+      heldLanes.push(ln.querySelector('.lane-l'));
+      return ln;
+    }
+    l2.appendChild(D172_HOLD_TILE && capS ? secsLane('c-goal', 'max', capS) : lane('c-goal', capS ? 'max' : 'level goal',
       isMaxReps ? el('span', 'cv goal-max', 'Max') : (gv ? el('span', 'cv goal-v', gv)
         : (capS ? el('span', 'cv goal-v', capS + 's') : null))));
 
@@ -3925,18 +4118,18 @@
       if (needsConfirm && critical === 'load') wStep.classList.add('unconfirmed');
       aLabel = (cur.per_hand || ex.per_hand) ? 'lb per hand' : 'lb';   // a DB pair logs ONE hand's weight (Phil 2026-08-05)
       aNode = wStep;
-      if (isDur) { bLabel = 'time'; bNode = el('span', 'cv', t.duration_s + 's'); }   // carry: time is secondary
+      if (isDur) { bLabel = 'time'; bNode = D172_HOLD_TILE ? 'secs' : el('span', 'cv', t.duration_s + 's'); }   // carry: time is secondary
       else if (hasReps) { bLabel = 'reps'; bNode = repsStepper(); }
     } else if (isDur) {
-      aLabel = 'time'; aNode = el('span', 'cv', t.duration_s + 's');                  // a hold: time IS the actual
+      aLabel = 'time'; aNode = D172_HOLD_TILE ? 'secs' : el('span', 'cv', t.duration_s + 's');   // a hold: time IS the actual
     } else if (hasReps) {
       aLabel = 'reps'; aNode = repsStepper();                                         // bodyweight: reps ARE the actual
       // A HOLD PER REP SAYS SO IN THE SECONDARY LANE (item 4b). The reps stay the actual — what she logs
       // is reps — and the seconds ride beside them, so "3 × 20s hold" is readable before she taps.
-      if (t.hold_s > 0) { bLabel = 'hold'; bNode = el('span', 'cv', t.hold_s + 's'); }
+      if (t.hold_s > 0) { bLabel = 'hold'; bNode = D172_HOLD_TILE ? 'secs' : el('span', 'cv', t.hold_s + 's'); }
     }
-    l2.appendChild(lane('c-actual', aLabel, aNode));
-    l2.appendChild(lane('c-second', bLabel, bNode));
+    l2.appendChild(aNode === 'secs' ? secsLane('c-actual', aLabel, t.duration_s) : lane('c-actual', aLabel, aNode));
+    l2.appendChild(bNode === 'secs' ? secsLane('c-second', bLabel, isDur ? t.duration_s : t.hold_s) : lane('c-second', bLabel, bNode));
 
     var lastLogId = null;
     var lastSig = null;   // L167 writer guard: what this row last appended, so an identical re-fire is a no-op
@@ -3961,7 +4154,9 @@
       // carries a fresh log_id so idempotency (hard rule 4) cannot collapse it. Mason's 08-13 session
       // took 48 rows for 26 sets that way, and a burst inside ONE second wrote 55x10 then 55x0 twice
       // for a set he had performed. A correction still appends — an identical re-commit does not.
-      var sig = String(state.load) + '|' + String(state.reps) + '|' + (isDur ? String(heldS == null ? '' : heldS) : '');
+      // D172: a clock's or a field's seconds; a tile nobody timed claims none (a max tile logged from the round button).
+      var heldV = !D172_HOLD_TILE ? null : (heldS != null ? heldS : (state.heldSet ? Number(state.held) : null));
+      var sig = String(state.load) + '|' + String(state.reps) + '|' + (isDur ? String(heldS == null ? '' : heldS) : (heldV != null ? String(heldV) : ''));
       if (lastSig !== null && sig === lastSig) { row.classList.add('done'); check.classList.add('done'); check.textContent = '✓'; return; }
       var log = mkLog(slot, cur.exercise, t, state, (cur.exercise === ex.exercise ? ex.variant_name : ''));
       // mkLog returns null once the athlete has left the workout (SESSION is gone). A timed hold can
@@ -3970,6 +4165,7 @@
       if (!log) return;
       // Log what was actually HELD, not what was prescribed — a carry stopped at 40s is a 40s carry.
       if (isDur) log.duration_s = (heldS != null && heldS > 0) ? heldS : t.duration_s;
+      if (heldV != null) { log.duration_s = heldV; state.held = heldV; state.heldSet = true; markHeld(); secsTyped = false; }
       if (isDur && arguments.length > 1 && arguments[1] != null && arguments[1] > 0) log.duration_s2 = arguments[1];
       lastLogId = log.log_id;
       lastSig = sig;
@@ -3980,6 +4176,7 @@
       logRows(splitSides(log, freshEachSide(slot, cur.exercise, cur.each_side)));
       row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';
       refocus();   // rule 1: finishing a set advances what's in focus
+      defaultAltAfterSet(slot, ex, cur);   // F24: the default ask, after a set of the alternate (off: returns at once)
     }
     function uncheck() {   // undo an accidental check — and the undo must REACH THE SHEET (R016, j30)
       if (lastLogId) { queueDropped(lastLogId, 'uncheck', 'the athlete undid the check'); qDel([lastLogId]).then(updateBadge).catch(function () {}); }   // L381 as amended 09-15
@@ -4011,7 +4208,8 @@
       // would be swallowed by the remembered signature and the set would stay voided.
       delete COMMIT_SIG[doneKey(SESSION && SESSION.session_id, slot, cur.exercise, t.set_no)]; saveCommitSig();
       row.classList.remove('done'); check.classList.remove('done');
-      check.textContent = (isDur || capS > 0) ? '▶' : '✓';   // R1742: an undone timed tile is a ▶ again
+      check.textContent = (isDur || capS > 0 || (D172_HOLD_TILE && repHold)) ? '▶' : '✓';   // R1742: an undone timed tile is a ▶ again
+      secsTyped = false;
       refocus();
     }
     // What the collapsed one-line form of this row says (rule 1). Reads live state, so a correction
@@ -4026,7 +4224,7 @@
     row._sum = function () {
       var v = isDur ? (t.duration_s + 's')
         : (weighted ? (state.load + ' lb × ' + state.reps)
-          : (state.reps + (t.hold_s > 0 ? ' × ' + t.hold_s + 's hold' : ' reps')));
+          : (state.reps + (t.hold_s > 0 ? ' × ' + ((D172_HOLD_TILE && state.heldSet) ? state.held : t.hold_s) + 's hold' : ' reps')));
       return { name: name.textContent, val: v };   // reads the node, so a swap renames the summary too
     };
     // Same-size control in the rightmost lane for every row: ✓ to log, ▶ to start a timed hold (the
@@ -4043,6 +4241,7 @@
     // covers now carries it. Reversing line: drop `|| repHold` from the two expressions below.
     var repHold = !isDur && Number(t.hold_s) > 0;
     var timed = isDur || repHold || capS > 0;   // R1742: his max_cont_s is a timed tile, so it keeps the ▶
+    if (D172_HOLD_TILE && repHold) row._isDur = true;   // his rung reads the seconds, so the round button never logs a hold nobody timed
     var check = el('button', 'check' + (timed ? ' dur' : ''), timed ? '▶' : '✓'); check.type = 'button';
     check.addEventListener('click', function () {
       if (check.disabled) return;
@@ -4076,31 +4275,36 @@
       }
       if (check._side2arm) return;                     // armed for side 2: its own listener owns this tap
       if (check._holdNextArm) return;                  // armed for the next rep's hold: its own listener owns this tap
+      if (secsTyped) { commit(Number(state.held)); return; }   // D172: the athlete typed the seconds, no clock runs
       if (isDur) {
         if (cur.each_side) {
           // TIMER OPTION 1 (Phil 2026-08-05): each side gets its OWN timer — the chime fires, the
           // SAME button re-arms for the other side, and the set logs once with each side's real
           // held seconds. Rest stays at the round level, so each side keeps its full rest.
-          startHold(check, t.duration_s, function (h1) {
+          holdLeadIn(check, function () { startHold(check, t.duration_s, function (h1) {
             miniToast('Side 1 done — ▶ other side');
             check.textContent = '▶2'; check._side2arm = true;
             var second = function (ev) {
               ev.stopPropagation();
               if (check.classList.contains('holding') || check.classList.contains('done')) return;
               check._side2arm = false; check.removeEventListener('click', second);
-              startHold(check, t.duration_s, function (h2) { commit(h1, h2); });
+              holdLeadIn(check, function () { startHold(check, t.duration_s, function (h2) { commit(h1, h2); }); });
             };
             check.addEventListener('click', second);
-          });
-        } else startHold(check, t.duration_s, function (heldS) { commit(heldS); });
+          }); });
+        } else holdLeadIn(check, function () { startHold(check, t.duration_s, function (heldS) {
+          if (D172_HOLD_TILE && !(heldS > 0)) { check.textContent = '▶'; return; }   // stopped on the go beep: nothing was held
+          commit(heldS);
+        }); });
       } else if (t.hold_s > 0 && Number(state.reps) > 0) {
         // item 4b: reps, each one a countdown. The logged set is still REPS — the countdown is the
         // coaching half, not a second number to record (his words name reps x a countdown, nothing else).
-        startRepHolds(check, Number(state.reps), t.hold_s, function () { commit(); });
+        // D172: the seconds are recorded now, and the set carries its SHORTEST rep: his rung clears only when every rep reaches Hold (s).
+        startRepHolds(check, Number(state.reps), t.hold_s, function (held) { if (D172_HOLD_TILE) commit(Math.min.apply(null, held)); else commit(); });
       } else if (capS > 0) {
         // R1742: his seconds count down like a hold, a tap stops it early, and the set logs the reps
         // and load on the row — the clock is the coaching half, never a number recorded.
-        startHold(check, capS, function () { commit(); });
+        holdLeadIn(check, function () { startHold(check, capS, function (h) { if (D172_HOLD_TILE) commit(h); else commit(); }); });
       } else commit();
     });
     if (needsConfirm && isDur) { check.classList.add('locked'); }   // visual lock only — a tap now answers instead of dying
@@ -5030,6 +5234,7 @@
       card.appendChild(body);
       app.appendChild(card);
     });
+    serveDefaultAlts(s);   // F24: a lift with the athlete's default alternate opens already on it
     var finish = el('button', 'finish', 'Finish workout');
     finish.addEventListener('click', function () {
       var total = document.querySelectorAll('.ex-row').length, n = document.querySelectorAll('.ex-row.done').length;
@@ -5808,9 +6013,61 @@
   // engine never carries `parts` either (its own flag is false too), so the screen is byte-identical
   // to the one A48/A50 shipped this morning.
   var R1711_VIDEO_PARTS = true;   // A52 pass (Phil, 2026-10-30 12:01); reversing line: false
-  function regenModuleScreen(d) {
+  // D171 (Phil ORDER 11-07 D1, verbatim: "Swap on a module exercise = same swap as the workout (Alternates row + ladder)"; "FILM - show
+  // "video coming", no blank"): each module exercise wears the workout's own ⇄ Swap and panel (`toggleSwap`), and a name with no clip
+  // anywhere says so. The swap is this screen's until Mark done, which sends it for the Regen Log; the minutes stay his cells'.
+  // NO NEW CLASS: .swapbtn, .swap-panel and .rm-min are all in the shipped stylesheet.
+  // GUARD: held off every phone until his A-id answers (REFUSALS row 27). BP_FLAGS=REGEN_SWAP_ON=true arms it for
+  // qa/journeys/d171-regen-swap-shot.mjs. Reversing line: REGEN_SWAP_ON = false.
+  var REGEN_SWAP_ON = true;   // A69 pass (Phil, Decisions tab 2026-11-08 13:53Z); reversing line: false
+  // F23 (Phil ORDER 11-07, verbatim: "Regen icon serves three tiles instead of one module: pain / history / risk modules for the
+  // athlete's top key (Regen Modules tab). Engine's pick highlighted. Each tile shows its exercises and minutes."): the engine's
+  // `tiles` (F23_REGEN_TILES) paint as three cards, the pick outlined and labelled; a tap opens that tile's module on the screen
+  // above, Mark done and all, and the tap names its pattern so the engine credits the tile he did. One module a day (R1709's
+  // four cells are per day), so a day already done offers no second Mark done. GUARD: held off every phone until his A-id
+  // answers (REFUSALS row 27); BP_FLAGS=REGEN_TILES_ON=true arms it for qa/journeys/f23-regen-tiles-shot.mjs.
+  // Reversing line: REGEN_TILES_ON = false.
+  var REGEN_TILES_ON = false;
+  var REGEN_PAT_NAME = { pain: 'Pain', history: 'Injury history', risk: 'Position risk' };
+  function regenTilesScreen(d) {
     var sec = el('section', 'rm-wrap');
     sec.appendChild(el('div', 'rm-h', 'REGEN — today'));
+    if (d.why) sec.appendChild(el('p', 'rm-why', d.why));
+    d.tiles.forEach(function (t) {
+      var tile = el('button', 'rm-tile' + (t.picked ? ' pick' : '')); tile.type = 'button'; tile.dataset.pattern = t.pattern;
+      var hd = el('div', 'rm-tile-h');
+      hd.appendChild(el('span', 'rm-tile-t', REGEN_PAT_NAME[t.pattern] || t.pattern));
+      if (t.picked) hd.appendChild(el('span', 'rm-min', 'Today\'s pick'));
+      tile.appendChild(hd);
+      if (!t.module) {
+        tile.appendChild(el('p', 'rm-none', 'Not set up yet.'));
+        tile.disabled = true;
+      } else {
+        tile.appendChild(el('div', 'rm-sub', 'Session ' + t.session + ' · ' + t.module.minutes_total + ' min' + (t.done ? ' · done today' : '')));
+        (t.module.slots || []).forEach(function (s) {
+          var r = el('div', 'rm-tile-ex');
+          r.appendChild(el('span', 'rm-ex', s.exercise));
+          r.appendChild(el('span', 'rm-min', s.minutes + ' min'));
+          tile.appendChild(r);
+        });
+        tile.addEventListener('click', function () {
+          app.innerHTML = '';
+          app.appendChild(regenModuleScreen({ ok: true, date: d.date, session: t.session, module: t.module, why: t.picked ? d.why : '',
+            done: t.done || null, pattern: t.pattern, title: REGEN_PAT_NAME[t.pattern] || t.pattern, otherDone: !t.done && !!(d.done && d.done.minutes > 0), fromTiles: d }));
+        });
+      }
+      sec.appendChild(tile);
+    });
+    return sec;
+  }
+  function regenModuleScreen(d) {
+    var sec = el('section', 'rm-wrap');
+    if (d && d.fromTiles) {   // F23: back to the three tiles, from the payload already in hand (no second round trip)
+      var bk = el('button', 'back', '← All three'); bk.type = 'button';
+      bk.addEventListener('click', function () { app.innerHTML = ''; app.appendChild(regenTilesScreen(d.fromTiles)); });
+      sec.appendChild(bk);
+    }
+    sec.appendChild(el('div', 'rm-h', 'REGEN — ' + (d && d.fromTiles ? d.title : 'today')));
     if (!d || d.ok !== true) {
       sec.appendChild(el('p', 'rm-none', 'Coach has not set this up yet. Nothing for you to do.'));
       return sec;
@@ -5823,7 +6080,12 @@
     sec.appendChild(el('div', 'rm-sub', 'Session ' + d.session + ' · ' + d.module.minutes_total + ' min'));
     if (d.why) sec.appendChild(el('p', 'rm-why', d.why));
     var list = el('div', 'rm-list');
-    (d.module.slots || []).forEach(function (s) {
+    var swapsRm = {}, canSwap = REGEN_SWAP_ON && !(d.done && d.done.minutes > 0);
+    (d.module.slots || []).forEach(function paintSlot(s0, iS, arr, cur, box) {
+      var s = cur || s0;
+      // the slot's own box, so a swap can repaint it and the panel has a block to open in; flag off, the list as it was
+      if (canSwap && !box) { box = document.createElement('div'); list.appendChild(box); }
+      var into = canSwap ? box : list;
       var row = el('div', 'rm-row');
       // D104 (Phil 2026-10-28, verbatim: "Couch Stretch, PAILs/RAILs and Hip CARs show no video icon on
       // the regen card. Every exercise shows one.") — THE SAME AFFORDANCE THE REST OF THE APP USES AND
@@ -5855,8 +6117,20 @@
         nmR = el('span', 'rm-ex', s.exercise);
       }
       row.appendChild(nmR);
-      row.appendChild(el('span', 'rm-min', s.minutes + ' min'));
-      list.appendChild(row);
+      if (canSwap && !s.video_url && !hasParts) row.appendChild(el('span', 'rm-min', 'video coming'));
+      row.appendChild(el('span', 'rm-min', s0.minutes + ' min'));
+      if (canSwap) {
+        var swB = el('button', 'swapbtn'); swB.type = 'button'; swB.innerHTML = '⇄ Swap';
+        swB.addEventListener('click', function () {
+          toggleSwap(box, s0, function (a) {
+            if (a) swapsRm[s0.exercise] = a.name; else delete swapsRm[s0.exercise];
+            box.innerHTML = '';
+            paintSlot(s0, iS, arr, a ? { exercise: a.name, video_url: a.video_url || '' } : null, box);
+          });
+        });
+        row.appendChild(swB);
+      }
+      into.appendChild(row);
       if (hasParts) {
         var nP = s.parts.length;
         s.parts.forEach(function (p, iP) {
@@ -5866,7 +6140,7 @@
           pn.addEventListener('click', function () { openVideo(p.video_url); });
           pr.appendChild(pn);
           pr.appendChild(el('span', 'rm-min', (iP + 1) + ' of ' + nP));
-          list.appendChild(pr);
+          into.appendChild(pr);
         });
       }
     });
@@ -5898,11 +6172,16 @@
       sec.appendChild(el('p', 'rm-done', regenDoneLine(d.done.minutes)));
       return sec;
     }
+    if (d.otherDone) {   // F23: one module a day; today's is another tile's
+      sec.appendChild(el('p', 'rm-tell', 'Today\'s module is done. One a day.'));
+      return sec;
+    }
     var doneB = el('button', 'rm-done-b', 'Mark done'); doneB.type = 'button';
     doneB.addEventListener('click', function () {
       if (doneB.disabled) return;
       doneB.disabled = true; doneB.textContent = 'Saving…';
-      regenModuleQueue(d.date);
+      regenModuleQueue(d.date, Object.keys(swapsRm).length ? swapsRm : null, d.fromTiles ? d.pattern : '');   // F23: only a tile names its pattern
+      sec.querySelectorAll('.swapbtn, .swap-panel').forEach(function (n) { n.remove(); });   // done is done: nothing left to swap
       // the queue drains on its own; the screen says what the phone knows now and the next open reads the
       // server's word. It is deliberately NOT a refetch: this screen is its own round trip (R1706) and a
       // kid who tapped Done does not stand in a second one to be told he did.
@@ -5915,9 +6194,11 @@
   /** R1709 — the module tap rides the EXISTING queue and session-save path, his §6 ("do not add a second
    *  path"): one row, flag `regen_module`, drained with the sets. The payload carries the DATE and nothing
    *  else that matters — the engine reads his minutes off the tab at write. */
-  function regenModuleQueue(dateStr) {
+  function regenModuleQueue(dateStr, swaps, pattern) {
+    var rg = JSON.stringify(swaps ? { module_done: true, swaps: swaps } : { module_done: true });
+    if (pattern) rg = rg.replace(/\}$/, ',"pattern":' + JSON.stringify(pattern) + '}');   // F23: the tile he did; no tile, the row as it was
     var row = { log_id: uuid(), session_id: '', complex_name: '', exercise: '', set_no: '', side: '', target_load: '', target_reps: '',
-                actual_load: '', actual_reps: '', flag: 'regen_module', regen_date: dateStr, regen: JSON.stringify({ module_done: true }), app_ver: APP_VERSION };
+                actual_load: '', actual_reps: '', flag: 'regen_module', regen_date: dateStr, regen: rg, app_ver: APP_VERSION };
     qAdd(row).then(function () { drain(); }).catch(function () {});
   }
   function loadRegen() {
@@ -5929,7 +6210,7 @@
       .then(function (data) {
         if (!isCurrent(mine)) return;
         app.innerHTML = '';
-        app.appendChild(regenModuleScreen(data));
+        app.appendChild((REGEN_TILES_ON && data && data.ok === true && data.tiles && data.tiles.length) ? regenTilesScreen(data) : regenModuleScreen(data));
       })
       .catch(function () { if (isCurrent(mine)) show('Could not load today\'s regen. Try again.', 'err'); });
   }
@@ -6074,7 +6355,7 @@
   // logged set, at that record's own coordinates. This is the sixth copy, so it is pinned:
   // `qa/harness/marker-flags.mjs` extracts BOTH lists and reds if they differ by one word.
   // NOTE `recovered` is deliberately absent — an L131 crumb-recovered row IS a performed set.
-  var MARKER_FLAG_PREFIXES = ['skip:', 'report:', 'climb|', 'swap:'];
+  var MARKER_FLAG_PREFIXES = ['skip:', 'report:', 'climb|', 'swap:', 'default:'];   // F24: the default ask's answer
   var MARKER_FLAG_WORDS = ['uncheck', 'history'];
   function isMarkerFlag(f) {
     var s = String(f == null ? '' : f).trim().toLowerCase();
@@ -7140,6 +7421,14 @@
     var ckSec = el('section', 'p-block clocks');
     (clocks || []).forEach(function (c) { var r = clockRowFor(c); if (r) ckSec.appendChild(r); });
     if (ckSec.children.length) app.appendChild(ckSec);
+    // F24 (Phil 2026-11-07): "Profile lists the athlete's defaults with a remove button." Behind DEFAULT_ALT_ON: the block draws
+    // only when the athlete has a default; Remove blanks the cell on the athlete's own tap, and the lift serves as itself from the
+    // next workout opened. A failed remove keeps the row and says so.
+    if (DEFAULT_ALT_ON) {
+      var dfSec = el('section', 'p-block defaults'); dfSec.hidden = true; app.appendChild(dfSec);
+      fetchJson(readUrl() + '?action=defaults&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+        .then(function (d) { if (d && d.ok && dfSec.parentNode) defaultsBlock(dfSec, d.defaults || []); }).catch(function () {});
+    }
     // R1000 §6: the REGEN block under Levels — date · total · S N T D · LOW, last 10 rows + the 4-week mean (logged rows only)
     if (REGEN_ON) {
       var regenSec = regenProfileBlock([], null); app.appendChild(regenSec);

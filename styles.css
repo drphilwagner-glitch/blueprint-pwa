@@ -1337,6 +1337,16 @@ body #app { padding-bottom: 108px; }
 .regen-wrap.onetap .regen-card { min-height: 0; height: fit-content; }
 .regen-wrap.onetap .regen-qh { display: flex; align-items: center; }
 .regen-wrap.onetap .regen-skip { margin-left: auto; }
+/* F22: the nutrition step, three rows of − value +, then Next. No new theme value; the steps clear the 44 px tap floor. Reversing line: delete these seven. */
+.nutri-row { display: flex; align-items: center; gap: var(--sp-8); margin-top: 12px; }
+.nutri-lab { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.nutri-name { font-size: var(--fs-16, 16px); font-weight: 700; }
+.nutri-unit, .nutri-val { font-size: var(--fs-13); color: var(--muted); }
+.nutri-val { min-width: 36px; text-align: center; font-size: var(--fs-17, 17px); font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.nutri-next { width: 100%; min-height: 48px; margin-top: 16px; }
+/* blank is no answer: an empty box, never a 0 or a dash a kid could read as minus */
+.nutri-val.blank { align-self: center; height: 24px; border-bottom: 2px dashed var(--muted-soft); }
+.nutri-step { min-width: 48px; min-height: 48px; padding: 0; font-size: var(--fs-17, 17px); font-weight: 800; }
 .pain-chips.areas .pain-chip, .pain-chips.sides .pain-chip { min-width: 0; padding: 6px 10px; }
 .pain-chips.sides { margin-top: 2px; }
 
@@ -1363,3 +1373,28 @@ body #app { padding-bottom: 108px; }
 .rm-done-b:disabled { opacity: .45; filter: grayscale(1); }
 .rm-done { margin: 0; font-size: var(--fs-13); font-weight: 700; color: var(--bp); }
 .regen-credit { color: var(--bp); font-weight: 700; }
+.stepper.secs-bare .step { display: none; }   /* D172: a max tile's seconds, typed; class only exists behind D172_HOLD_TILE */
+/* F23: the three regen tiles; the engine's pick wears the accent border and tint .round.paired already uses. No new theme value. Reversing line: delete these six. */
+.rm-tile { display: grid; gap: var(--sp-7); width: 100%; text-align: left; background: var(--white); border: 1px solid var(--line); border-radius: var(--r-14); padding: 12px 13px; box-shadow: 0 1px 2px var(--sh-card); color: var(--ink); font: inherit; }
+.rm-tile.pick { border: 2px solid var(--bp); background: var(--bp-tint); }
+.rm-tile-h, .rm-tile-ex { display: flex; align-items: baseline; gap: var(--sp-8); }
+.rm-tile-t { flex: 1 1 auto; font-size: var(--fs-15); font-weight: 800; }
+.rm-tile.pick .rm-min { background: var(--white); }
+.rm-wrap > .back { justify-self: start; }
+/* F24: the default-alternate ask — a card in the thumb zone above the nav (the fixed bar's placement at styles.css:815), accent border, one
+   filled primary (Yes) and one quiet secondary (Not now), the .rm-done-b / .refused-ok vocabulary. No new theme value.
+   The class only exists behind DEFAULT_ALT_ON. Reversing line: delete these six. */
+.dalt-card { position: fixed; left: 8px; right: 8px; bottom: calc(66px + env(safe-area-inset-bottom)); z-index: 60; background: var(--white); border: 2px solid var(--bp); border-radius: var(--r-14); padding: 12px 13px; box-shadow: 0 2px 8px rgba(0,0,0,.18); display: grid; gap: var(--sp-7); }
+.dalt-q { font-size: var(--fs-15); font-weight: 800; color: var(--ink); }
+.dalt-sub { font-size: var(--fs-13); color: var(--muted); margin-top: -4px; }
+.dalt-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); }
+.dalt-yes { padding: 12px; border-radius: var(--r-pill); border: 1px solid var(--bp); background: var(--bp); color: var(--bg); font-size: var(--fs-15); font-weight: 800; }
+.dalt-no { padding: 12px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--bp-faint); color: var(--bp); font-size: var(--fs-15); font-weight: 700; }
+/* F24 the Profile's "Your defaults" list (Phil 2026-11-07: "Profile lists the athlete's defaults with a remove button"): one row per
+   default, the name and its date on the left, a quiet pill Remove on the right, in the .dalt-no vocabulary. No new theme value.
+   Drawn only behind DEFAULT_ALT_ON and only when a default exists. Reversing line: delete these five. */
+.dflt-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); padding: 8px 0; border-top: 1px solid var(--line); }
+.dflt-txt { min-width: 0; }
+.dflt-name { font-size: var(--fs-15); font-weight: 700; color: var(--ink); }
+.dflt-set { font-size: var(--fs-13); color: var(--muted); }
+.dflt-rm { flex: none; padding: 8px 14px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--bp-faint); color: var(--bp); font-size: var(--fs-13); font-weight: 700; }

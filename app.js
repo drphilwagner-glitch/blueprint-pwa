@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261108-regenswap';   // SUNDAY 11-08 — D171: every Regen module exercise wears the workout's ⇄ Swap, and a name with no clip says video coming (A69 pass).
+  var APP_BUILD = '20261108-holdtile';   // SUNDAY 11-08 — D172: every hold tile runs a 5 s lead-in with 3-2-1 and go beeps, stop logs the seconds held, seconds are a field (A70 pass).
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2365,9 +2365,9 @@
   // D172 (Phil 2026-11-07, his D2): every timed tile runs play -> lead-in with 3-2-1 beeps -> go beep -> the
   // hold -> end beep, stop logs the seconds really held, and the seconds are a field like reps. The lead-in is
   // his Thresholds cell `hold lead-in s`, carried as SESSION.hold_lead_s; no cell, no lead-in.
-  // GUARD: held off every phone until his A-id answers (REFUSALS row 27). BP_FLAGS=D172_HOLD_TILE=true arms it
-  // for qa/journeys/d172-hold-tile-shot.mjs. Reversing line: D172_HOLD_TILE = false.
-  var D172_HOLD_TILE = false;
+  // GUARD: held off every phone until his A-id answers (REFUSALS row 27). A70 pass (Phil 2026-11-08 13:53Z) ships it.
+  // Reversing line: D172_HOLD_TILE = false.
+  var D172_HOLD_TILE = true;
   function holdLeadIn(btn, go) {
     var lead = D172_HOLD_TILE ? (Number(SESSION && SESSION.hold_lead_s) || 0) : 0;
     if (!(lead > 0)) { go(); return; }

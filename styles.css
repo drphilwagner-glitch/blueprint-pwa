@@ -1337,16 +1337,10 @@ body #app { padding-bottom: 108px; }
 .regen-wrap.onetap .regen-card { min-height: 0; height: fit-content; }
 .regen-wrap.onetap .regen-qh { display: flex; align-items: center; }
 .regen-wrap.onetap .regen-skip { margin-left: auto; }
-/* F22: the nutrition step, three rows of − value +, then Next. No new theme value; the steps clear the 44 px tap floor. Reversing line: delete these seven. */
-.nutri-row { display: flex; align-items: center; gap: var(--sp-8); margin-top: 12px; }
-.nutri-lab { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-.nutri-name { font-size: var(--fs-16, 16px); font-weight: 700; }
-.nutri-unit, .nutri-val { font-size: var(--fs-13); color: var(--muted); }
-.nutri-val { min-width: 36px; text-align: center; font-size: var(--fs-17, 17px); font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
-.nutri-next { width: 100%; min-height: 48px; margin-top: 16px; }
-/* blank is no answer: an empty box, never a 0 or a dash a kid could read as minus */
-.nutri-val.blank { align-self: center; height: 24px; border-bottom: 2px dashed var(--muted-soft); }
-.nutri-step { min-width: 48px; min-height: 48px; padding: 0; font-size: var(--fs-17, 17px); font-weight: 800; }
+/* F22 (A71 no: the old card's layout, content only): three count rows inside the FUEL box; Next keeps the 48 px it had. Reversing line: delete these three. */
+.regen-wrap.nutri .nutri-name { margin: 12px 0 0; font-weight: 700; }
+.regen-wrap.nutri .nutri-row { margin-top: 6px; }
+.regen-wrap.nutri .nutri-next { min-height: 48px; }
 .pain-chips.areas .pain-chip, .pain-chips.sides .pain-chip { min-width: 0; padding: 6px 10px; }
 .pain-chips.sides { margin-top: 2px; }
 

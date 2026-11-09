@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261108-holdtile';   // SUNDAY 11-08 — D172: every hold tile runs a 5 s lead-in with 3-2-1 and go beeps, stop logs the seconds held, seconds are a field (A70 pass).
+  var APP_BUILD = '20261108-regentiles';   // SUNDAY 11-08 — F23: the Regen icon opens three tiles (pain · history · risk) for the top key, the pick outlined (A72 pass).
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1088,32 +1088,40 @@
   // `water` `protein` `plants` beside `pain` `where` - still a skip to the old scorer, so no REGEN score is invented from it.
   // GUARD: held off every phone until his A-id answers (REFUSALS row 27). BP_FLAGS=NUTRITION_CARD_ON=true arms it for
   // qa/journeys/f22-nutrition-shot.mjs. Reversing line: NUTRITION_CARD_ON = false (the F20 one-tap card returns, Skip and all).
+  // A71 no (Phil, Decisions tab 2026-11-08 13:53, verbatim): "milkshake and steppers are new. Keep the old card's nutrition
+  // icon and layout; content only: 3 blank counts, no Skip." So this is the old full card's shape - title, one bordered
+  // question with his FUEL icon, the sticky foot with its one button - and its only content is three rows of count chips,
+  // none lit. Six chips is what one row holds at 390 above the 44 px floor, so the last one is 5+ (his sleep row's 9½h+ is
+  // the precedent) and it logs 5.
   var NUTRITION_CARD_ON = false;
-  var NUTRI_MAX = 20;
+  var NUTRI_COUNTS = [['0', 0], ['1', 1], ['2', 2], ['3', 3], ['4', 4], ['5+', 5]];
   function nutritionCard(d, st) {
-    var wrap = el('div', 'regen-wrap onetap nutri'), card = el('div', 'regen-card');
+    var wrap = el('div', 'regen-wrap nutri'), card = el('div', 'regen-card');
+    card.appendChild(el('div', 'regen-title', 'YESTERDAY'));
+    card.appendChild(el('div', 'regen-sub', 'Coach sees this.'));
     var s = el('div', 'regen-q'), h = el('div', 'regen-qh');
-    h.appendChild(el('span', 'regen-qi', '🥤')); h.appendChild(el('span', 'regen-qh-t', 'YESTERDAY')); s.appendChild(h);
-    s.appendChild(el('div', 'regen-qt', 'How much did you have yesterday? Coach sees this.'));
-    var items = [['water', 'Water', 'bottles'], ['protein', 'Protein', 'fists'], ['plants', 'Fruit & veg', 'fists']], vals = {};
+    h.appendChild(el('span', 'regen-qi', '🥗')); h.appendChild(el('span', 'regen-qh-t', 'FUEL')); s.appendChild(h);
+    var items = [['water', 'Water (bottles)'], ['protein', 'Protein (fists)'], ['plants', 'Fruit & veg (fists)']], vals = {};
     var next = el('button', 'regen-start nutri-next', 'Next'); next.type = 'button'; next.disabled = true;
     function sync() { var all = items.every(function (it) { return vals[it[0]] != null; }); next.disabled = !all; next.classList.toggle('ready', all); }
     items.forEach(function (it) {
-      var r = el('div', 'nutri-row'), lab = el('div', 'nutri-lab');
-      lab.appendChild(el('span', 'nutri-name', it[1])); lab.appendChild(el('span', 'nutri-unit', it[2])); r.appendChild(lab);
-      var minus = el('button', 'regen-chip one nutri-step', '−'), val = el('span', 'nutri-val blank', ''), plus = el('button', 'regen-chip one nutri-step', '+');
-      minus.type = plus.type = 'button'; minus.setAttribute('aria-label', it[1] + ' less'); plus.setAttribute('aria-label', it[1] + ' more');
-      function set(v) { vals[it[0]] = Math.max(0, Math.min(NUTRI_MAX, v)); val.textContent = String(vals[it[0]]); val.classList.remove('blank'); r.classList.add('on'); sync(); }
-      minus.addEventListener('click', function () { set(vals[it[0]] == null ? 0 : vals[it[0]] - 1); });
-      plus.addEventListener('click', function () { set(vals[it[0]] == null ? 1 : vals[it[0]] + 1); });
-      r.appendChild(minus); r.appendChild(val); r.appendChild(plus); s.appendChild(r);
+      var r = el('div', 'regen-row nutri-row'), chips = [];
+      s.appendChild(el('div', 'regen-qt nutri-name', it[1]));
+      NUTRI_COUNTS.forEach(function (o) {
+        var b = el('button', 'regen-chip one', o[0]); b.type = 'button';
+        b.addEventListener('click', function () { chips.forEach(function (x) { x.classList.toggle('on', x === b); }); vals[it[0]] = o[1]; sync(); });
+        chips.push(b); r.appendChild(b);
+      });
+      s.appendChild(r);
     });
+    card.appendChild(s);
     next.addEventListener('click', function () {
       if (next.disabled) return;
       var pain = regenOneTapCard(d, st, { water: vals.water, protein: vals.protein, plants: vals.plants });
       wrap.parentNode && wrap.parentNode.replaceChild(pain, wrap);
     });
-    s.appendChild(next); card.appendChild(s); wrap.appendChild(card);
+    var foot = el('div', 'regen-foot'), btns = el('div', 'regen-btns');
+    btns.appendChild(next); foot.appendChild(btns); card.appendChild(foot); wrap.appendChild(card);
     return wrap;
   }
   function regenOneTapCard(d, st, nutri) {
@@ -3079,6 +3087,7 @@
   // because the engine flag of this same name holds the dose — renders through the distance row the
   // app already draws. GUARD: R1716_SPEED_SERVES=false. Reversing line: set this to false.
   var R1716_SPEED_SERVES = true;   // A53 pass (Phil, 2026-10-30 12:01); reversing line: false
+  var F2_ONE_EFFORT = false;   // F2: a one-effort Work set draws no reps stepper (conditioningRow); held for his A-id
   // R686 (Phil's Band Walks -> 90-90 SW swap, 2026-08-29): does this alternate arrive with NO rep
   // prescription of its own? swapTarget's blank-reps branch falls back to the OUTGOING lift's reps
   // (his 90-90 SW field read Band Walks' 15 against its own 5) — his law: a swap inherits the
@@ -3771,7 +3780,15 @@
     // placeholder was also 4. One stepper, pre-filled with the prescription, is the whole row — you
     // tap it to confirm 4, or +/- to say what you actually did (rule 2b, same as every other row).
     var isPureReps = !wantsDist && !t.duration_s && !t.work_s;
-    if (isPureReps) {
+    // F2 (Phil 11-08, D196-D201): a Work set of ONE effort (June's Sprint 40yd x5: reps 1, rest 55, no work_s) drew a reps
+    // stepper at 1 and read "1 reps" on every set — the one-rep set he refused by name 07-21. One effort has nothing to
+    // count: the tile reads x1 and his rest, and the round's Log button logs the prescription. GUARD: held off every phone
+    // until his A-id answers (REFUSALS row 27). Reversing line: F2_ONE_EFFORT = false.
+    var oneEffort = F2_ONE_EFFORT && isPureReps && ex.mode === 'conditioning' && Number(t.target_reps) === 1;
+    if (oneEffort) {
+      l2.appendChild(lane('c-goal', 'prescribed', el('span', 'cv goal-v', '×1')));
+      l2.appendChild(lane('c-actual', t.rest_s ? 'rest' : '', t.rest_s ? el('span', 'cv', t.rest_s + ' s') : null));
+    } else if (isPureReps) {
       var tr = t.target_reps;
       // MAX reps (#29): the goal is literally "Max", and the input PRE-FILLS with one more than the
       // athlete did last time (best logged reps + 1), or 0 if they have never done it — so a teenager
@@ -3804,7 +3821,11 @@
         : (t.work_s ? el('span', 'cv', t.work_s + 's') : null)));
     row.appendChild(l2);
     var check = el('button', 'check cond-go', t.work_s ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓')); check.type = 'button';
-    if (isPureReps) {
+    if (oneEffort) {   // no number to pass through (rule 2b), so the row is confirmed as drawn
+      row._commit = function () { if (!row.classList.contains('done')) logIt(0); };
+      row._isDur = false; row._confirmed = true;
+      row._sum = function () { return { name: (ex.athlete_name || ex.display_name || ex.exercise), val: '×1' }; };
+    } else if (isPureReps) {
       // Phil: "it still doesn't let me save the set like on the others. When you tap the boxes, it
       // puts log set." A pure rep count has no timer to start, so it is an ordinary row — the round's
       // one Log button should record it along with everything else in that round (rule 2b). Timed and
@@ -6027,7 +6048,7 @@
   // four cells are per day), so a day already done offers no second Mark done. GUARD: held off every phone until his A-id
   // answers (REFUSALS row 27); BP_FLAGS=REGEN_TILES_ON=true arms it for qa/journeys/f23-regen-tiles-shot.mjs.
   // Reversing line: REGEN_TILES_ON = false.
-  var REGEN_TILES_ON = false;
+  var REGEN_TILES_ON = true;   // A72 pass (Phil, Decisions tab 2026-11-08); reversing line: false
   var REGEN_PAT_NAME = { pain: 'Pain', history: 'Injury history', risk: 'Position risk' };
   function regenTilesScreen(d) {
     var sec = el('section', 'rm-wrap');

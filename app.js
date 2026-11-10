@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261108-regentiles';   // SUNDAY 11-08 — F23: the Regen icon opens three tiles (pain · history · risk) for the top key, the pick outlined (A72 pass).
+  var APP_BUILD = '20261109-oneeffort';   // MONDAY 11-09 — F2: a one-effort Work set (June's Sprint 40yd x5) reads x1 and its rest, no reps stepper (A75 pass).
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3087,7 +3087,7 @@
   // because the engine flag of this same name holds the dose — renders through the distance row the
   // app already draws. GUARD: R1716_SPEED_SERVES=false. Reversing line: set this to false.
   var R1716_SPEED_SERVES = true;   // A53 pass (Phil, 2026-10-30 12:01); reversing line: false
-  var F2_ONE_EFFORT = false;   // F2: a one-effort Work set draws no reps stepper (conditioningRow); held for his A-id
+  var F2_ONE_EFFORT = true;   // F2: a one-effort Work set draws no reps stepper (conditioningRow); A75 pass (Phil, 2026-11-09 13:19); reversing line: false
   // R686 (Phil's Band Walks -> 90-90 SW swap, 2026-08-29): does this alternate arrive with NO rep
   // prescription of its own? swapTarget's blank-reps branch falls back to the OUTGOING lift's reps
   // (his 90-90 SW field read Band Walks' 15 against its own 5) — his law: a swap inherits the

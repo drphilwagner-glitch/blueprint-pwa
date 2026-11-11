@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261110-distlogs';   // TUESDAY 11-10 — F31: a Speed warm-up in yards (June's Linear Hops 10 yd, Fri 11/13) gets the round's Log button (A77 pass).
+  var APP_BUILD = '20261110-samedose';   // TUESDAY 11-10 — F32: a swap to a `same` alternate keeps the rung's seconds and yards (Bike for Run 2:1min keeps 120 s; Dribbles for Linear Hops keeps 10 yd) (A78 pass).
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3094,7 +3094,7 @@
   // x1 and a ✓ instead of 120 s intervals, and Linear Hops 10 yd swapped to Dribbles lost its 10 yd. True: the
   // swapped row carries the rung's work_s and distance too. GUARD: held off every phone until his A-id answers (REFUSALS
   // row 27). Rig: qa/journeys/f32-samedose.mjs. Reversing line: F32_SAME_DOSE = false.
-  var F32_SAME_DOSE = false;
+  var F32_SAME_DOSE = true;   // A78 pass (Phil, 2026-11-10 13:28); reversing line: false
   // R686 (Phil's Band Walks -> 90-90 SW swap, 2026-08-29): does this alternate arrive with NO rep
   // prescription of its own? swapTarget's blank-reps branch falls back to the OUTGOING lift's reps
   // (his 90-90 SW field read Band Walks' 15 against its own 5) — his law: a swap inherits the

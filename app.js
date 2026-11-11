@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261109-oneeffort';   // MONDAY 11-09 — F2: a one-effort Work set (June's Sprint 40yd x5) reads x1 and its rest, no reps stepper (A75 pass).
+  var APP_BUILD = '20261110-distlogs';   // TUESDAY 11-10 — F31: a Speed warm-up in yards (June's Linear Hops 10 yd, Fri 11/13) gets the round's Log button (A77 pass).
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3088,6 +3088,13 @@
   // app already draws. GUARD: R1716_SPEED_SERVES=false. Reversing line: set this to false.
   var R1716_SPEED_SERVES = true;   // A53 pass (Phil, 2026-10-30 12:01); reversing line: false
   var F2_ONE_EFFORT = true;   // F2: a one-effort Work set draws no reps stepper (conditioningRow); A75 pass (Phil, 2026-11-09 13:19); reversing line: false
+  var F31_DIST_LOGS = true;   // F31: a distance row (June's Linear Hops 10 yd, Fri 11/13) gets the round's Log button; A77 pass (Phil, 2026-11-10 13:28); reversing line: false
+  // F32 (F2 remainder; his 08-05 law "same = dose follows the athlete's current rung", D195 Level Standards the one home): a
+  // `same` swap kept the rung's reps and rest but dropped its seconds and yards, so Run 2:1min x5 swapped to Bike drew
+  // x1 and a ✓ instead of 120 s intervals, and Linear Hops 10 yd swapped to Dribbles lost its 10 yd. True: the
+  // swapped row carries the rung's work_s and distance too. GUARD: held off every phone until his A-id answers (REFUSALS
+  // row 27). Rig: qa/journeys/f32-samedose.mjs. Reversing line: F32_SAME_DOSE = false.
+  var F32_SAME_DOSE = false;
   // R686 (Phil's Band Walks -> 90-90 SW swap, 2026-08-29): does this alternate arrive with NO rep
   // prescription of its own? swapTarget's blank-reps branch falls back to the OUTGOING lift's reps
   // (his 90-90 SW field read Band Walks' 15 against its own 5) — his law: a swap inherits the
@@ -3174,9 +3181,10 @@
         // branch that otherwise reads oT.target_reps, the OUTGOING lift's count.
         target_reps: altMax ? 'max' : ((a.duration_s != null || altDist != null) ? '' : (numReps == null ? oT.target_reps : numReps)),
         duration_s: same ? oT.duration_s : (a.duration_s != null ? a.duration_s : null),
-        wants_distance: altDist != null ? true : undefined,
-        distance_goal: altDist != null ? altDist : undefined,
-        distance_unit: altDist != null ? (a.distance_unit || 'yd') : undefined,
+        work_s: (F32_SAME_DOSE && same) ? oT.work_s : undefined,   // F32: the rung's seconds
+        wants_distance: altDist != null ? true : ((F32_SAME_DOSE && same) ? oT.wants_distance : undefined),
+        distance_goal: altDist != null ? altDist : ((F32_SAME_DOSE && same) ? oT.distance_goal : undefined),
+        distance_unit: altDist != null ? (a.distance_unit || 'yd') : ((F32_SAME_DOSE && same) ? oT.distance_unit : undefined),
         max_cont_s: altMaxCont != null ? altMaxCont : undefined,   // R1742
         rest_s: oT.rest_s }
     };
@@ -3847,6 +3855,22 @@
         return { name: (ex.athlete_name || ex.display_name || ex.exercise), val: (v === '' || v == null ? '—' : v) + ' reps' };
       };
     }
+    // F31 (2026-11-09 run 2; F2 remainder, rebuilt from 20f4f601e after A67 no): A DISTANCE ROW HAS NO CONTROL. The row's ✓ is
+    // hidden (`.ex-row .check:not(.dur)`, R1111) and only a pure reps row hands the round a `_commit`, so a Speed seat in yards
+    // draws no Log button. A67 was refused because no board held one; June's Fri 11/13 and Sat 11/14 boards now hold four
+    // (Linear Hops 10 yd, A Skips 10 yd, Lateral Hops 5 yd, Crossover Skips 10 yd). The round's one Log button takes the row, and
+    // an untouched box logs his prescribed yards (a blank distance would be refused at write, D133); a number she types wins.
+    // GUARD: F31_DIST_LOGS=false, held off every phone until his A-id answers (REFUSALS row 27).
+    // BP_FLAGS=F31_DIST_LOGS=true arms it for qa/journeys/f2-speedlog.mjs. Reversing line: F31_DIST_LOGS = false.
+    if (F31_DIST_LOGS && wantsDist && !t.duration_s && !t.work_s) {
+      row._commit = function () { if (!row.classList.contains('done')) logIt(0); };
+      row._isDur = false; row._needs = 'distance'; row._confirmed = false; row._blocks = false;
+      row._sum = function () {
+        var v = dist.v || t.distance_goal;
+        return { name: (ex.athlete_name || ex.display_name || ex.exercise), val: (v === '' || v == null ? '—' : v) + ' ' + (t.distance_unit || 'yd') };
+      };
+      di.addEventListener('input', function () { row._confirmed = true; syncRound(row.closest('.round')); });
+    }
     function logIt(dur) {
       // log the reps the athlete actually did (falling back to the prescription), and a distance ONLY
       // when the prescription was a distance
@@ -3860,7 +3884,7 @@
         : (isMaxVal(rawReps) ? '' : Number(rawReps));
       var l = mkLog(slot, ex.exercise, t, { load: '', reps: doneReps }, ex.variant_name);
       if (!l) return;                         // athlete left the workout mid-interval; nothing to log
-      l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || '') : '';
+      l.duration_s = dur || ''; l.distance = wantsDist ? (dist.v || (F31_DIST_LOGS ? t.distance_goal : '') || '') : '';
       if (arguments.length > 1 && arguments[1] != null && arguments[1] > 0) l.duration_s2 = arguments[1];
       LOCAL_DONE[doneKey(SESSION && SESSION.session_id, slot, ex.exercise, t.set_no)] = true;
       logRows(splitSides(l, freshEachSide(slot, ex.exercise, ex.each_side))); row.classList.add('done'); check.classList.add('done'); check.textContent = '✓';

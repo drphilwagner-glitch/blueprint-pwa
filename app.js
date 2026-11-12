@@ -8,7 +8,7 @@
   'use strict';
 
   var cfg = window.BP_CONFIG || {};
-  // API ROUND-TRIP TIMING (21:08 slot 2026-09-16, the capability design/IOS-PITFALLS.md names NOT COVERED: Grace's session that night
+  // API ROUND-TRIP TIMING (21:08 slot 2026-09-16, the capability design/IOS-PITFALLS.md names NOT COVERED: an athlete's session that night
   // read "session fetch still pending after 20000ms", four drain wedges of 83–157 s and a 46 s boot stall, and no server row existed
   // for any of them — the phone is the only witness to platform latency, and workout_open_slow / completion_slow watch two of its
   // ~ten calls). Every fetch to the exec URL is timed here, whatever door made it; one that settles (or aborts) past the 8 s cell
@@ -18,7 +18,7 @@
   // TIME THE APP SPENT IN THE BACKGROUND IS NOT TIME A KID WAITED (21:08 slot 2026-09-30, under Phil's
   // 2026-09-18 item 2 ruling — the same law `bg=` already serves: "a call the phone made behind the
   // athlete's back... the row keeps the wall time but says 'background — no wait felt'").
-  // WHAT FORCED IT, off Grace's own rows tonight: three of her calls ran PAST THEIR OWN ABORT DEADLINE —
+  // WHAT FORCED IT, off an athlete's own rows tonight: three of her calls ran PAST THEIR OWN ABORT DEADLINE —
   // `logrefused` aborted at 44.0 s against an 8 s deadline, and two `log` POSTs failed at 42.2 s and
   // 43.4 s against a 20 s one. A bounded fetch cannot take five times its bound because a server is
   // busy; `fetchT` bounds with `setTimeout`, and iOS throttles or suspends timers on a hidden page —
@@ -39,7 +39,7 @@
   // Total ms this page has spent hidden so far. Two readings subtracted give the hidden time inside a call.
   function _hiddenMs() { try { return _hidAccum + (_hidSince ? (Date.now() - _hidSince) : 0); } catch (eHm) { return 0; } }
   // K4-BGROT (D68, 2026-10-27) — NO BACKGROUND READ IS LEFT IN FLIGHT ACROSS A SUSPENSION.
-  // MASON'S OWN PHONE, 2026-10-27T13:40:22Z (iOS 18_7, 440x894 standalone, the Pages bundle): the
+  // AN ATHLETE'S OWN PHONE, 2026-10-27T13:40:22Z (iOS 18_7, 440x894 standalone, the Pages bundle): the
   // calendar's prefetch of his next session WAS ANSWERED BY THE SERVER IN 0.7 s — the row's own
   // `srvread=13:40:18 week=0.4s 13:40:21 session=2.4s 13:40:22 session=0.7s` says so — and then he put
   // the phone in his pocket. The fetch sat on a frozen page for 1 h 53 m until it woke and failed, and
@@ -112,7 +112,7 @@
       // freezes. Only when the caller brought no signal of its own (`fetchT`'s budget path owns its
       // controller and is left alone).
       // K4-BGROT-UNTAGGED (D68, 2026-10-28) — AND THE GATE IS THE METHOD, NOT THE TAG. The 10-27 ship
-      // registered `bg &&` alone, and 5 h 44 m after it reached Mason's phone his own open path wrote
+      // registered `bg &&` alone, and 5 h 44 m after it reached an athlete's phone his own open path wrote
       // the same row twice over reads that carry no tag at all: `00:32:30.461Z session round trip 695.0s
       // (failed) ms=694989 hidden=694989` and `00:32:31.121Z exercises ... ms=694886 hidden=694886`, over
       // a server that answered the same question in 0.1-0.2 s eight times in that row's own `srvread`
@@ -131,7 +131,7 @@
       // ends only the PHONE's wait: the server runs the write to the end, the phone never reads its `ok`, and the drain
       // re-sends it on the wake — so a pocketed Finish is TWO Finishes on the server, overlapping at the one /exec door.
       // Measured on real WebKit (qa/journeys/j78-pocketed-finish-runs-once.mjs): one pending Finish, a hide 1.5 s into a
-      // 6 s `complete` -> server legs 0.1-6.1 s AND 4.6-10.6 s; no hide -> one leg. Grace's phone 14:28Z today: six
+      // 6 s `complete` -> server legs 0.1-6.1 s AND 4.6-10.6 s; no hide -> one leg. an athlete's phone 14:28Z today: six
       // `complete` legs for one queued Finish, two of them ending 0.17 s apart. Reversing line: delete `&& !_wGet` below.
       var _wGet = /^(complete|move|reopen|pullforward|setbw|setintake|enroll)$/.test(action);
       var _args = arguments, _ac = null, _meth = 'GET';
@@ -190,7 +190,7 @@
   }
   // R1581 — THE READS SAY IT TOO, NOT JUST THE ENROL. R1485 put this word on the boot enrol so the device
   // ring could evict our journeys before a kid's phone. K5 needs it on the READ, because the request that
-  // produced this morning's false "5.6 s (Grace session)" was the calendar's own `week` — fired BEFORE the
+  // produced this morning's false "5.6 s (an athlete session)" was the calendar's own `week` — fired BEFORE the
   // enrol answers, so it rides the link token and the server can see no device class for it at all.
   // Idempotent (fetchJson retries re-enter with the same url) and ABSENT for an undriven browser, so every
   // real phone sends exactly the bytes it sent before. Reversing line: return `u` unchanged.
@@ -205,7 +205,7 @@
   // R1581 above is one-sided: a DRIVEN browser declares itself and a phone "sends what it always sent".
   // That silence is what let a 187 ms `week` read of our own — a real athlete's token, no bg, no src, no
   // dev key — become "the slowest workout open of the day: 0.2 s GREEN" on 2026-10-18, a day no kid
-  // opened a workout, over Mason's real 9.7 s of the day before. The per-caller guard has failed TWICE
+  // opened a workout, over an athlete's real 9.7 s of the day before. The per-caller guard has failed TWICE
   // (K5-OWNTRAFFIC's `bg=diag` by hand, and ~12 harness callers that still carry nothing), so the engine
   // now asks for an AFFIRMATIVE word and this is the only place that can give it: the bundle a kid's
   // phone actually runs. NOT A PIXEL — one query parameter on the read path, no copy, no tap target, no
@@ -228,7 +228,7 @@
   // can say it — but it is reached from `fetchJson` alone, and SEVEN kid-facing reads over FOUR acts
   // (exscheme ×2, exercises, profile ×2, report ×2) are issued by a BARE `fetch`. They arrived with no
   // `dv`, the engine set `_REQ_DEV = ''`, `_markWord_` answered `nosay`, and that act COULD NEVER READ
-  // `phone` FROM ANY PHONE. Mason's own device proved both halves in the same second on 10-29, build
+  // `phone` FROM ANY PHONE. an athlete's own device proved both halves in the same second on 10-29, build
   // 20261029T195507Z: `week` 3031 ms `phone` (it goes through fetchJson) and `profile` 7502 ms `nosay`
   // (it did not), 0.8 s apart.
   // WHY THE HELPER AND NOT A SECOND TAGGER CALL AT EACH SITE: three of the seven are reads NOBODY WAITS
@@ -263,7 +263,7 @@
     try {
       // R1485 (2026-10-08): the enrol request says whether this browser is DRIVEN. The server's device ring holds 20 and
       // our journeys walk real athletes' names wearing the same iPhone UA a kid's phone wears, so without this word the
-      // ring cannot prefer the kid when it evicts — `enrolcensus` read Mason at 116 enrolments in one round against his
+      // ring cannot prefer the kid when it evicts — `enrolcensus` read an athlete at 116 enrolments in one round against his
       // own phone's single slot. Same two words, same precedence, as R875/R1136's error-row tag (`[source=webdriver]`
       // beats `[source=journey]`); absent, the request is byte-identical to what every phone sent before, and the server
       // treats an unmarked enrolment as a phone. Reversing line: drop the `src` term.
@@ -311,12 +311,12 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261110-samedose';   // TUESDAY 11-10 — F32: a swap to a `same` alternate keeps the rung's seconds and yards (Bike for Run 2:1min keeps 120 s; Dribbles for Linear Hops keeps 10 yd) (A78 pass).
+  var APP_BUILD = '20261112-nonames';   // THURSDAY 11-12 — D263: no athlete's name in any shipped file (comments only; no screen changes). Reversing line: '20261110-samedose'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
       // L132 NO RELOAD MID-WORKOUT (Phil 2026-08-13, born with the F1 fix). The one-shot reload
-      // tearing down a LIVE workout is how Grace's 8/12 ECC lost 28 sets: everything confirmed but
+      // tearing down a LIVE workout is how an athlete's 8/12 ECC lost 28 sets: everything confirmed but
       // not yet queued died with the page, and the null-SESSION guard discarded the rest in silence.
       // A reload defers while any session is active and fires at the next calendar open instead.
       var inWorkout = false;
@@ -358,7 +358,7 @@
   function show(msg, cls) { app.innerHTML = ''; app.appendChild(el('p', cls || 'empty', msg)); }
 
   // ---- offline queue (IndexedDB): fire-and-forget idempotent POST + retry; badge never sticks ----
-  // R1077 (Grace 2026-09-15 16:36–16:57): a fetch that never settles wedged the drain for the rest of her session — 26 sets
+  // R1077 (an athlete 2026-09-15 16:36–16:57): a fetch that never settles wedged the drain for the rest of her session — 26 sets
   // tapped after it never left the phone, and nothing reported it (the beacon counted them, the drain never ran again). Every
   // fetch the drain waits on now carries a deadline: an aborted fetch is a failed try, never a held lock.
   var SEND_TIMEOUT_MS = 20000, ACK_TIMEOUT_MS = 8000;
@@ -439,7 +439,7 @@
   // athlete's deliberate tap): every pending complete carries the TIME of the Finish tap (`at`), the server refuses one that arrived after
   // a set logged later than it (`stale_complete`), and the phone drops that entry and says so — a Finish from another day never lands on a
   // workout in progress. The entries were bare session ids before; both shapes are read.
-  // K4-FELT (2026-10-31): AN ANSWERED FINISH IS NEVER RE-SENT BY THE PAGE THAT HEARD THE ANSWER. Grace's 10-13 Finish reached the
+  // K4-FELT (2026-10-31): AN ANSWERED FINISH IS NEVER RE-SENT BY THE PAGE THAT HEARD THE ANSWER. an athlete's 10-13 Finish reached the
   // server 12 times, every one answered ok (4 in 3 s on 10-24, 6 in 25 s on 10-31 14:28 — the 33.8 s "complete" K4 billed her). The
   // forget below REWRITES the stored list and the drain then re-reads it; when setItem throws (iOS quota) the save was swallowed, the
   // sid read back, and it went out again for as long as the server kept saying ok. COMPLETE_ACKED is this page's memory of an ok, so
@@ -479,7 +479,7 @@
       if (d && d.ok) { forget(); return drainCompletes(); }   // clear any others waiting
       if (d && d.error === 'stale_complete') {   // R1208: a set was logged after this Finish — the workout is still open; the Finish is dropped, never replayed
         forget(); reportError('complete_stale_dropped', 'a Finish from ' + at + ' was refused: a set landed after it (' + String(d.newer_set_at || '') + ') — dropped, the workout stays open (R1208)', sid, '');
-        // R1248 (Grace 2026-09-23 18:02 her clock): the drop was SILENT — she believed she finished and the workout
+        // R1248 (an athlete 2026-09-23 18:02 her clock): the drop was SILENT — she believed she finished and the workout
         // silently stayed open. The athlete gets the one-line signal, and the cached week/session are dropped so the
         // calendar reads the workout as open instead of the stale copy. The Finish itself is never replayed (R1208's
         // law): a new Finish is the athlete's tap.
@@ -515,7 +515,7 @@
   // writes use: a no-cors response is opaque, so the old version could not tell success from failure
   // and just reloaded on a timer. A move that silently does nothing is indistinguishable from a
   // broken app — resolves to the server's actual answer so the caller can report it.
-  // R1355b (Mason 2026-10-01T22:03:27Z: `move round trip 152.2s (failed...)`, how=failed, and the
+  // R1355b (an athlete 2026-10-01T22:03:27Z: `move round trip 152.2s (failed...)`, how=failed, and the
   // server's own slow ring in the same row shows three `move` executions completing — the Plan was
   // rewritten while his phone told him "No connection"). Apps Script runs to completion whether or
   // not the client is still listening, so a REJECTED fetch establishes nothing about the write.
@@ -585,10 +585,10 @@
     return MOVE_ERR[e] || 'Move failed — try again.';
   }
   // JSON fetch with RETRY + an honest failure class. A throttled Apps Script answers with an HTML
-  // error page; r.json() threw and every caller's catch said "Offline" — Phil and Grace force-closed
+  // error page; r.json() threw and every caller's catch said "Offline" — Phil and an athlete force-closed
   // the app for what was a server hiccup (2026-08-05). Retries ride out the hiccup; 'server' vs
   // 'offline' is decided by whether the network answered at all.
-  // R1331 step 2 (Grace 2026-09-28 and 09-30: two 45-second blank screens, both reading `reached: app`
+  // R1331 step 2 (an athlete 2026-09-28 and 09-30: two 45-second blank screens, both reading `reached: app`
   // with no way to say WHAT the app was waiting on). The boot watchdog in index.html can now describe the
   // caches and the service worker, but not the request in flight — and the request was the one thing left.
   // THIS IS THE APP'S OWN READ PATH, not a wrap of window.fetch: every GET the app makes goes through
@@ -607,7 +607,7 @@
   // R1636 (D1 / K4-FELT, 2026-10-17 run 2) — ONE IN-FLIGHT READ PER QUESTION: A SECOND TAP NEVER BUYS
   // A THIRD WAIT.
   //
-  // WHAT FORCED IT, ON MASON'S OWN CLOCK TONIGHT. At 2026-10-17T22:29:13-19Z his phone sent FIVE
+  // WHAT FORCED IT, ON AN ATHLETE'S OWN CLOCK TONIGHT. At 2026-10-17T22:29:13-19Z his phone sent FIVE
   // `session` reads of the same workout inside six seconds, not one of them a prefetch (no `bg=`), and
   // his own ErrorLog rows price every one: round trips 21.3 · 18.2 · 13.8 · 8.5 · 8.1 s, with the
   // ENGINE's legs for four of them — carried in those same rows' `srvread` ring — at 4.1 · 4.0 · 5.0 ·
@@ -642,7 +642,7 @@
   var READ_JOINABLE = { session: 1, week: 1, plan: 1, profile: 1, exercises: 1, regen_status: 1, history: 1, summary: 1, exscheme: 1, regen_module: 1 };   // R1707: regen_module is a READ — left off this list `fetchJson` calls `_writeEpochBump_` on it and closes every open read to joiners for a read that writes nothing
   // AND A HUNG READ MAY NEVER WEDGE THE READS AFTER IT (R1077's defect class, the one this law could
   // have re-created wholesale). `fetchJson` without a budget rides a bare `fetch`, which has no timeout
-  // of its own — Grace's 2026-09-15 16:36 fetch never settled and wedged her drain for the rest of the
+  // of its own — an athlete's 2026-09-15 16:36 fetch never settled and wedged her drain for the rest of the
   // session. An entry is therefore joinable only inside its own first 20 s (the open watchdog's own
   // number, by which a round trip of 5-7 s has either landed or is not going to): past that a caller
   // opens its OWN request, exactly as today. The entry still dies on its settle, whenever that is.
@@ -651,7 +651,7 @@
   // R1637 (D1, 2026-10-17 run 2) — THE `bg=` TAG IS TELEMETRY, NOT THE QUESTION.
   //
   // R1636 left one pair it could not join and said so in its own report: "the PREFETCH AND THE OPEN
-  // ARE STILL TWO TRIPS FOR ONE QUESTION". On Mason's clock at 17:02:41-43Z today that pair was his
+  // ARE STILL TWO TRIPS FOR ONE QUESTION". On an athlete's clock at 17:02:41-43Z today that pair was his
   // WORST OPEN OF THE DAY — his tap painted from the prefetched copy after 9.7 s with his own
   // duplicate `session` fetch STILL PENDING, and `session` 10.8 s `bg=prefetch` sits beside it in the
   // same ErrorLog: the same workout, asked twice, the two copies serialising at the same /exec door
@@ -736,7 +736,7 @@
   // test `_fin` makes, so a later read of the same URL that replaced the entry is never touched.
   //
   // THE HUNG-READ GUARD R1636 WROTE THE WINDOW FOR IS UNTOUCHED, and this is why it is safe: a retry
-  // happens only after a REJECTION, and a bare `fetch` that hangs never rejects — Grace's 2026-09-15
+  // happens only after a REJECTION, and a bare `fetch` that hangs never rejects — an athlete's 2026-09-15
   // 16:36 read is never re-stamped and falls out of the window at 20 s exactly as today (J34A's own
   // ARM B, a retry tap 25 s after a hung read, joins nothing and renders). NOTHING IS LAUNDERED (D32):
   // the api_slow instrument sits on `window.fetch`, so the retry's row is timed from the RETRY'S OWN
@@ -846,7 +846,7 @@
       if (!cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return;
       // A localhost app is NEVER a kid's phone (errorhygiene, 2026-08-18): the QA harness renders
       // real athletes' boards at 127.0.0.1 for screenshots, and every harness reload was landing in
-      // ErrorLog under the real athlete's name — 15 rows polluting Mason's and Grace's error history
+      // ErrorLog under the real athlete's name — 15 rows polluting an athlete's and an athlete's error history
       // in one day. The harness sees its own errors in its own console; the ErrorLog is for devices.
       if (/^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname)) return;
       var body = {
@@ -984,10 +984,10 @@
   // the tap — never the session's date (a Thursday board opened on Tuesday logged a Thursday row). The server accepts a date within a
   // day of its own today and otherwise stamps today; the card/strip/pair line all key on this date. j42 arm L1.
   function regenToday() { var t = new Date(); return t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2); }
-  // R1612 (K5, 2026-10-15) — THE CARD'S ROUND TRIP RIDES THE OPEN'S OWN REQUEST. Grace's phone timed her
+  // R1612 (K5, 2026-10-15) — THE CARD'S ROUND TRIP RIDES THE OPEN'S OWN REQUEST. an athlete's phone timed her
   // REGEN card at 17.6 s today (`card_ms=17585`) against a board that painted at 8.6 s (`open_ms=8604`):
   // `regenCardMaybe` is called FROM the paint, so its `action=regen_status` is a SECOND cold platform hop,
-  // serial behind the first. Measured live on the deployed build (`scripts/req-timing.sh Grace`): that hop
+  // serial behind the first. Measured live on the deployed build (`scripts/req-timing.sh an athlete`): that hop
   // is 5347-6850 ms of platform to do 605-625 ms of work, while the session request beside it pays
   // 8400/4310 ms of platform for 89/74 ms. So the status is asked for ON the open (`&regen_date=`) and the
   // card paints off the answer already in hand — the request is REMOVED, not warmed, which R1361 proved is
@@ -1312,9 +1312,9 @@
   // no row exists; the workout is already painted behind it. The card is INSIDE the open number (R996): a card painted past 8 s
   // from the tap reports itself.
   var REGEN_OPEN_T0 = 0, REGEN_OPEN_REPORTED = false;
-  // R1078 (Grace 2026-09-15 16:02–16:05): the regen_status read hung 187 s; the card is "answered before Start" (Phil, R1071),
+  // R1078 (an athlete 2026-09-15 16:02–16:05): the regen_status read hung 187 s; the card is "answered before Start" (Phil, R1071),
   // but a read-back that settles AFTER the athlete has logged a set paints the full-screen card OVER a workout in progress —
-  // Grace logged Curtsy set 1 at 16:05:35 and the card covered her screen at 16:05:39. A card that arrives after the first
+  // an athlete logged Curtsy set 1 at 16:05:35 and the card covered her screen at 16:05:39. A card that arrives after the first
   // logged set of this open is SKIPPED (reported on the slow-open line, never painted); one that arrives before any set is
   // still the card, however late. REGEN is record-and-show only (§9a), so a skipped card changes nothing served.
   var REGEN_LOGS_SINCE_OPEN = 0;
@@ -1334,7 +1334,7 @@
   }
   function regenCardMaybe(s, stPre) {
     if (!REGEN_ON || !s || !s.date) return;
-    // R1292 (P0, kid-facing — Phil 2026-09-28 item 3, verbatim in R1288: "Mason's 9/21 finished workout will
+    // R1292 (P0, kid-facing — Phil 2026-09-28 item 3, verbatim in R1288: "an athlete's 9/21 finished workout will
     // not open from his phone calendar — it demands his regen answers and the workout never shows. A kid's
     // finished history must open.").
     //
@@ -1355,9 +1355,9 @@
     if (sessionHasLoggedSets(s)) return;
     var d = regenToday(), sid0 = String(s.session_id || '');   // item 16 (Phil 2026-09-16): the row is dated the day it is logged, not the board's date
     var known = regenKnown(d);
-    // R1361 (QUEUE b, Mason's regen_status 29.0 s — the last felt action with no request-side owner): the strip was painted from the
+    // R1361 (QUEUE b, an athlete's regen_status 29.0 s — the last felt action with no request-side owner): the strip was painted from the
     // phone's OWN remembered row and then this line bought a cold Apps Script invocation ANYWAY, on every session open for the rest of
-    // the day, over a strip already on screen. Measured four times on the deployed build (`REQ_BODY=1 req-timing.sh Mason regen_status 2`:
+    // the day, over a strip already on screen. Measured four times on the deployed build (`REQ_BODY=1 req-timing.sh an athlete regen_status 2`:
     // 612/6421 ms, 1238/5554, 600/7249, 647/5597) — ~90% of the tap is the platform hop, so on this path only REMOVING a request helps.
     // WHY THIS TEST AND NOT ANOTHER: trend is blank on a flat day, pair is null on a skip, and score.total/max are written BY THE PHONE
     // (regenLocalScore) — all three were read and all three are dead as discriminators. The WRITER says so instead: the two server
@@ -1397,7 +1397,7 @@
           // R1228: ONE measurement per open, whether it reported or not. The refresh render behind a
           // cached paint re-runs this fetch, and timing THAT against the tap reported a 35 s "card
           // paint" the athlete never waited for — a false row on the SLOW OPENS line that graded
-          // Mason. The first card (or first skip) settles the open's card latency; later repaints of
+          // an athlete. The first card (or first skip) settles the open's card latency; later repaints of
           // the same open are refreshes, not opens.
           if (msCard > OPEN_SLOW_REPORT_MS && !REGEN_OPEN_REPORTED) { reportError('workout_open_slow', 'REGEN card painted after ' + (msCard / 1000).toFixed(1) + 's (over the 8 s cell workout_open_max_s)', s.session_id || '', 'card_ms=' + msCard); }
           // K5-CLOCKUNWRITTEN item (1): the card's clock for EVERY first card of an open, beside the
@@ -1436,7 +1436,7 @@
     else if (mean != null) sec.appendChild(el('div', 'regen-hist-mean', '4-week mean ' + mean));
     return sec;
   }
-  // R1359 (21:08 slot 2026-10-02, QUEUE b — Mason's `history round trip 18.7s` of 2026-10-01T22:14:32Z,
+  // R1359 (21:08 slot 2026-10-02, QUEUE b — an athlete's `history round trip 18.7s` of 2026-10-01T22:14:32Z,
   // whose own srvread tail reads `22:14:26 history=0.1s`: the server answered in 100 ms and the athlete
   // waited 18.7 s for it). The profile detail panel PAINTS from this cache and then fetches ANYWAY —
   // `if (cachedStr) { renderPayload(...); painted = true; }` and the fetch below it ran unconditionally,
@@ -1456,11 +1456,11 @@
   function histCacheFresh(at) { var n = Number(at) || 0; return n > 0 && (Date.now() - n) <= HIST_FRESH_MS && n >= histEpoch(); }
   try { window.BP_histFresh = histCacheFresh; } catch (eHS) {}   // j69 seam
   function qAdd(row) { try { histTouch();   /* R1359: this athlete's own new set makes every cached history stale, whatever its age */
-    if (row && row._q_at == null) row._q_at = Date.now(); if (row && !row.tapped_at && row._q_at) row.tapped_at = new Date(Number(row._q_at)).toISOString(); if (row && row.log_id) qMirrorAdd(row.log_id); } catch (eQa) {}   // when it was queued — the beacon reports only what has sat unsent (Mason 09-12 15:0x: four reports of sets that drained seconds later); the mirror (L381 as amended 09-15) records every id that entered. R1215 (Phil 2026-09-21 item 3): the tap time RIDES THE POST as tapped_at — persisted here so every send path (drain, unload delivery) carries it and the server can refuse a replay from a prior day (stale_action; the refused read-back then drops it through the queue_dropped door)
+    if (row && row._q_at == null) row._q_at = Date.now(); if (row && !row.tapped_at && row._q_at) row.tapped_at = new Date(Number(row._q_at)).toISOString(); if (row && row.log_id) qMirrorAdd(row.log_id); } catch (eQa) {}   // when it was queued — the beacon reports only what has sat unsent (an athlete 09-12 15:0x: four reports of sets that drained seconds later); the mirror (L381 as amended 09-15) records every id that entered. R1215 (Phil 2026-09-21 item 3): the tap time RIDES THE POST as tapped_at — persisted here so every send path (drain, unload delivery) carries it and the server can refuse a replay from a prior day (stale_action; the refused read-back then drops it through the queue_dropped door)
     return qStore('readwrite').then(function (s) { return new Promise(function (res) { s.put(row); s.transaction.oncomplete = res; }); }); }
   function qAll() { return qStore('readonly').then(function (s) { return new Promise(function (res) { var rq = s.getAll(); rq.onsuccess = function () { res(rq.result || []); }; }); }); }
   try { window.BP_qCount = function () { return qAll().then(function (r) { return r.length; }); }; } catch (e) {}   // j20 asserts a tap really queued
-  // R1003 (Grace 2026-09-10): her third Pullups set never reached the Workbook — the server refused nothing, the phone wrote no
+  // R1003 (an athlete 2026-09-10): her third Pullups set never reached the Workbook — the server refused nothing, the phone wrote no
   // unconfirmed-send row, and the morning report said zero device errors. A set that never leaves the phone must report itself
   // (rule 14: Phil is never the sensor). When the page goes away with sets still queued, the phone reports `queue_pending` with
   // their coordinates, on a transport that survives the unload (sendBeacon / keepalive). Once per distinct set of ids per session.
@@ -1470,7 +1470,7 @@
   // server's log_id idempotence (hard rule 4) makes a second copy harmless. Chunked under the keepalive body cap.
   var QUEUE_DELIVER_CHUNK = 24;
   // R1609 — A HIDE IS NOT AN UNLOAD, AND THIS DOOR WAS TREATING IT AS ONE (K4-FELT item 4, measured off
-  // Grace's own 56-minute session of 2026-10-15, qa/reports/k4-the-second-delivery-20261015.md).
+  // an athlete's own 56-minute session of 2026-10-15, qa/reports/k4-the-second-delivery-20261015.md).
   //
   // WHAT WAS MEASURED, BY CONSTRUCTION AND NOT BY INFERENCE: she logged 34 sets, the Sessions tab took them
   // in 15 append batches, and her phone made 53 `log` POSTs over 8 s (the ring records none under 8 s, so 53
@@ -1490,7 +1490,7 @@
   // in which the two senders cannot disagree about what is in flight.
   //
   // AND IT CANNOT COST A SET, WHICH IS THE ONLY THING THAT MATTERS HERE (R1077's reason for existing —
-  // Grace 2026-09-15, 26 sets that never left the phone behind a wedged drain): `pagehide` is UNGATED and
+  // an athlete 2026-09-15, 26 sets that never left the phone behind a wedged drain): `pagehide` is UNGATED and
   // still carries everything, because there the page really is going away and a duplicate is harmless while
   // a lost set is not. On a HIDE the gate skips ONLY rows the drain has in flight inside its own window; a
   // row the drain has never managed to send has no INFLIGHT entry and rides out on every hide exactly as
@@ -1530,7 +1530,7 @@
     try {
       qAll().then(function (rows) {
         deliverQueued(rows, why);
-        // Mason 2026-09-12 15:05–15:29: four reports of sets that drained seconds later — a set queued between two taps and a
+        // an athlete 2026-09-12 15:05–15:29: four reports of sets that drained seconds later — a set queued between two taps and a
         // backgrounding is not a lost set. Only rows that have sat unsent past QUEUE_BEACON_MIN_AGE_MS are reported.
         var nowQ = Date.now();
         var sets = (rows || []).filter(function (r) { return r && r.exercise && String(r.flag || '') !== 'regen' && (r._q_at == null || (nowQ - Number(r._q_at)) >= QUEUE_BEACON_MIN_AGE_MS); });
@@ -1561,7 +1561,7 @@
   } catch (e) {}
   function qDel(ids) { qMirrorDrop(ids); return qStore('readwrite').then(function (s) { ids.forEach(function (id) { s['delete'](id); }); return new Promise(function (res) { s.transaction.oncomplete = res; }); }); }
   // L381 AS AMENDED (Phil 2026-09-15 04:4x, answering NEEDS PHIL 14 "yes, report and amend": "A queued row that leaves for any
-  // reason but landing: the phone sends one line naming the door, and the athlete sees it — rule 25's shape."). Born from Mason's
+  // reason but landing: the phone sends one line naming the door, and the athlete sees it — rule 25's shape."). Born from an athlete's
   // Sunday Regen answer, which left the queue without reaching the Workbook and without a record (R1019). Every queued log_id is
   // MIRRORED in localStorage; a row that leaves the store by any door but landing reports ONE ErrorLog line `queue_dropped`
   // (id · door · why) and the athlete sees a line. Doors: refused (the server said no — the refused card already shows it),
@@ -1628,7 +1628,7 @@
       .then(function (d) { return (d && d.ok && d.present) ? d.present : []; })
       .catch(function () { return []; });
   }
-  // LOGID-DOUBLED-1027: A FAILED SEND IS NOT A SET THAT DID NOT LAND. Mason 10-27: a readable POST failed on his phone while
+  // LOGID-DOUBLED-1027: A FAILED SEND IS NOT A SET THAT DID NOT LAND. an athlete 10-27: a readable POST failed on his phone while
   // its execution still ran, the opaque resend left the same instant, the two overlapped by 692 ms and three log_ids landed
   // twice, past rule 1's no-op. So a rejection asks what landed first and the opaque send carries only the rest; that ask is
   // also the gap that lets a still-running first write finish. No answer is [], so a dead read-back still resends (R1607's
@@ -1704,7 +1704,7 @@
       document.body.appendChild(card);
     } catch (e) {}
   }
-  // R1245 (Grace 2026-09-22 17:01 her clock, P0 — her calendar open of a future session was carded
+  // R1245 (an athlete 2026-09-22 17:01 her clock, P0 — her calendar open of a future session was carded
   // at 20 s while the drain's slow log POSTs held every connection; the R1228 poll had nothing to
   // land because only the wo-next tile prefetches, so her tap's own GET was the one hope and it
   // starved): while a tapped open is UNPAINTED, background sends (the log drain, the complete
@@ -1729,7 +1729,7 @@
   // R1204 (Phil 2026-09-21 D6, verbatim: "The check lands on the phone at once. The queue sends in the background, one call for all pending
   // rows, safe to re-send by row id. The kid never watches a set wait."). R1202 measured the wait: 6.2 s inside the server and 6.8 s on the
   // platform hop, paid ONCE PER SET because every tap's drain waited for the previous tap's send AND its read-back before it could send.
-  // Grace's Pullups went 3 reps → "failed save" → uncheck → 1 rep in 15 s; Mason's Dips 11 → six unchecks → 8. Three changes, one law:
+  // an athlete's Pullups went 3 reps → "failed save" → uncheck → 1 rep in 15 s; an athlete's Dips 11 → six unchecks → 8. Three changes, one law:
   //   (1) COALESCE — a tap schedules the drain 900 ms out; a burst of checks rides ONE POST (scheduleDrain);
   //   (2) THE SEND IS THE DRAIN — the read-back (logack / logrefused) runs DETACHED after the POST resolves, so the next tap's send never
   //       waits on it; rows already sent sit IN FLIGHT for INFLIGHT_MS and are not re-sent until then (then they are — idempotent by log_id,
@@ -1748,15 +1748,15 @@
       drainAgain = true;   // rows queued while a drain runs are sent the moment it ends, not on the next 15 s tick
       // K4-WEDGELOOP (2026-10-20): the wedge is declared on VISIBLE elapsed time, not wall clock. iOS suspends the
       // `setTimeout` that bounds a send, so a backgrounded tab cannot observe its own POST and the 20 s abort fires
-      // only on resume: Grace's phone in her pocket manufactured four wedges of 254.5/60.2/83.2/148.6 s on 10-20, and
+      // only on resume: an athlete's phone in her pocket manufactured four wedges of 254.5/60.2/83.2/148.6 s on 10-20, and
       // the api_slow row her own client wrote about the same stretch says 82-100% of it was hidden - on the worst one
       // she stood still 0.6 s. R1077 IS PRESERVED AND THAT IS WHY THE SUBTRACTION IS SPENT RATHER THAN THE CEILING
-      // RAISED: R1077 exists for Grace 2026-09-15, a FOREGROUND fetch that never settled and 26 sets that never left
+      // RAISED: R1077 exists for an athlete 2026-09-15, a FOREGROUND fetch that never settled and 26 sets that never left
       // the phone. A foreground wedge accumulates no hidden time and still fires at 60 s to the millisecond; what
       // stops firing is the pocket. Reversing line: drop the `- (_hiddenMs() - hidAtDrainStart)` term in both places.
       if (!(drainingSince && ((Date.now() - drainingSince) - (_hiddenMs() - hidAtDrainStart)) > DRAIN_WEDGE_MS)) return Promise.resolve();
       // K4-WEDGECLOCK: this wait is MEASURED right here and was being handed over as PROSE ONLY. The engine
-      // admits a row to `errorfelt` on a bare `ms=` alone, so Phil's 114 s wedge of 2026-10-19 (and Mason's
+      // admits a row to `errorfelt` on a bare `ms=` alone, so Phil's 114 s wedge of 2026-10-19 (and an athlete's
       // 62 s) reached kpi.py with no clock on it and K4 named the day's two longest waits "untimed" while K5
       // offered him 7.0 s as the worst thing anyone felt. Same message, same count — the seconds now travel.
       // K4-WEDGELOOP-HID (2026-10-20 run 2): THE ROW SAYS WHAT THE LINE ABOVE SUBTRACTED, because the
@@ -1815,7 +1815,7 @@
             var rIds = refused.map(function (x) { return x.id; });
             var park = left.filter(function (id) { return rIds.indexOf(id) < 0; });
             var fin = function () {
-              // R489 (2026-09-17, the 03:11 gate: Grace's row declared ids=32 and carried 24 — 32 full UUIDs overran reportError's
+              // R489 (2026-09-17, the 03:11 gate: an athlete's row declared ids=32 and carried 24 — 32 full UUIDs overran reportError's
               // 900-char detail cap and the tail was cut): the list carries each id's first 8 hex chars (the ledger's own citation
               // form); syncack matches a Sessions log_id by that prefix. 32 ids = 288 chars, never cut.
               if (park.length) reportError('sync_unconfirmed', 'logs sent but not confirmed by the server', '',
@@ -1928,7 +1928,7 @@
     // later with no gesture anywhere near it.
     function primeAudio() {
       try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
-      // Grace 2026-09-12 10:48, mid-session: iOS refused the audio device ("Failed to start the audio device") and the
+      // an athlete 2026-09-12 10:48, mid-session: iOS refused the audio device ("Failed to start the audio device") and the
       // unhandled promise landed in her ErrorLog as a rule-25 P0. It is a phone capability limit, not an app fault: the
       // chime cannot play on that open; nothing else is affected. Caught here, reported once as `audio_unavailable` (a
       // benign kind on the KIDS line), never an unhandled rejection.
@@ -2121,7 +2121,7 @@
     if (!sid) return;
     try { reportError('event_begin', 'Begin ' + sid, 'tstart', '', false); } catch (eBegin) {}
   }
-  // R850 (Phil 2026-09-03, Grace 09-02): EVERY TRANSITION IS SKIPPABLE — the 2:30 between-complex
+  // R850 (Phil 2026-09-03, an athlete 09-02): EVERY TRANSITION IS SKIPPABLE — the 2:30 between-complex
   // countdown fired correctly but could not be skipped to keep moving (the bar's ⏭ was wired only
   // to ACTIVE_TIMER, which during a transition is the FINISHED previous timer whose skip() no-ops).
   // TRANS_SKIP is the transition's own skip hook: armed while a transition counts, cleared with it.
@@ -2315,7 +2315,7 @@
       // header on every post-log refresh while clearTimerBar deliberately keeps a running timer
       // alive (:533) — so the live countdown kept counting into a DETACHED node and the very same
       // complex re-offered "Begin complex". One tap and the athlete was back at SET 1 with her place
-      // gone. Phil, watching Grace 2026-08-25: "forward tap killed the running complex timer."
+      // gone. Phil, watching an athlete 2026-08-25: "forward tap killed the running complex timer."
       // Adoption rebinds the two nodes this closure paints and leaves seq/idx/end untouched — the
       // countdown never restarts, because nothing about the COUNT is rebuilt.
       adopt: function (newNode, newPause) {
@@ -2415,7 +2415,7 @@
       btn.removeEventListener('click', stopEarly);
       // Only announce a COMPLETED hold. Stopping early is a deliberate act — the athlete already knows
       // they stopped, and "Done" for a hold they cut short reads as the timer firing on its own.
-      // U6/L171 (Mason 2026-08-15, "spurious beep"): the beep used to sit OUTSIDE this guard, so the
+      // U6/L171 (an athlete 2026-08-15, "spurious beep"): the beep used to sit OUTSIDE this guard, so the
       // banner obeyed the rule above and the SOUND did not — an early stop chimed on the athlete's own
       // tap. Sound and banner now answer to the same condition.
       if (held >= secs) { beep(); timerAlert('Done', 'hold complete'); }
@@ -2425,7 +2425,7 @@
     btn.addEventListener('click', stopEarly);
   }
   // A REP THAT IS A HOLD (Phil 2026-10-01 addendum item 4b: "a rung with a hold serves reps x a per-rep
-  // countdown of that many seconds; blank = reps only"). Grace's rung is 3 reps of a 20-second hold and
+  // countdown of that many seconds; blank = reps only"). an athlete's rung is 3 reps of a 20-second hold and
   // she was served "3 seconds" — the rung's rep count rendered as its duration. Each rep runs the same
   // countdown startHold already runs for a carry, including the athlete's right to stop one early, and
   // the button re-arms for the next rep the way the each-side timer does. Nothing here fires until the
@@ -2456,7 +2456,7 @@
     // batch with it - the sets never reached the Workbook. Caught by j1 + the device error reporter.
     //
     // L131 NO SILENT DISCARDS (Phil 2026-08-13, born with the F1 fix). The null-guard above's old
-    // form returned null in SILENCE — and silence is how Grace's 8/12 squat sets vanished: a torn-
+    // form returned null in SILENCE — and silence is how an athlete's 8/12 squat sets vanished: a torn-
     // down SESSION made every subsequent set a discarded null while the app looked fine. A set the
     // athlete performed is EVIDENCE (rule 40): recover the session id from the open-session crumb
     // and queue it anyway; only when even the crumb is gone does it park in a local orphan store —
@@ -2545,7 +2545,7 @@
   // the string "max" would record a set nobody can compare to anything.
   function isMaxVal(v) { return typeof v === 'string' && v.trim().toLowerCase() === 'max'; }
   // R1297 — A TYPED REP COUNT SAVES WHOLE (Phil 2026-09-28 07:1x, verbatim: "A typed rep count saves
-  // whole: 14 is 14, never 1."). Mason's 9/21 Dips stood at its prescribed 10 and reached the sheet as
+  // whole: 14 is 14, never 1."). an athlete's 9/21 Dips stood at its prescribed 10 and reached the sheet as
   // 1, 1, 1 for three sets he had done at 14 — and the ONLY way to move a rep count was the ± pair, so
   // 10 -> 14 is four taps and 10 -> 1 is nine, on an evening his phone was taking 12-20 s per save. The
   // same complaint Phil made of the weight field in B2 ("74 taps to reach 185 from 0") was still true of
@@ -2697,7 +2697,7 @@
     return titleName(ex.athlete_name || ex.variant_name || ex.display_name || ex.exercise || '');
   }
   // R375 (Phil's pick (a), 2026-08-19): a workout's NAME is its first two anchor lifts — "Deadlift +
-  // Bench" — never two tiles both reading "Full Body" (Mason started the wrong one on 8/18 because
+  // Bench" — never two tiles both reading "Full Body" (an athlete started the wrong one on 8/18 because
   // the names couldn't tell him apart). top_ex is the server's A-sides of the first complexes; the
   // friendly theme name is the fallback when anchors are unknown (held previews).
   function woTitle(s) {
@@ -2954,7 +2954,7 @@
     if (F15_MISSED_WEIGHT && Number(tLoad) > 0) opts.splice(2, 0, ['missed', 'Missed weight']);
     opts.forEach(function (o) {
       var b = el('button', 'skip-opt' + (o[0] === 'pain' ? ' pain' : '')); b.type = 'button'; b.textContent = o[1];
-      // R632 (Grace 2026-08-26, the FOURTH skip report): the skip's identity is the PRESCRIBED
+      // R632 (an athlete 2026-08-26, the FOURTH skip report): the skip's identity is the PRESCRIBED
       // exercise, always. A swapped row's `ex` is the alternate; skipping under ITS name missed
       // ROW_REG (keyed by original — nothing grayed, the tap looked dead) and wrote a marker the
       // payload's skipped_sets (keyed by prescribed name) could never match, so the skip vanished
@@ -3088,7 +3088,7 @@
   // app already draws. GUARD: R1716_SPEED_SERVES=false. Reversing line: set this to false.
   var R1716_SPEED_SERVES = true;   // A53 pass (Phil, 2026-10-30 12:01); reversing line: false
   var F2_ONE_EFFORT = true;   // F2: a one-effort Work set draws no reps stepper (conditioningRow); A75 pass (Phil, 2026-11-09 13:19); reversing line: false
-  var F31_DIST_LOGS = true;   // F31: a distance row (June's Linear Hops 10 yd, Fri 11/13) gets the round's Log button; A77 pass (Phil, 2026-11-10 13:28); reversing line: false
+  var F31_DIST_LOGS = true;   // F31: a distance row (an athlete's Linear Hops 10 yd, Fri 11/13) gets the round's Log button; A77 pass (Phil, 2026-11-10 13:28); reversing line: false
   // F32 (F2 remainder; his 08-05 law "same = dose follows the athlete's current rung", D195 Level Standards the one home): a
   // `same` swap kept the rung's reps and rest but dropped its seconds and yards, so Run 2:1min x5 swapped to Bike drew
   // x1 and a ✓ instead of 120 s intervals, and Linear Hops 10 yd swapped to Dribbles lost its 10 yd. True: the
@@ -3192,7 +3192,7 @@
   // QA-05: apply the choice to EVERY set of that exercise in the session.
   // THE SWAP RECORD (R533, Phil 2026-08-24 verbatim): "swaps must leave a server-side event — who,
   // when, from→to; 'swaps leave none by design' is the gap that made the dips dispute possible; the
-  // eyewitness must never be the only record." Grace's Assisted Dips dispute was unresolvable
+  // eyewitness must never be the only record." an athlete's Assisted Dips dispute was unresolvable
   // precisely because nothing on the server knew a swap had happened — the only account was Phil's
   // memory of watching her. This rides the same durable IndexedDB queue as sets and skips, so it
   // survives offline exactly as a logged set does, and it is a MARKER row (blank actuals, flag
@@ -3310,7 +3310,7 @@
       } catch (e) {}
     });
   }
-  // R1489 (ORDER 10-09 item 1, Mason 10/8 watched by Phil: pain on Trap 3 Raise, "the UE-pain alternates would not respond to a
+  // R1489 (ORDER 10-09 item 1, an athlete 10/8 watched by Phil: pain on Trap 3 Raise, "the UE-pain alternates would not respond to a
   // tap"): `opts.fromRow` is the row whose Swap button was tapped. The record of that night (Sessions tab): TWELVE
   // `swap:Trap 3 Raise -> Forearm Slides` events with distinct log_ids, drained 22:48:11-22:48:35Z. j72 reproduces it in his
   // shape: he had just LOGGED set 1 (22:46:30Z), so the row in front of him was a done row — and a done row is never rebuilt
@@ -3431,7 +3431,7 @@
   function fmtHistSet(s) {
     // R584 — THE LOAD CARRIES ITS UNIT, per DESIGN.md rule 3's own vocabulary ("Log Set 5 · 105 lb ×
     // 4"): load first WITH "lb", reps after the ×. The bare "5×15" chip was read right-to-left by the
-    // coach as "15 lbs" on Grace's Side Raise (she lifts 5 per hand) — a number with no unit invites
+    // coach as "15 lbs" on an athlete's Side Raise (she lifts 5 per hand) — a number with no unit invites
     // whichever convention the reader brings, and Everfit's was reps×weight. Bodyweight sets keep the
     // bare rep count; that is the established convention everywhere else on the profile.
     if (s.load != null && s.load !== '') return s.load + ' lb × ' + (s.reps != null ? s.reps : '—');
@@ -3486,7 +3486,7 @@
     // F1(a) — RETRY, AND AN HONEST FAILURE THE ATHLETE CAN ACT ON. This was a bare `fetch` whose only
     // catch said "Could not load history." — no retry, no distinction between a throttled Apps Script
     // (an HTML error page, which r.json() throws on) and being genuinely offline, and nothing to tap.
-    // Phil and Grace both hit it and force-closed the app for what was a hiccup. `fetchJson` already
+    // Phil and an athlete both hit it and force-closed the app for what was a hiccup. `fetchJson` already
     // rides out the hiccup with two retries and classifies the failure; the panel now uses it and
     // offers the tap, exactly as the profile detail panel has since 2026-08-05.
     fetchJson(readUrl() + '?action=history&athlete=' + encodeURIComponent(athlete) +
@@ -3527,7 +3527,7 @@
         // R1306 (Phil 2026-09-29 item 3): the menu now carries every rung of the lift's OWN ladder
         // beside his substitute movements. A rung is tagged `rung` by the server and wears its level
         // instead of a reason ("LADDER 3.2"), because it is the same lift at another height — which is
-        // the thing Mason could not find. DESIGN.md rule 8: the level is coach-facing, so it rides the
+        // the thing an athlete could not find. DESIGN.md rule 8: the level is coach-facing, so it rides the
         // quiet category chip, never the name lane.
         var rl = a.reason === 'rung' ? ('Ladder ' + (a.level || '')).trim() : reasonLabel(a.reason);
         if (rl) b.appendChild(el('span', 'swap-cat', rl));
@@ -3608,7 +3608,7 @@
           // inventing a default here.
           hb.disabled = true;
           // The exscheme fetch is slow (5-13s). Without a visible cue the disabled button reads as
-          // "didn't register", so Mason kept tapping (Phil, 2026-07-28). Show a spinner on the chosen
+          // "didn't register", so an athlete kept tapping (Phil, 2026-07-28). Show a spinner on the chosen
           // row and block the rest, so it plainly reads as "working".
           hb.classList.add('loading');
           hb.appendChild(el('span', 'swap-spin'));
@@ -3626,7 +3626,7 @@
           var fallback = { name: x.exercise, root: x.root || '', video_url: x.video_url || '', reps: x.default_reps,
                            wants_load: (x.wants_load === true) || (lastL != null && lastL > 0), reason: 'searched',
                            prefill_load: (lastL != null && lastL > 0 ? lastL : null) };
-          // R633 (Grace's ~15s dips swap, on a cold just-deployed backend): the swap applies NOW,
+          // R633 (an athlete's ~15s dips swap, on a cold just-deployed backend): the swap applies NOW,
           // from the library row the panel already holds — in-workout actions are <2s perceived.
           // The exscheme answer (the athlete's real prescription, 5-13s cold) RECONCILES the rows
           // in the background, and only while they are untouched: once a set is logged or a
@@ -3788,7 +3788,7 @@
     // placeholder was also 4. One stepper, pre-filled with the prescription, is the whole row — you
     // tap it to confirm 4, or +/- to say what you actually did (rule 2b, same as every other row).
     var isPureReps = !wantsDist && !t.duration_s && !t.work_s;
-    // F2 (Phil 11-08, D196-D201): a Work set of ONE effort (June's Sprint 40yd x5: reps 1, rest 55, no work_s) drew a reps
+    // F2 (Phil 11-08, D196-D201): a Work set of ONE effort (an athlete's Sprint 40yd x5: reps 1, rest 55, no work_s) drew a reps
     // stepper at 1 and read "1 reps" on every set — the one-rep set he refused by name 07-21. One effort has nothing to
     // count: the tile reads x1 and his rest, and the round's Log button logs the prescription. GUARD: held off every phone
     // until his A-id answers (REFUSALS row 27). Reversing line: F2_ONE_EFFORT = false.
@@ -3857,7 +3857,7 @@
     }
     // F31 (2026-11-09 run 2; F2 remainder, rebuilt from 20f4f601e after A67 no): A DISTANCE ROW HAS NO CONTROL. The row's ✓ is
     // hidden (`.ex-row .check:not(.dur)`, R1111) and only a pure reps row hands the round a `_commit`, so a Speed seat in yards
-    // draws no Log button. A67 was refused because no board held one; June's Fri 11/13 and Sat 11/14 boards now hold four
+    // draws no Log button. A67 was refused because no board held one; an athlete's Fri 11/13 and Sat 11/14 boards now hold four
     // (Linear Hops 10 yd, A Skips 10 yd, Lateral Hops 5 yd, Crossover Skips 10 yd). The round's one Log button takes the row, and
     // an untouched box logs his prescribed yards (a blank distance would be refused at write, D133); a number she types wins.
     // GUARD: F31_DIST_LOGS=false, held off every phone until his A-id answers (REFUSALS row 27).
@@ -4051,10 +4051,10 @@
     // latest-per-set collapse serves the target instead of the athlete.
     //
     // MEASURED, not theorised (2026-08-24, demo_targetEcho @530 over all five athletes): 12 set
-    // coordinates are serving an echo right now. Grace's 08-22 'Assisted Dips 40 lb' set 2 is Phil's
+    // coordinates are serving an echo right now. an athlete's 08-22 'Assisted Dips 40 lb' set 2 is Phil's
     // — he watched 3x12, the sheet holds x12 beside x4, and the Coach View reads 4. Her whole session
     // drained in one 24ms burst, i.e. she was offline throughout, which is exactly the state this
-    // hole needs. Mason's RDL 85x5 serves as its 80x5 target; his Step Down 55x8 as 50x8.
+    // hole needs. an athlete's RDL 85x5 serves as its 80x5 target; his Step Down 55x8 as 50x8.
     //
     // COMMIT_SIG already holds what this device last committed for this set, in this shape, in
     // sessionStorage (R381's durable half) — the value was there all along and nothing read it back.
@@ -4184,8 +4184,8 @@
       // lastSig = null and re-armed a re-commit that changes nothing. Reproduced deterministically in
       // qa/harness/dup-logid.mjs: log a round, leave and reopen the session, tap Update — 2 queued rows
       // become 4 under FRESH log_ids for the SAME 2 set-keys, inside ONE undrained batch. That is the
-      // exact shape of Grace's 08-15 18:08:49 batch (10 dup keys, incl. a conflicting 45-vs-50) and
-      // Mason's 08-18 identical batches 45s apart. Idempotency (hard rule 4) is keyed on log_id and
+      // exact shape of an athlete's 08-15 18:08:49 batch (10 dup keys, incl. a conflicting 45-vs-50) and
+      // an athlete's 08-18 identical batches 45s apart. Idempotency (hard rule 4) is keyed on log_id and
       // structurally cannot collapse them, so the guard is the only thing standing here.
       // The remembered signature now lives per SET-KEY, in the same shape the server buckets sets by
       // (`demo_setDupes`, LoggerApi.gs — session · exercise · set · side), and survives a reload of the
@@ -4196,7 +4196,7 @@
       // L167 — NO PHANTOM APPENDS (Phil 2026-08-15, rider 2). The round Log button re-commits EVERY
       // row when none are pending (:2192) so an "Update" can correct a mis-entered set — legitimate.
       // But nothing stopped a re-fire that changes NOTHING from appending another row, and each one
-      // carries a fresh log_id so idempotency (hard rule 4) cannot collapse it. Mason's 08-13 session
+      // carries a fresh log_id so idempotency (hard rule 4) cannot collapse it. an athlete's 08-13 session
       // took 48 rows for 26 sets that way, and a burst inside ONE second wrote 55x10 then 55x0 twice
       // for a set he had performed. A correction still appends — an identical re-commit does not.
       // D172: a clock's or a field's seconds; a tile nobody timed claims none (a max tile logged from the round button).
@@ -4237,7 +4237,7 @@
         var uSid = SESSION ? SESSION.session_id : '';
         if (!uSid) { try { uSid = sessionStorage.getItem('bp_open_session') || ''; } catch (eU) {} }
         if (uSid) {
-          // R373 (Mason 8/18 CSR pile-up): the void must reach the rows the SHEET holds, whatever
+          // R373 (an athlete 8/18 CSR pile-up): the void must reach the rows the SHEET holds, whatever
           // shape they were logged in — a swap or re-render that changes sidedness must not strand
           // old-shape rows immune to undo. So the undo voids ALL THREE shapes of this set; a marker
           // for a shape the sheet never received voids nothing (harmless by construction).
@@ -4280,7 +4280,7 @@
     // beside it: "only a timed hold keeps its own control, because you have to actually stand through
     // the hold." His item 4b rung is three 20-second holds she must stand through, but `isDur` is
     // FALSE for it — the actual is reps, not time — so it never got the `dur` class, its button
-    // rendered 0x0, and `startRepHolds` fires only from that button's own handler. Grace would have
+    // rendered 0x0, and `startRepHolds` fires only from that button's own handler. an athlete would have
     // tapped "Log Set 1" and logged 3 reps with no countdown at all: his whole item, invisible on the
     // one screen it exists for. The class is the law's mechanism, so the row that the law's own reason
     // covers now carries it. Reversing line: drop `|| repHold` from the two expressions below.
@@ -4296,7 +4296,7 @@
       // moved on. Phil: "I get a message of done when the timer's done, even though I already checked
       // it off... then I get a timer that it's done later. That shouldn't come up."
       if (check.classList.contains('holding')) return;   // the hold's own handler owns this tap
-      // R372 (Mason 8/18): a skipped row's ✓ stayed live and logged a set the athlete never did —
+      // R372 (an athlete 8/18): a skipped row's ✓ stayed live and logged a set the athlete never did —
       // Roller Leg Curl reps-8 survived its own skip. A skipped row never logs; the label un-skips.
       if (row.classList.contains('skipped')) { miniToast('Skipped — tap the skip label to undo'); return; }
       if (check.classList.contains('done')) { uncheck(); return; }   // tap a done set again to undo
@@ -4791,7 +4791,7 @@
     // prompt and the log label lead with the set number ("Set 1"), dropping the "(warm-up)" clutter.
     var setLabel = String(title || 'set').replace(/\s*\(.*\)\s*$/, '');   // "Set 1 (warm-up)" -> "Set 1"
     if (unconfirmed.length) {
-      // NEVER a dead grey button (2026-08-06, the searched-swap round: Mason "couldn't log my first
+      // NEVER a dead grey button (2026-08-06, the searched-swap round: an athlete "couldn't log my first
       // set", j6 red). The button stays TAPPABLE; the tap itself accepts any row whose number is
       // really on screen and only blocks on a truly empty one — same law as the row-level ▶.
       // L185 (Phil 2026-08-15): THE LABEL NAMES THE SET AND NOTHING ELSE. It used to append
@@ -4959,7 +4959,7 @@
   // R1003 (Phil 2026-09-12 09:5x, standing, verbatim: "a completed session opens read-only from the Sessions rows — what was
   // logged, never the plan. A past date with rows never reads 'no workout'."). A DONE session (the server's `readonly`, or
   // every slot's status done — older cached payloads) renders what the athlete DID: each logged set, each skip by reason,
-  // a swap under the name performed; never the plan's unlogged sets as sets to log (Grace's third Pullups set), never a
+  // a swap under the name performed; never the plan's unlogged sets as sets to log (an athlete's third Pullups set), never a
   // stepper, a timer or a Log button. Reversing line: delete the dispatch below and the DONE session renders as before.
   function isDoneSession(s) {
     if (!s || s.baseline) return false;
@@ -5025,7 +5025,7 @@
     ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};   // fresh registries per session render
     renderNav('wo');
     // PREFETCH the swap search library (and warm the backend) the instant a workout opens, so tapping
-    // Swap and searching is immediate instead of the ~10s cold wait Mason hit mid-set (Phil, 2026-07-27).
+    // Swap and searching is immediate instead of the ~10s cold wait an athlete hit mid-set (Phil, 2026-07-27).
     // exerciseList() caches in memory + localStorage, so this fetches once and every later call is free.
     try { setTimeout(function () { exerciseList(function () {}); }, 0); } catch (e) {}
     // S19 AC2: the athlete sees what they're signing up for before they start.
@@ -5087,7 +5087,7 @@
     // another day on the workout that's shown. I would remove it." You decide what to shuffle while
     // looking at the week, not while standing in the gym with the session open.
     // COMPLEXES ARE NUMBERED AS THE ATHLETE MEETS THEM. P3 leaves gaps when a slot goes unfilled, so
-    // Mason's 07-28 read "Complex 1" then "Complex 3" with no Complex 2 — Phil: "2 comes after 1."
+    // an athlete's 07-28 read "Complex 1" then "Complex 3" with no Complex 2 — Phil: "2 comes after 1."
     // The Plan keeps P3's slot id (Comp3) as the identity; only the LABEL is renumbered, so nothing
     // downstream that matches on slot name is affected.
     var compSeen = 0;
@@ -5133,7 +5133,7 @@
       })();
       // R589 — RE-ADOPT, NEVER RE-OFFER. If this slot's timer is the one already counting, the new
       // header takes over the LIVE timer and hides its own "Begin complex": tapping that button
-      // restarted the complex at set 1, which is how a post-log refresh cost Grace her place
+      // restarted the complex at set 1, which is how a post-log refresh cost an athlete her place
       // mid-complex. Identity is the Plan's slot id, not the displayed label (labels renumber).
       var slotKey = String(slot.slot || sLabel);
       var live = liveTimerFor(slotKey, s.session_id || s.date);
@@ -5293,7 +5293,7 @@
       // cached week and silently re-warm it with post-complete truth — otherwise the calendar's
       // instant-paint shows the workout un-done "for a while" (Phil 2026-08-08: same race as the
       // drag-move; the cache repainted pre-complete state until a later fetch corrected it).
-      // R1330 (Grace 2026-09-30 18:50): CAPTURE THE ID BEFORE THE DEFERRED WORK ARMS. Her summary took
+      // R1330 (an athlete 2026-09-30 18:50): CAPTURE THE ID BEFORE THE DEFERRED WORK ARMS. Her summary took
       // 17.9 s, she left the completion screen, that sets SESSION = null (:4137 below) — and the 20 s
       // completion_slow watchdog then read `SESSION.session_id` on a null SESSION and threw
       // `null is not an object`. The crash took the report with it: the line that exists to record her
@@ -5312,7 +5312,7 @@
             }
           });
       });
-      // R635 (Grace 2026-08-26): completion renders IMMEDIATELY from what the phone already knows,
+      // R635 (an athlete 2026-08-26): completion renders IMMEDIATELY from what the phone already knows,
       // and the server's richer summary UPGRADES it in place when it lands. The old shape —
       // 'Loading summary…' + a fetch with an empty catch — sat frozen for the summary's own
       // cold-build seconds and FOREVER on a failed fetch (the R631 stall class on the exit door).
@@ -5375,7 +5375,7 @@
   function mondayOf(s) { var x = new Date(s + 'T00:00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
   function ymd(d) { return d.toLocaleDateString('en-CA'); }
   // R1385 (QUEUE b, 2026-10-03 21:08 slot) — THE CALENDAR THE ATHLETE IS ALREADY LOOKING AT.
-  // Mason's `week` rows are the felt action with no request-side owner: Phil's felt ruler (R1356)
+  // an athlete's `week` rows are the felt action with no request-side owner: Phil's felt ruler (R1356)
   // ranks them 6 rows / 36.5 s worst, and R1360 measured the route end to end — server 75 ms and
   // 85 ms under a 6417 ms and 6534 ms wall, so 6.3 s of the 6.4 s is one cold Apps Script
   // invocation and "on this path only REMOVING REQUESTS can help". Nothing had removed one. The
@@ -5393,8 +5393,8 @@
   //      the default.
   //      WHICH KEYS COUNT WAS READ, NOT GUESSED (2026-10-03 23:0x slot, `scripts/athlete-payload.sh
   //      <A> week` on the deployed backend @1065). The first cut of this guard also refused on
-  //      `next_round_preview` and `round_pending`, and the read says ALL FOUR athletes — Grace,
-  //      Mason, Phil AND QA_Harness — carry a non-empty `next_round_preview`, so that cut could
+  //      `next_round_preview` and `round_pending`, and the read says ALL FOUR athletes — an athlete,
+  //      an athlete, Phil AND QA_Harness — carry a non-empty `next_round_preview`, so that cut could
   //      never skip one request for ANYONE. It was dead code, not a harness artifact.
   //      `next_round_preview` DRAWS NOTHING: it is renderCalendar's `nextPreview` parameter and the
   //      body never reads it (the NEXT ROUND section is built from each session's own `next_round` /
@@ -5402,7 +5402,7 @@
   //      line — which condition 4 excludes by construction. `bw_missing` draws a real card
   //      (renderBwIntake), so it alone keeps a payload un-plain.
   //   4. WEEK_DREW_DATED — the paint actually put a dated row on the grid. renderCalendar reports
-  //      what it drew rather than this guard re-deriving it. Mason is why: he carries
+  //      what it drew rather than this guard re-deriving it. an athlete is why: he carries
   //      `round_pending: true` tonight (his next board was lawfully refused), and his empty-grid
   //      line must never freeze on a cache while the round he is waiting for is built.
   //   3. the epoch — any local change to the week (a move's date patch, a status flip, a
@@ -5494,7 +5494,7 @@
         if (!data.ok) { if (!cachedWk) show('Access denied — check your link.', 'err'); return; }
         if (!data.sessions || !data.sessions.length) {
           if (!cachedWk) {
-            // A not-yet-started athlete (Grace, June) has no program until their start date — tell them
+            // A not-yet-started athlete (an athlete, an athlete) has no program until their start date — tell them
             // WHEN it begins instead of a bare "no workouts" (Phil 2026-07-28). Past/absent start -> generic.
             var sd = data.start_date, today2 = todayISO();
             if (sd && sd > today2) {
@@ -5509,7 +5509,7 @@
               show('Nice work — you finished the round! 💪 Your next one is being built. Check back soon.');
             } else { show('No workouts scheduled yet.'); }
           }
-          // BW card renders on the pre-start screen TOO (found before it bit: Ryan opening his
+          // BW card renders on the pre-start screen TOO (found before it bit: an athlete opening his
           // invite link SUNDAY would have hit this early return and never seen the card; the setup
           // is one tap whenever he first opens, not gated on sessions existing).
           if (data.bw_missing) renderBwIntake(data);
@@ -5603,7 +5603,7 @@
   //
   // The DATE is its own column, not part of the tile: "some days might be zero workouts and some
   // days might have 2". A tile-per-day can't express either.
-  // R1067's PHONE HALF (2026-09-17; the SLOW OPENS red on Grace and Phil — a first open of a fresh round has no cached copy, so the tap
+  // R1067's PHONE HALF (2026-09-17; the SLOW OPENS red on an athlete and Phil — a first open of a fresh round has no cached copy, so the tap
   // waits for the whole cold build): the calendar PREFETCHES the next workout the moment it renders, into the same cache the open
   // paints from (`cacheSession`), so the first tap of a round paints instantly like a second tap does. One request per calendar load,
   // only when no cached copy exists, never over a tap in flight, silently (no render, no card, no report). The next workout is the
@@ -5612,7 +5612,7 @@
   // ORPHANSID-PURGEUP (2026-11-03): A LIST OLDER THAN AN HOUR IS NEVER PREFETCHED FROM. A session id dies when a mint or a
   // re-row re-lays its round, and the phone held the dead one in a list the server served before that: 11-03 13:37Z Phil's
   // phone asked bg=prefetch for Phil_2026-11-02, killed by 03:06Z's re-lay, off its CACHED WEEK (loadHome paints it and used
-  // to prefetch from it before the fresh week landed) — K4's session_not_found. All four measured dead asks (10-27/28 Mason
+  // to prefetch from it before the fresh week landed) — K4's session_not_found. All four measured dead asks (10-27/28 an athlete
   // x3, 11-03 Phil) came 5-10 h after the death, so every one rode a list over an hour old. `at` = when the server served
   // the list (the week cache's own `at`; omitted = served just now). Cost: an open on a stale cache warms the next workout
   // one week round trip later, off the fresh week. Reversing line: PREFETCH_TRUST_MS = Infinity.
@@ -5854,7 +5854,7 @@
     app.appendChild(menu);
     // ANCHOR (the ruling's clause): open at the current week, today visible at top, history
     // reachable by scrolling back above. requestAnimationFrame so layout exists before the scroll.
-    // HARDENED (Phil 2026-08-14, Mason opening at 7/27): when every dated row is history — no today
+    // HARDENED (Phil 2026-08-14, an athlete opening at 7/27): when every dated row is history — no today
     // row, no future row — the anchor previously never fired and the view sat at the OLDEST row.
     // The anchor law has no exception: with nothing current, anchor at the newest content instead.
     var anchorEl = todayRow || (menu.childNodes.length ? menu : grid.lastElementChild);
@@ -6045,11 +6045,11 @@
   // way on, not a link parameter any phone could carry, and the literal is what BP_FLAGS drives for
   // the 390px shot the approval needs. Phil's yes flips this to true; nothing else can.
   // FLIPPED 2026-10-29 ON D113 — HIS YES PLUS HIS ORDER. `A48 pass` and `A50 pass`, Decisions tab
-  // 2026-10-28 13:55, over the 390px shot design/approvals/f1-itemf-mason-regen-module-390.png; then
+  // 2026-10-28 13:55, over the 390px shot design/approvals/f1-itemf-athlete-regen-module-390.png; then
   // D113, 2026-10-29 verbatim: "A48, A49, A50 ship on today's deploy. The one-a-day cap is on versions,
   // never on a kid-screen pass." The engine half is NOT a promise here — it is on the kid's door at
   // @1301 (build 20261029T133319Z, R1709_MODULE_DONE reading true read back out of the DEPLOYED
-  // version itself), and that door answers `action=regen_module` for Mason's own token with his row 41.
+  // version itself), and that door answers `action=regen_module` for an athlete's own token with his row 41.
   // So the fifth icon lands on a screen the server can already serve, which is the order the frontier
   // of 10-28 23:14 named: engine first, client second. Reversing line: REGEN_MODULE_ON = false.
   var REGEN_MODULE_ON = true;
@@ -6293,7 +6293,7 @@
   }
   // "Workout" = today's session, else the next planned one (the legacy advance endpoint does this).
   function openToday() {
-    // RETURN TO THE SESSION THE ATHLETE IS IN — not "advance to today". Mason, day 1: he opened Monday
+    // RETURN TO THE SESSION THE ATHLETE IS IN — not "advance to today". an athlete, day 1: he opened Monday
     // from the calendar, logged sets, tapped Profile, then tapped Workout — and this used to re-fetch
     // action=plan (which ADVANCES / re-derives a session), so it handed back a fresh program from set 1
     // and his logged sets appeared gone. bp_open_session is the exact session he opened; go back to it
@@ -6361,7 +6361,7 @@
     for (var k in FRESH_BY_LIFT) if (k.indexOf(sess.session_id + '|') === 0 && !(k in bl)) delete FRESH_BY_LIFT[k];
     for (var k2 in bl) FRESH_BY_LIFT[k2] = bl[k2];
   }
-  // SIDEKEPT-SWAPSLOT (2026-10-31, Grace): a lift swapped into ANOTHER complex misses the slot key above,
+  // SIDEKEPT-SWAPSLOT (2026-10-31, an athlete): a lift swapped into ANOTHER complex misses the slot key above,
   // and its own flag was the ORIGINAL slot's (a searched swap carries none), so her Comp2 Dips slot, swapped
   // to Alternating Incline Bench, logged one row a set where her Comp4 Incline Bench is served L/R and the
   // server's guard (_stampSideFlags_, keyed session|lift name, any slot) kept them as `side_kept`. A slot miss
@@ -6419,7 +6419,7 @@
   // no server answer, no local answer and no signature: it shows its PRESCRIPTION, `wasLogged` is
   // false, and the round's Update button (:1872, deliberately re-commits every row) writes that
   // prescription as an actual under a fresh log_id. Two rows, one set-key, ONE UNDRAINED BATCH —
-  // Grace's 'Assisted Dips 40 lb' shape, and it walks past BOTH standing guards, because hard rule 4
+  // an athlete's 'Assisted Dips 40 lb' shape, and it walks past BOTH standing guards, because hard rule 4
   // keys idempotency on log_id and the L167 signature guard can only drop a re-fire it remembers.
   //
   // THE ANSWER WAS IN THE QUEUE THE WHOLE TIME, exactly as slice 2's was in COMMIT_SIG: the queued
@@ -6427,7 +6427,7 @@
   // rows wins" judgment is ever made — the device simply remembers what it already committed, the
   // re-commit becomes byte-identical, and L167 drops it. That direction is the point (rule 40): a
   // real correction still appends, because a corrected value makes a DIFFERENT signature. A queue
-  // dedupe that dropped the loser would have had to choose, and in Grace's case latest-wins picks
+  // dedupe that dropped the loser would have had to choose, and in an athlete's case latest-wins picks
   // the ECHO — the fix would have kept the wrong row.
   //
   // WHY THIS IS NOT THE SEEDING :2955 REFUSES: that refusal is about the SERVER's logged map — other
@@ -6584,7 +6584,7 @@
     // R591 — `s.vmult` IS THE SERVER'S OWN `_volMult_`, carried across the display merge. The merge
     // drops `side` (L170/U5: one line per set), so this function cannot see that two limbs did the
     // work and has no exercise flags to consult — it scored every each-side day at HALF the "Best
-    // volume" tile printed directly above it. Measured on Grace's real 2026-08-25 Side Raise: tile
+    // volume" tile printed directly above it. Measured on an athlete's real 2026-08-25 Side Raise: tile
     // 300 lb, day card 150 lb, same sets, same screen. Defaulting to 1 keeps an older cached payload
     // rendering exactly as it always did.
     var anyW = (sets || []).some(function (s) { return s && s.w != null; });   // R1109: the server flags each set w=true (work) / false (warm-up)
@@ -6861,7 +6861,7 @@
     if (!painted) { panel.innerHTML = ''; panel.appendChild(el('div', 'p-detail-note', 'Loading…')); }
     // HISTORY P0 (Phil 2026-08-14, display lane item 0): this was a RAW single-attempt fetch — one
     // Apps Script hiccup and the panel read "Could not load history" with no retry, which is the
-    // failure Phil and Grace both hit. fetchJson retries twice and classes server vs offline; the
+    // failure Phil and an athlete both hit. fetchJson retries twice and classes server vs offline; the
     // load-time stamp feeds the 2-second budget check (measured, never guessed).
     var tH0 = Date.now();
     fetchJson(readUrl() + '?action=history&athlete=' + encodeURIComponent(athlete) +
@@ -7095,7 +7095,7 @@
   // L137 LEVELING CLOCK, athlete side. Two derived clocks — one per side (LE/UE) — printed in the
   // SAME English the coach reads in Coach View, verbatim from the server's `english` field. Nothing
   // here is served: the clock is a read on where the athlete sits in the promotion cycle, and the
-  // lifetime round_id that drives it internally NEVER reaches this screen (board D1: `Mason-R4`
+  // lifetime round_id that drives it internally NEVER reaches this screen (board D1: `an athlete-R4`
   // leaking into a coach surface was the defect this law closes — the same leak on the kid's screen
   // would be worse). A side with no closed round prints its own sentence from the server, so the
   // card never invents a state. Empty payload -> no card at all, not an empty shell.
@@ -7148,7 +7148,7 @@
   // fail-softs to nothing when its payload block is absent (an old cached payload must still render).
   function volumeCard(roundsIn, wksIn) {
     // BY COMPLETED ROUND, NOT CALENDAR WEEK (Phil 2026-08-17: a week slices a round arbitrarily, so
-    // one round split across two weeks graphed as a collapse — "I have a hard time believing Mason's
+    // one round split across two weeks graphed as a collapse — "I have a hard time believing an athlete's
     // went down"). An unfinished round does not plot at all. Weeks remain ONLY as the fail-soft for
     // a stale cached payload without volume_rounds.
     var byRound = !!(roundsIn && roundsIn.length);
@@ -7435,7 +7435,7 @@
     var MINUS_COPY = 'you moved up without passing yet — pass at this level and it sticks; three rounds without a pass returns you to the previous sub-level.';
     // R1569 (W-I) — ON. A13 PASS (Phil 2026-10-14 11:48), shots design/a13/r1569-phone-clock-{off,on}.png.
     // The engine half (R1569_HEADER_SERVES_THE_ROUND, deployed @1111) made a Coach View header print the rung the
-    // round SERVES, with the clock's rung owed beside it. This is the SAME ruling on the kid's screen: Mason's card
+    // round SERVES, with the clock's rung owed beside it. This is the SAME ruling on the kid's screen: an athlete's card
     // read "Round 1 of 3 at 3.2 · not passed yet" all round while his board served 3.1, and now reads
     // "at 3.1 · not passed yet · 3.2 next round". `header_level`/`owed_level` ride the profile payload
     // (_handleProfile_), and both reads fall back to the CLOCK's rung, so a payload cached before @1111 renders
@@ -7556,7 +7556,7 @@
     return !!document.querySelector('.ex-row.done') || !!document.querySelector('.stepper.confirmed');
   }
 
-  // R631 (Grace 2026-08-26, defect 1 — "worst defect this system has produced"): calendar → workout
+  // R631 (an athlete 2026-08-26, defect 1 — "worst defect this system has produced"): calendar → workout
   // tap → BLANK, three times, force-closed, and her phone reported NOTHING. Two stranding paths,
   // both closed here, both journey-proven (j34):
   //   1. no cached session + a HUNG backend (a freshly-deployed cold Apps Script): 'Loading…' sat
@@ -7602,7 +7602,7 @@
   }
   // 20s, not 8: a COLD session build legitimately takes ~11.2s (measured, the INSTANT OPEN note
   // below) — an 8s watchdog showed the card on every cold open. 20s clears the honest cold path
-  // and still bounds the minutes-long hang Grace hit. The pending fetch stays alive under the card:
+  // and still bounds the minutes-long hang an athlete hit. The pending fetch stays alive under the card:
   // a late success repaints the workout (screenTouched is false on the card).
   var OPEN_WATCHDOG_MS = 20000;
   // R996 (Phil 2026-09-12, verbatim: "'Try again': the number is workout open under 8 s warm. The morning report counts
@@ -7645,7 +7645,7 @@
   // its own words: "the REGEN card's own `card_ms` is still slow-only - the open's number is complete,
   // the card's is not." The card is INSIDE the open number (R996/R1071 §0, the comment at REGEN_OPEN_T0)
   // and `kpi.py`'s `_PH_ACT` has read `card_ms=` as `regen card` since R1608 — K5's RED of 2026-10-23
-  // was `36.1 s (Mason regen card)` — but the only row carrying that token went out through
+  // was `36.1 s (an athlete regen card)` — but the only row carrying that token went out through
   // `workout_open_slow`, past OPEN_SLOW_REPORT_MS. So the card leg had exactly the blindness the board
   // paint had until 10-25: across [3.0, 8.0), the band K5's 3 s target is decided in, a kid could wait
   // out his card and nothing was ever written.
@@ -7715,7 +7715,7 @@
     if (!cached) show('Loading…');
     var settled = false;
     var firstPaintWasCached = painted;
-    // R1228 (Mason 2026-09-21 15:48 his clock, P0 — his calendar open failed three times while the
+    // R1228 (an athlete 2026-09-21 15:48 his clock, P0 — his calendar open failed three times while the
     // workout tab opened the same session): a tap that finds no cached copy races the calendar's own
     // PREFETCH already in flight for the same session. His tap's fetch sat queued behind a wedged
     // save (254 s), the 20 s watchdog showed the retry card — and the prefetched payload landed in
@@ -7755,11 +7755,11 @@
     var _ride9 = regenAskParam();
     // R1637, SCOPED TO THE COLD OPEN ON PURPOSE — and the reason is a kid's screen, not a trip. On a
     // CACHED paint the board is already up, so holding the card for this read would make it arrive by
-    // the SESSION answer (~10.8 s on Mason's own numbers) instead of by its own status read (5.3-6.9 s),
+    // the SESSION answer (~10.8 s on an athlete's own numbers) instead of by its own status read (5.3-6.9 s),
     // and a card that arrives after his first logged set is SKIPPED (R1078). That is seconds of a coach's
     // REGEN data for a trip nobody is waiting on. On a COLD open there is nothing on screen to delay:
     // the card cannot paint before the board does, the poll's paint and this answer are the SAME promise
-    // once the prefetch is joined, and this is exactly the way in that bought Mason's third trip at
+    // once the prefetch is joined, and this is exactly the way in that bought an athlete's third trip at
     // 17:02:41Z. The warm path's own `regen_status` is NAMED AND NOT TAKEN.
     if (_ride9 && !cached) REGEN_RIDE_PENDING = 1;   // R1637: this read carries the card's question — the card must not buy a second one
     fetchJson(readUrl() + '?action=session&athlete=' + encodeURIComponent(athlete) + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token) + _ride9)
@@ -7775,7 +7775,7 @@
         }
         // R1003 (Phil 2026-09-12: "A timeout says 'Try again', never 'no workout'"): this open was tapped from a calendar
         // tile the server itself listed, so an answer without a session is a transient — a Plan mid-write, a refusal — not
-        // an empty day. Mason's DONE 08-31 session read "No workout that day." after a 20 s stall. The card re-fetches.
+        // an empty day. an athlete's DONE 08-31 session read "No workout that day." after a 20 s stall. The card re-fetches.
         if (!data.ok || !data.session) { if (!painted) showRetryCard(sessionId, 'This workout did not load.' + (data && data.error ? ' (' + data.error + ')' : '')); return; }
         // Re-render unless the athlete is actively logging over a cached paint. BUT a reopened session
         // the SERVER already has logged sets for must always show its review state — the stale cached
@@ -7784,7 +7784,7 @@
         var srvLogged = (data.session.slots || []).some(function (sl) {
           return (sl.exercises || []).some(function (e) { return e.logged && Object.keys(e.logged).length; });
         });
-        // R1490 (ORDER 10-09 item 2, Mason 10/8: Dips served 40, the stamp and the Coach View 22.5; Hip Thrust on his phone, not on
+        // R1490 (ORDER 10-09 item 2, an athlete 10/8: Dips served 40, the stamp and the Coach View 22.5; Hip Thrust on his phone, not on
         // the Coach View): his phone PREFETCHED the session at 2026-10-06T01:01:57Z, four minutes after the 10/5 mint, and painted
         // that copy three days later. Phil's 10/6 re-row (Dips 22.5) and the 10-06d cut (Hip Thrust out) reached the Workbook and
         // never his phone: this open painted the cached copy, the fetch below landed 8.9 s later, and `screenTouched()` — a stepper

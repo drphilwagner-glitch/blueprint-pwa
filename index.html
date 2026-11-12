@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="styles.css">
   <!-- BOOT-WATCHDOG -->
   <script>
-    // R847 (Grace 2026-09-02): new iPhone, blank screen for two minutes, reload after reload — and
+    // R847 (an athlete 2026-09-02): new iPhone, blank screen for two minutes, reload after reload — and
     // ZERO ErrorLog rows, because every reporter this app has lives in app.js, which never ran far
     // enough to send one. The completion screen reports its own slowness (R798); the SHELL did not.
     // This runs before config.js and app.js, depends on neither, and at N seconds reports from
@@ -56,7 +56,7 @@
       setTimeout(function () {
         var st = reached(); if (st === 'painted') return;
         var b = window.__bpBoot;
-        // R1331 (Grace 2026-09-28 14:00 and 2026-09-30 17:56): THE REPORT HAS TO SAY WHICH BLANK SCREEN
+        // R1331 (an athlete 2026-09-28 14:00 and 2026-09-30 17:56): THE REPORT HAS TO SAY WHICH BLANK SCREEN
         // THIS IS. Both of her stalls read exactly `reached: app; online=true` with no first error — so
         // app.js had loaded and run and painted nothing, and the row could not say whether a fetch was
         // hanging, whether a cached board existed and was skipped, or whether the service worker served a
@@ -105,7 +105,7 @@
                   (b.err ? '; first error: ' + b.err : '') + '; online=' + String(navigator.onLine) + diag;
         b.report = msg;
         try { (window.__bpErrLog = window.__bpErrLog || []).push('boot_stall'); } catch (x) {}   // the journeys' seam (j34 precedent)
-        // R1331 THE FIX (Grace 2026-09-28 14:00 and 2026-09-30 17:56): SHE HAD NOTHING TO TAP. Both times
+        // R1331 THE FIX (an athlete 2026-09-28 14:00 and 2026-09-30 17:56): SHE HAD NOTHING TO TAP. Both times
         // her app sat on the static "Loading your plan…" line for 45 s with — measured, not assumed —
         // `{"text":"Loading your plan…","buttons":[],"children":1}`: zero controls, no explanation, no way
         // out but force-quitting the app. R631 won this law for the WORKOUT tap in August ("a tap ALWAYS

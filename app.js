@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261112-nonames';   // THURSDAY 11-12 — D263: no athlete's name in any shipped file (comments only; no screen changes). Reversing line: '20261110-samedose'.
+  var APP_BUILD = '20261112-tenths';   // THURSDAY 11-12 — D276: a work time from Level Standards K serves to the tenth (2.4 s) and the interval timer prints it clean. Reversing line: '20261112-nonames'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3730,7 +3730,7 @@
     cuePhase(seq[0].p, true);                              // banner only — the starting tap already told them (L171)
     var iv = setInterval(function () {
       var cur = seq[idx];
-      btn.textContent = cur.p + ' ' + Math.max(0, rem) + 's';
+      btn.textContent = cur.p + ' ' + Math.max(0, Math.round(rem * 10) / 10) + 's';   // D276: a work time is tenths (2.4 s); never print float noise
       if (cur.p === 'WORK') totalWork++;
       rem--;
       if (rem < 0) {

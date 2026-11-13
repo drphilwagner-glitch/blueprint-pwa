@@ -121,6 +121,20 @@ body {
   background: var(--card); border: 1px solid var(--danger); border-radius: var(--r-8);
   padding: 10px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 .refused-line { font-size: var(--fs-13); font-weight: 600; margin-bottom: 6px; }
+/* F37 beat count: the refused card's placement and button vocabulary, the lift row's stepper. Tokens only. */
+.beat-card { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 60;
+  background: var(--card); border: 1px solid var(--ok); border-radius: var(--r-8);
+  padding: 10px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.18); display: flex; flex-direction: column; gap: 8px; }
+.beat-line { font-size: var(--fs-16); font-weight: 700; text-align: center; }
+.beat-step { justify-content: space-between; }
+.beat-step .step { min-width: 56px; min-height: 48px; font-size: var(--fs-16); }
+.beat-step .val { font-size: var(--fs-16); }
+/* F38: the pass verdict under the count. Tokens only. */
+.beat-verdict { font-size: var(--fs-13); font-weight: 700; text-align: center; }
+.beat-verdict.pass { color: var(--ok); }
+.beat-verdict.nopass { color: var(--muted); }
+.beat-save { display: block; width: 100%; font-size: var(--fs-16); font-weight: 700;
+  padding: 12px 8px; border-radius: var(--r-8); border: 1px solid var(--line); background: var(--ok); color: var(--white); }
 .refused-ok { display: block; width: 100%; font-size: var(--fs-13); font-weight: 700;
   padding: 8px; border-radius: var(--r-8); border: 1px solid var(--line);
   background: var(--bp-faint); color: var(--bp); }
@@ -939,6 +953,11 @@ body.has-tbar #app { padding-bottom: 128px; }
 .round.no-goal .ex-row { padding-top: 5px; padding-bottom: 5px; }
 /* a goal-less row inside a round that HAS goals keeps its lane, empty, so columns still line up */
 .ex-row.no-goal .c-goal > * { visibility: hidden; }
+/* D290: a marked Run/Bike set reads GOAL 2339 yd on its own line; its reps and work lanes take the row */
+.mark-line { display: flex; align-items: baseline; gap: var(--sp-6); margin: 2px 0 4px; }
+.mark-line .mark-v { font-size: var(--fs-14); color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ex-row.mark-row .l2 { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+.ex-row.mark-row .c-goal { display: none; }
 
 .c-goal, .c-actual, .c-second { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .lane-l { font-size: var(--fs-10); font-weight: 700; text-transform: uppercase; letter-spacing: .5px;

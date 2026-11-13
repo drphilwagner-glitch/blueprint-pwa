@@ -252,7 +252,11 @@
         if (str.indexOf('bg=') >= 0) return str;   // already declared; never stack a second word
         return str + (str.indexOf('?') >= 0 ? '&' : '?') + 'bg=' + encodeURIComponent(bgWhy);
       }
-      return bpTagDev(str);
+      // K4-FELT (2026-11-13): a DRIVEN browser says `src=` here as fetchJson does — bpTagDev alone adds
+      // nothing for one, so a journey's profile read reached the door bare and stood in K5 as Phil's own
+      // 3.3 s open. An undriven phone gets no src word (bpTagSrc returns it unchanged). Reversing line:
+      // drop the bpTagSrc wrap.
+      return bpTagDev(bpTagSrc(str));
     } catch (e) { return u; }
   }
   // One-time invisible enrollment: fire-and-forget on boot when this install has no device token.
@@ -311,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261112-sprintlog';   // THURSDAY 11-12 run 2 — P0-JUNE-SPRINTLOG-1112: a timed sprint set (June's Fri 11/13 Sprint 20yd 2.4 s, 40yd 6 s) draws the A75 x1 tile and logs. Reversing line: '20261112-tenths'.
+  var APP_BUILD = '20261113-k4srcword';   // FRIDAY 11-13 run 1 — K4-FELT: a driven browser's profile read says src= (bpTagRead), so our own journeys leave K5; no pixel moves. Reversing line: '20261112-sprintlog'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1988,6 +1992,21 @@
         o.start(); o.stop(_ac.currentTime + 0.45);
       } catch (e) {}
     }
+    function tickCue() {                       // F37: a short tick, not the buzzer (higher, 60 ms, one short buzz)
+      try {
+        if (!_ac) primeAudio();
+        if (_ac) {
+          if (_ac.state === 'suspended') { try { _ac.resume(); } catch (eR) {} }
+          var o = _ac.createOscillator(), g = _ac.createGain();
+          o.type = 'square'; o.frequency.value = 1760; o.connect(g); g.connect(_ac.destination);
+          g.gain.setValueAtTime(0.0001, _ac.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.2, _ac.currentTime + 0.005);
+          g.gain.exponentialRampToValueAtTime(0.0001, _ac.currentTime + 0.06);
+          o.start(); o.stop(_ac.currentTime + 0.06);
+        }
+      } catch (e) {}
+      if (navigator.vibrate) { try { navigator.vibrate(30); } catch (e) {} }
+    }
     // Phase banner. `sticky` = stays until the athlete taps it (the cue of last resort: the chime
     // above now survives the iOS ringer switch, but nothing survives a phone in a pocket). A
     // banner that vanishes in 1.7s is missed if you glanced away; a persistent one can't be. Auto
@@ -2385,7 +2404,7 @@
     btn.classList.add('holding'); btn.textContent = String(rem);
     miniToast('Get set');
     var iv = setInterval(function () {
-      if (!btn.isConnected) { clearInterval(iv); HOLDS_RUNNING = Math.max(0, HOLDS_RUNNING - 1); return; }   // left the workout: no beep, no set
+      if (!btn.isConnected || btn._leadStop) { btn._leadStop = false; clearInterval(iv); HOLDS_RUNNING = Math.max(0, HOLDS_RUNNING - 1); return; }   // left the workout, or F36's series stopped: no beep, no set
       rem--;
       if (rem > 0) { btn.textContent = String(rem); if (rem <= 3) beep(); return; }
       clearInterval(iv);
@@ -3089,6 +3108,7 @@
   var R1716_SPEED_SERVES = true;   // A53 pass (Phil, 2026-10-30 12:01); reversing line: false
   var F2_ONE_EFFORT = true;   // F2: a one-effort Work set draws no reps stepper (conditioningRow); A75 pass (Phil, 2026-11-09 13:19); reversing line: false
   var F31_DIST_LOGS = true;   // F31: a distance row (an athlete's Linear Hops 10 yd, Fri 11/13) gets the round's Log button; A77 pass (Phil, 2026-11-10 13:28); reversing line: false
+  var F40_MARK = false;   // F40: a Run/Bike Work set's goal reads his Level Standards K mark (yd, W/lb); GUARD until his A-id answers (REFUSALS row 27); reversing line: false
   // F32 (F2 remainder; his 08-05 law "same = dose follows the athlete's current rung", D195 Level Standards the one home): a
   // `same` swap kept the rung's reps and rest but dropped its seconds and yards, so Run 2:1min x5 swapped to Bike drew
   // x1 and a ✓ instead of 120 s intervals, and Linear Hops 10 yd swapped to Dribbles lost its 10 yd. True: the
@@ -3745,6 +3765,157 @@
       }
     }, 1000);
   }
+  // F36: THE TIMED WORK SERIES. From the tapped set to the block's last undone set, each set runs holdLeadIn (his Thresholds
+  // `hold lead-in s`, 3-2-1 beeps, go beep), counts his work time in tenths, buzzes, logs the set through the row's own
+  // _commit (the A75 tile's x1, exactly what Log Set posts), then counts his rest on the next set's ▶ and repeats. A tap on
+  // the running ▶ stops the series; the sets already buzzed stay logged. Leaving the workout stops it with no beep and no set.
+  var F36_TIMED_WORK = false;   // F36: the timed Work tile; GUARD until his A-id answers (REFUSALS row 27); reversing line: false
+  function startTimedWork(row) {
+    var host = row.closest('.slot') || row.parentNode, me = row._f36;
+    var series = [].slice.call(host.querySelectorAll('.ex-row.cond')).filter(function (r) {
+      return r._f36 && r._f36.ex === me.ex && r._f36.set >= me.set && !r.classList.contains('done');
+    }).sort(function (a, b) { return a._f36.set - b._f36.set; });
+    if (!series.length) return;
+    primeAudio(); requestWake();
+    var i = 0, iv = null, stopped = false, btn = null, inLead = false;
+    HOLDS_RUNNING++;                                       // a re-render must not detach the series mid-set
+    function end() {
+      if (iv) { clearInterval(iv); iv = null; }
+      if (btn) { btn.classList.remove('holding'); btn.removeEventListener('click', stop); delete btn.dataset.phase; if (!btn.classList.contains('done')) btn.textContent = '▶'; }
+      HOLDS_RUNNING = Math.max(0, HOLDS_RUNNING - 1);
+    }
+    function stop(ev) {
+      if (ev) ev.stopPropagation(); if (stopped) return; stopped = true;
+      if (inLead && btn) btn._leadStop = true;             // the lead-in's own clock ends silently, no go beep
+      end(); miniToast('Stopped');
+    }
+    function arm(b) {
+      if (btn) { btn.classList.remove('holding'); btn.removeEventListener('click', stop); delete btn.dataset.phase; }
+      btn = b; btn.classList.add('holding'); btn.dataset.phase = 'lead'; btn.addEventListener('click', stop);
+    }
+    function countdown(secs, phase, tick, fin) {           // tenths on the button, wall-clock exact (2.4 s is 2.4 s)
+      var t0 = Date.now(), ms = secs * 1000;               // the button is the hold tile's ▶ and never grows: seconds only; the toast names the phase
+      btn.dataset.phase = phase;
+      btn.textContent = secs.toFixed(secs % 1 ? 1 : 0) + 's';
+      iv = setInterval(function () {
+        if (stopped) return;
+        if (!btn.isConnected) { stopped = true; end(); return; }   // left the workout: no beep, no set
+        var left = Math.max(0, ms - (Date.now() - t0));
+        btn.textContent = (secs % 1 ? (left / 1000).toFixed(1) : String(Math.ceil(left / 1000))) + 's';
+        if (tick) tick(left);
+        if (left <= 0) { clearInterval(iv); iv = null; fin(); }
+      }, 100);
+    }
+    function rep() {
+      var r = series[i]; arm(r._f36.check);
+      inLead = true;
+      holdLeadIn(btn, function () {
+        inLead = false;
+        if (stopped || !btn.isConnected) { if (!stopped) { stopped = true; end(); } return; }
+        btn.classList.add('holding');
+        var ticks = F37_BEAT_COUNT ? [1000, 667, 333] : [];     // F37: 3 ticks in the last second before the buzzer
+        countdown(r._f36.work, 'go', ticks.length ? function (left) {
+          if (ticks.length && left <= ticks[0]) { ticks.shift(); tickCue(); }   // one per 100 ms frame: three apart, never stacked
+        } : null, function () {
+          beep(); timerAlert('Time', 'set ' + r._f36.set);        // the buzzer at his time
+          if (r._f36.commit) r._f36.commit();                     // F41: a Run/Bike set logs its interval's time
+          else if (r._commit) r._commit();                        // logs this set (x1), same row Log Set posts
+          i++;
+          if (i >= series.length) { end(); if (F37_BEAT_COUNT) beatCount(me.ex, F38_LEVEL_PASS ? blockSets(host, me.ex) : series.length, me.work, me.cx, me.mark, me.nomark); else timerAlert('Done', 'all sets logged'); return; }
+          if (!(r._f36.rest > 0)) { rep(); return; }
+          arm(series[i]._f36.check);
+          miniToast('Rest ' + r._f36.rest + ' s');
+          countdown(r._f36.rest, 'rest', null, function () { if (!stopped) rep(); });
+        });
+      });
+    }
+    rep();
+  }
+  // F37 (Phil 2026-11-12, his FEATURE line, verbatim: "Same tile: 3 ticks in the last second before the buzzer. At the end the
+  // athlete enters how many reps beat the buzzer."). The ticks ride F36's go countdown above. At the end of the series a card
+  // fixed on the body (the refused card's placement, so a repaint cannot tear it out) asks how many of the N beat his time:
+  // a stepper 0..N starting at N, one Save. The answer is kept on the phone per session and exercise (bp_f37_beat); F39
+  // carries it to Sessions. GUARD: F37_BEAT_COUNT=false, held off every phone until his A-id answers (REFUSALS row 27).
+  // Reversing line: F37_BEAT_COUNT = false.
+  var F37_BEAT_COUNT = false;
+  // F38 (Phil 2026-11-12, his FEATURE line, verbatim: "Same tile: a level passes when every rep beat the time. Reps, time and
+  // rest come from Level Standards H, K and N."). The count is asked over EVERY set the block serves (his H: the engine's
+  // _workDose_ lays sets = H, work_s = K, rest_s = N), not over the sets left when the ▶ was tapped, so a set logged by
+  // Log Set before the ▶ still counts against the pass. A pass is all H of H; the card says which, live, and Save keeps
+  // `pass` beside the count for F39 (Sessions, and the level move at the next mint). GUARD: F38_LEVEL_PASS=false, held off
+  // every phone until his A-id answers (REFUSALS row 27). Reversing line: F38_LEVEL_PASS = false.
+  var F38_LEVEL_PASS = false;
+  // F39 (Phil 2026-11-12, his FEATURE line, verbatim: "Same tile: log reps made and the target time to Sessions. A pass moves the
+  // level at the next mint, like any lift."). Save on the count card also queues ONE Sessions row for the block, through the
+  // same logRows queue every set rides: flag `beat:<made>/<of>@<K>s`, plus ` pass` / ` no pass` when F38 judged it, on the
+  // block's exercise and session with a blank set and blank actuals. It is a MARKER (the server's _MARKER_FLAG_PREFIXES and
+  // MARKER_FLAG_PREFIXES below, pinned word for word by qa/harness/marker-flags.mjs): the sprints already landed as x1 at each
+  // buzzer, so the count is a record beside them and no census counts it as a set. The level move reads it at the mint (the
+  // engine half). GUARD: F39_BEAT_LOGS=false, held off every phone until his A-id answers (REFUSALS row 27), and the server
+  // must know `beat:` first or D133 refuses the blank row. Reversing line: F39_BEAT_LOGS = false.
+  var F39_BEAT_LOGS = false;
+  // F41: the timed series on a Run/Bike row that carries his K mark (see conditioningRow). Reversing line: F41_MARK_BUZZER = false.
+  var F41_MARK_BUZZER = false;
+  // F42 (Phil 2026-11-12, his FEATURE line, verbatim: "Same tile: Bike shows total watts (mark x the athlete's BW); the athlete does
+  // no math. A blank K counts as done, no pass."). (1) A Bike mark reads the engine's `watts` (his K x her Athletes BW cell, whole
+  // watts: 1.43 W/lb x 155 lb is "222 W") on the goal line, the count card and the Sessions marker; no BW cell, no watts, and it
+  // keeps W/lb. (2) A Run or Bike interval whose K is blank rides the same ▶; at the end the card asks nothing: every set is done,
+  // and it says no pass (there is no mark to reach). Save queues the marker `beat:<N>/<N>@<s>s=nomark no pass`.
+  // GUARD: F42_WATTS=false, held off every phone until his A-id answers (REFUSALS row 27). Reversing line: F42_WATTS = false.
+  var F42_WATTS = false;
+  function markText(m) {   // F40's mark as the tile prints it; F42: Bike in total watts
+    if (!m || !(Number(m.value) > 0)) return '';
+    if (F42_WATTS && m.unit === 'W/lb' && Number(m.watts) > 0) return Math.round(Number(m.watts)) + ' W';
+    return (m.unit === 'yd' ? Math.round(Number(m.value)) : Number(m.value)) + ' ' + (m.unit || '');
+  }
+  function mmss(s) {   // D289: 600 -> "10:00", 180 -> "3:00"
+    s = Math.round(Number(s) || 0);
+    return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+  }
+  function beatFlag(made, of, workS, judged, mark, nomark) {   // F41: a mark row reads `beat:2/2@600s=2339yd pass`; F42: `=nomark no pass`
+    if (nomark) return 'beat:' + of + '/' + of + '@' + workS + 's=nomark no pass';
+    return 'beat:' + made + '/' + of + '@' + workS + 's' + (mark ? '=' + String(mark).replace(/\s+/g, '') : '') + (judged ? (made >= of && of > 0 ? ' pass' : ' no pass') : '');
+  }
+  function blockSets(host, exName) {
+    return [].slice.call(host.querySelectorAll('.ex-row.cond')).filter(function (r) { return r._f36 && r._f36.ex === exName; }).length;
+  }
+  function beatCount(exName, of, workS, cx, mark, nomark) {
+    var old = document.querySelector('.beat-card'); if (old) old.remove();
+    var n = of, card = el('div', 'beat-card');
+    card.appendChild(el('div', 'beat-line', nomark ? ('All ' + of + ' done') : mark ? ('How many reached ' + mark + '?') : ('How many beat ' + workS + ' s?')));   // F41: a mark row asks for the mark; F42: a blank K asks nothing
+    var st = el('div', 'stepper beat-step'), minus = el('button', 'step', '−'), val = el('span', 'val', String(n) + ' of ' + of), plus = el('button', 'step', '+');
+    minus.type = plus.type = 'button';
+    var verdict = F38_LEVEL_PASS ? el('div', 'beat-verdict') : null;
+    function show() { val.textContent = n + ' of ' + of; minus.disabled = n <= 0; plus.disabled = n >= of;
+      if (verdict && !nomark) { var ok = n >= of && of > 0; verdict.className = 'beat-verdict ' + (ok ? 'pass' : 'nopass');
+        verdict.textContent = mark ? (ok ? 'Level pass: every rep reached ' + mark : 'No pass: all ' + of + ' must reach ' + mark)
+          : (ok ? 'Level pass: every rep beat ' + workS + ' s' : 'No pass: all ' + of + ' must beat ' + workS + ' s'); } }
+    minus.addEventListener('click', function () { if (n > 0) { n--; show(); } });
+    plus.addEventListener('click', function () { if (n < of) { n++; show(); } });
+    st.appendChild(minus); st.appendChild(val); st.appendChild(plus); if (!nomark) card.appendChild(st);
+    if (nomark) verdict = el('div', 'beat-verdict nopass', 'No pass: no mark is set for this level');   // F42: done, no pass
+    if (verdict) card.appendChild(verdict);
+    var save = el('button', 'beat-save', 'Save'); save.type = 'button';
+    save.addEventListener('click', function () {
+      try {
+        var all = JSON.parse(localStorage.getItem('bp_f37_beat') || '{}');
+        all[String(SESSION && SESSION.session_id) + '|' + exName] = { made: n, of: of, work_s: workS, at: new Date().toISOString() };
+        if (mark) all[String(SESSION && SESSION.session_id) + '|' + exName].mark = mark;
+        if (F38_LEVEL_PASS || nomark) all[String(SESSION && SESSION.session_id) + '|' + exName].pass = !nomark && n >= of && of > 0;
+        if (nomark) all[String(SESSION && SESSION.session_id) + '|' + exName].nomark = true;
+        localStorage.setItem('bp_f37_beat', JSON.stringify(all));
+      } catch (e) {}
+      if (F39_BEAT_LOGS) {   // F39: the block's count reaches Sessions as one marker row, on the set queue
+        var bSid = SESSION ? SESSION.session_id : '';
+        if (!bSid) { try { bSid = sessionStorage.getItem('bp_open_session') || ''; } catch (eB) {} }
+        if (bSid) logRows([{ log_id: uuid(), session_id: bSid, complex_name: cx || '', exercise: exName, set_no: '', side: '',
+          target_load: '', target_reps: '', actual_load: '', actual_reps: '', flag: beatFlag(n, of, workS, F38_LEVEL_PASS, mark, nomark), variant_name: '' }]);
+      }
+      card.remove(); miniToast(nomark ? (of + ' of ' + of + ' done') : (n + ' of ' + of + (mark ? ' reached ' + mark : ' beat ' + workS + ' s')));
+    });
+    card.appendChild(save);
+    show(); document.body.appendChild(card);
+  }
   function conditioningRow(slot, ex, t, timer) {
     // Same two lines and the same four columns as a lifting row (rule 6). Running's actual is the
     // DISTANCE, its secondary is the time — so it lands in column b under every other lift's weight.
@@ -3769,7 +3940,13 @@
     // other, and neither of them Phil's number. His cell says 20yd, so the goal line says 20 yd.
     var distGoal = (t.distance_goal != null && t.distance_goal !== '')
       ? (t.distance_goal + ' ' + (t.distance_unit || 'yd')) : '';
-    var scheme = distGoal ? distGoal
+    // F40 (Phil 2026-11-12, his FEATURE line, verbatim: "Same tile: Bike and Run rows read their mark from Level Standards K: yards
+    // for Run, watts per lb of BW for Bike."). A Run or Bike set read "1×600s" (the interval's seconds, already on the work lane);
+    // its goal is now his K mark, "2370 yd" or "1.65 W/lb" (the engine's `mark`, D278). Bike's total watts are F42.
+    // GUARD: F40_MARK=false, held off every phone until his A-id answers (REFUSALS row 27). Reversing line: F40_MARK = false.
+    // A yard mark reads whole (his K 2339.29 is "2339 yd"); watts per lb keep his hundredths.
+    var markGoal = (F40_MARK && t.mark && Number(t.mark.value) > 0) ? markText(t.mark) : '';   // F42: Bike reads total watts
+    var scheme = distGoal ? distGoal : markGoal ? markGoal
       : (t.duration_s ? (Math.round(t.duration_s / 60) + ' min')
       : ((t.target_reps || 1) + (t.work_s ? ('×' + t.work_s + 's') : ' reps')));
     var dist = { v: '' }, repsOut = { v: '' };
@@ -3829,14 +4006,55 @@
     di.placeholder = wantsDist ? (distGoal ? String(t.distance_goal) : '—') : String(t.target_reps || '');
     di.inputMode = wantsDist ? 'decimal' : 'numeric';
     di.addEventListener('input', function () { if (wantsDist) dist.v = di.value; else repsOut.v = di.value; });
-    l2.appendChild(lane('c-goal', 'prescribed', el('span', 'cv goal-v', scheme)));
+    // D290 (Phil 2026-11-13, his A82 answer, verbatim: "A82 tile: "2339 yd" has no label and collides with the Reps box at 390
+    // wide. Label it Goal, on its own line."). A marked Run/Bike set's mark leaves the narrow PRESCRIBED lane for a GOAL line of
+    // its own under the name; the reps and work lanes take the row. Rides F40_MARK's guard. Reversing line: `markLine = false`.
+    var markLine = !!markGoal && !distGoal;
+    if (markLine) {
+      var ml = el('div', 'mark-line');
+      ml.appendChild(el('span', 'lane-l', 'goal'));
+      ml.appendChild(el('span', 'cv mark-v', markGoal));
+      row.appendChild(ml);
+      row.classList.add('mark-row');
+    }
+    l2.appendChild(lane('c-goal', markLine ? '' : 'prescribed', markLine ? null : el('span', 'cv goal-v', scheme)));
     l2.appendChild(lane('c-actual', wantsDist ? 'distance' : 'reps', di));
     }
-    l2.appendChild(lane('c-second', oneEffort ? '' : (t.duration_s ? 'time' : (t.work_s ? 'work' : '')),
+    // D289 (Phil 2026-11-13, his A82 answer, verbatim: "A82 tile shows Work as "600s" and shows no Rest. Show Work 10:00 and
+    // Rest 3:00; the 13:00 on the button is their sum."). A marked Run/Bike set reads its work and rest as a clock, rest under
+    // work in the same lane, so the two add up to the Start Complex time. Rides F40_MARK's guard. Reversing line: `markClock = false`.
+    var markClock = !!markGoal && Number(t.work_s) > 0;
+    var secLane = lane('c-second', oneEffort ? '' : (t.duration_s ? 'time' : (t.work_s ? 'work' : '')),
       oneEffort ? null : (t.duration_s ? el('span', 'cv', Math.round(t.duration_s / 60) + ' min')
-        : (t.work_s ? el('span', 'cv', t.work_s + 's') : null))));
+        : (t.work_s ? el('span', 'cv', markClock ? mmss(t.work_s) : (t.work_s + 's')) : null)));
+    if (markClock && Number(t.rest_s) > 0) {
+      secLane.appendChild(el('span', 'lane-l', 'rest'));
+      secLane.appendChild(el('span', 'cv rest-v', mmss(t.rest_s)));
+    }
+    l2.appendChild(secLane);
     row.appendChild(l2);
-    var check = el('button', 'check cond-go', (t.work_s && !oneEffort) ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓')); check.type = 'button';
+    // F36 (Phil 2026-11-12, his FEATURE line): a timed one-effort Work set (June's Sprint 20yd at his Level Standards K 2.4 s)
+    // keeps the A75 tile and gains a ▶: one tap runs his hold-tile lead-in, go, the buzzer at his time, logs the set, counts his
+    // rest, and repeats through every set of the block, hands-free. Log Set still logs a set with no clock.
+    // GUARD: F36_TIMED_WORK=false, held off every phone until his A-id answers (REFUSALS row 27).
+    // Reversing line: F36_TIMED_WORK = false.
+    // F41 (Phil 2026-11-12, his FEATURE line, verbatim: "Same tile: on those rows the buzzer ends the interval in the name; a rep
+    // counts if the athlete reached the mark by then."). A Run or Bike set carrying his K mark (F40's `mark`) rides the same ▶:
+    // the buzzer sounds at the interval in the name (the engine lays work_s from it: Run 10:3min is 600 s, Bike 60:60s 60 s), the
+    // set logs with that time, his rest runs, and the count card asks how many reached the mark. A row with no mark keeps Start.
+    // It rides F36's series and F37's card, so it moves nothing until those flags are on too.
+    // GUARD: F41_MARK_BUZZER=false, held off every phone until his A-id answers (REFUSALS row 27). Reversing line: F41_MARK_BUZZER = false.
+    var markRow = F41_MARK_BUZZER && !oneEffort && !wantsDist && !t.duration_s && Number(t.work_s) > 0
+      && t.mark && Number(t.mark.value) > 0 && ex.mode === 'conditioning';
+    // F42: a Run or Bike interval with his K blank rides the same ▶ and is done with no pass (see F42_WATTS).
+    var noMark = F42_WATTS && F41_MARK_BUZZER && !markRow && !oneEffort && !wantsDist && !t.duration_s && Number(t.work_s) > 0
+      && !(t.mark && Number(t.mark.value) > 0) && ex.mode === 'conditioning' && /^(Run|Bike)\b/i.test(String(ex.exercise || ''));
+    if (noMark) markRow = true;
+    var timedWork = F36_TIMED_WORK && (oneEffort || markRow) && Number(t.work_s) > 0;
+    var check = el('button', 'check cond-go' + (timedWork ? ' dur' : ''), timedWork ? '▶' : ((t.work_s && !oneEffort) ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓'))); check.type = 'button';
+    if (timedWork) row._f36 = { work: Number(t.work_s), rest: Number(t.rest_s) || 0, set: Number(t.set_no) || 0, check: check, ex: ex.exercise, cx: (slot && slot.complex_name) || '',
+      mark: (markRow && !noMark) ? markText(t.mark) : '', nomark: noMark,
+      commit: markRow ? function () { if (!row.classList.contains('done')) logIt(Number(t.work_s)); } : null };   // F41: logs the interval's time; the round's Log button is untouched
     if (oneEffort) {   // no number to pass through (rule 2b), so the row is confirmed as drawn
       row._commit = function () { if (!row.classList.contains('done')) logIt(0); };
       row._isDur = false; row._confirmed = true;
@@ -3906,6 +4124,7 @@
       if (check.classList.contains('done') || check.disabled) return;
       if (check.classList.contains('holding')) return;   // same orphan-timer guard as the lifting row
       if (check._side2arm) return;                     // armed for side 2 (each-side carry)
+      if (timedWork) { startTimedWork(row); return; }   // F36
       if (t.work_s && !oneEffort) startIntervals(check, t.target_reps || 1, t.work_s, t.rest_s || 0, logIt);
       else if (t.duration_s) {
         if (ex.each_side) {
@@ -6408,7 +6627,7 @@
   // logged set, at that record's own coordinates. This is the sixth copy, so it is pinned:
   // `qa/harness/marker-flags.mjs` extracts BOTH lists and reds if they differ by one word.
   // NOTE `recovered` is deliberately absent — an L131 crumb-recovered row IS a performed set.
-  var MARKER_FLAG_PREFIXES = ['skip:', 'report:', 'climb|', 'swap:', 'default:'];   // F24: the default ask's answer
+  var MARKER_FLAG_PREFIXES = ['skip:', 'report:', 'climb|', 'swap:', 'default:', 'beat:'];   // F24: the default ask's answer; F39: the timed block's count
   var MARKER_FLAG_WORDS = ['uncheck', 'history'];
   function isMarkerFlag(f) {
     var s = String(f == null ? '' : f).trim().toLowerCase();

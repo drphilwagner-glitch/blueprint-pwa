@@ -311,7 +311,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261112-tenths';   // THURSDAY 11-12 — D276: a work time from Level Standards K serves to the tenth (2.4 s) and the interval timer prints it clean. Reversing line: '20261112-nonames'.
+  var APP_BUILD = '20261112-sprintlog';   // THURSDAY 11-12 run 2 — P0-JUNE-SPRINTLOG-1112: a timed sprint set (June's Fri 11/13 Sprint 20yd 2.4 s, 40yd 6 s) draws the A75 x1 tile and logs. Reversing line: '20261112-tenths'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3792,7 +3792,15 @@
     // stepper at 1 and read "1 reps" on every set — the one-rep set he refused by name 07-21. One effort has nothing to
     // count: the tile reads x1 and his rest, and the round's Log button logs the prescription. GUARD: held off every phone
     // until his A-id answers (REFUSALS row 27). Reversing line: F2_ONE_EFFORT = false.
-    var oneEffort = F2_ONE_EFFORT && isPureReps && ex.mode === 'conditioning' && Number(t.target_reps) === 1;
+    // P0-JUNE-SPRINTLOG-1112 (2026-11-12 run 2): once his Level Standards K holds a run time, the door serves the sprint work_s
+    // (June's Sprint 20yd 2.4 s, Sprint 40yd 6 s), which made isPureReps false and drew a reps box, a hidden Start and NO Log
+    // button: her Fri 11/13 sprints could not be logged. A timed set whose NAME carries its distance (Sprint 20yd, 60yd Shuttle,
+    // Sprint 300m: one effort over a distance against a clock, the engine's own D229 walk-back reading) is still one effort; it
+    // draws the tile he passed as A75 (x1 and his rest), unchanged. An interval named by its time (Run 2:1min, Bike: his A78
+    // "1x120s") keeps its own tile. The buzzer at his time is F36's tile, asked on its own.
+    // Reversing line: `isPureReps` back in place of `oneEffortShape` below.
+    var oneEffortShape = isPureReps || (!wantsDist && !t.duration_s && t.work_s > 0 && /\d\s*(yd|m)\b/i.test(String(ex.exercise || '')));
+    var oneEffort = F2_ONE_EFFORT && oneEffortShape && ex.mode === 'conditioning' && Number(t.target_reps) === 1;
     if (oneEffort) {
       l2.appendChild(lane('c-goal', 'prescribed', el('span', 'cv goal-v', '×1')));
       l2.appendChild(lane('c-actual', t.rest_s ? 'rest' : '', t.rest_s ? el('span', 'cv', t.rest_s + ' s') : null));
@@ -3824,11 +3832,11 @@
     l2.appendChild(lane('c-goal', 'prescribed', el('span', 'cv goal-v', scheme)));
     l2.appendChild(lane('c-actual', wantsDist ? 'distance' : 'reps', di));
     }
-    l2.appendChild(lane('c-second', t.duration_s ? 'time' : (t.work_s ? 'work' : ''),
-      t.duration_s ? el('span', 'cv', Math.round(t.duration_s / 60) + ' min')
-        : (t.work_s ? el('span', 'cv', t.work_s + 's') : null)));
+    l2.appendChild(lane('c-second', oneEffort ? '' : (t.duration_s ? 'time' : (t.work_s ? 'work' : '')),
+      oneEffort ? null : (t.duration_s ? el('span', 'cv', Math.round(t.duration_s / 60) + ' min')
+        : (t.work_s ? el('span', 'cv', t.work_s + 's') : null))));
     row.appendChild(l2);
-    var check = el('button', 'check cond-go', t.work_s ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓')); check.type = 'button';
+    var check = el('button', 'check cond-go', (t.work_s && !oneEffort) ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓')); check.type = 'button';
     if (oneEffort) {   // no number to pass through (rule 2b), so the row is confirmed as drawn
       row._commit = function () { if (!row.classList.contains('done')) logIt(0); };
       row._isDur = false; row._confirmed = true;
@@ -3898,7 +3906,7 @@
       if (check.classList.contains('done') || check.disabled) return;
       if (check.classList.contains('holding')) return;   // same orphan-timer guard as the lifting row
       if (check._side2arm) return;                     // armed for side 2 (each-side carry)
-      if (t.work_s) startIntervals(check, t.target_reps || 1, t.work_s, t.rest_s || 0, logIt);
+      if (t.work_s && !oneEffort) startIntervals(check, t.target_reps || 1, t.work_s, t.rest_s || 0, logIt);
       else if (t.duration_s) {
         if (ex.each_side) {
           startHold(check, t.duration_s, function (h1) {

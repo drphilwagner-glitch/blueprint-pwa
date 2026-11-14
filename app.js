@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261114-d302onecard';   // SATURDAY 11-14 run 1 — D302: a timed one-effort block is one card (Agility 5-10-5 REPS 8, no Set 2-8 lines). Reversing line: '20261114-d301mss'.
+  var APP_BUILD = '20261114-d303nobox';   // SATURDAY 11-14 run 1 — D303: a timed Run/Bike tile runs every set off one ▶, draws no reps box, and ends on one card. Reversing line: '20261114-d302onecard'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3857,14 +3857,15 @@
   // must know `beat:` first or D133 refuses the blank row. Reversing line: F39_BEAT_LOGS = false.
   var F39_BEAT_LOGS = true;   // 11-13 run 2: shipped; the engine's `beat:` is on the kid door @1503 (clasp pull read).
   // F41: the timed series on a Run/Bike row that carries his K mark (see conditioningRow). Reversing line: F41_MARK_BUZZER = false.
-  var F41_MARK_BUZZER = false;
+  var F41_MARK_BUZZER = true;   // F41: SHIPPED on his A83 pass (11-13) under D303 ("One tap runs every rep; one end card asks how many made it"); reversing line: false
   // F42 (Phil 2026-11-12, his FEATURE line, verbatim: "Same tile: Bike shows total watts (mark x the athlete's BW); the athlete does
   // no math. A blank K counts as done, no pass."). (1) A Bike mark reads the engine's `watts` (his K x her Athletes BW cell, whole
   // watts: 1.43 W/lb x 155 lb is "222 W") on the goal line, the count card and the Sessions marker; no BW cell, no watts, and it
   // keeps W/lb. (2) A Run or Bike interval whose K is blank rides the same ▶; at the end the card asks nothing: every set is done,
   // and it says no pass (there is no mark to reach). Save queues the marker `beat:<N>/<N>@<s>s=nomark no pass`.
   // GUARD: F42_WATTS=false, held off every phone until his A-id answers (REFUSALS row 27). Reversing line: F42_WATTS = false.
-  var F42_WATTS = false;
+  var F42_WATTS = true;   // F42: SHIPPED on his A84 pass (11-13) under D303; reversing line: false
+  var D303_NO_BOX = true;   // D303: a timed Run/Bike tile on the ▶ draws no reps box. Reversing line: false
   function markText(m) {   // F40's mark as the tile prints it; F42: Bike in total watts
     if (!m || !(Number(m.value) > 0)) return '';
     if (F42_WATTS && m.unit === 'W/lb' && Number(m.watts) > 0) return Math.round(Number(m.watts)) + ' W';
@@ -4098,6 +4099,10 @@
       && !(t.mark && Number(t.mark.value) > 0) && ex.mode === 'conditioning' && /^(Run|Bike)\b/i.test(String(ex.exercise || ''));
     if (noMark) markRow = true;
     var timedWork = F36_TIMED_WORK && (oneEffort || markRow) && Number(t.work_s) > 0;
+    // D303 (Phil 2026-11-14, verbatim: "No editable Reps or Reps Done box on a timed Work tile. One tap runs every rep; one end card
+    // asks how many made it."). A Run/Bike row on the ▶ (F41/F42) drew F43's "reps done" box beside the ▶; the ▶ runs every set
+    // and F37's card asks how many reached his mark, so the row takes no number. Reversing line: D303_NO_BOX = false.
+    if (D303_NO_BOX && timedWork && markRow && F43_FOUR_FIELDS) row.classList.add('w4-noinput');   // D303: the ▶ and the end card are the whole tile
     var check = el('button', 'check cond-go' + (timedWork ? ' dur' : ''), timedWork ? '▶' : ((t.work_s && !oneEffort) ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓'))); check.type = 'button';
     if (timedWork) row._f36 = { work: Number(t.work_s), rest: Number(t.rest_s) || 0, set: Number(t.set_no) || 0, check: check, ex: ex.exercise, cx: (slot && slot.complex_name) || '', one: oneEffort,
       mark: (markRow && !noMark) ? markText(t.mark) : '', nomark: noMark,

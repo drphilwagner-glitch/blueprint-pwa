@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261113-f36timed';   // FRIDAY 11-13 run 2 — F36 ships on A79: a one-effort Work set with a Level Standards K time gains the ▶ (lead-in, go, buzzer logs the set, rest, next). Reversing line: '20261113-k4srcword'.
+  var APP_BUILD = '20261113-f37beat';   // FRIDAY 11-13 run 2 — F37 ships on A80: 3 ticks in the last second before each buzzer; the block ends on a card asking how many beat the time. Reversing line: '20261113-f36timed'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3837,7 +3837,7 @@
   // a stepper 0..N starting at N, one Save. The answer is kept on the phone per session and exercise (bp_f37_beat); F39
   // carries it to Sessions. GUARD: F37_BEAT_COUNT=false, held off every phone until his A-id answers (REFUSALS row 27).
   // Reversing line: F37_BEAT_COUNT = false.
-  var F37_BEAT_COUNT = false;
+  var F37_BEAT_COUNT = true;   // F37: SHIPPED on his A80 pass (11-13 13:38, REFUSALS row 27); reversing line: false
   // F38 (Phil 2026-11-12, his FEATURE line, verbatim: "Same tile: a level passes when every rep beat the time. Reps, time and
   // rest come from Level Standards H, K and N."). The count is asked over EVERY set the block serves (his H: the engine's
   // _workDose_ lays sets = H, work_s = K, rest_s = N), not over the sets left when the ▶ was tapped, so a set logged by

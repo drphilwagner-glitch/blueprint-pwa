@@ -1411,3 +1411,10 @@ body #app { padding-bottom: 108px; }
 .dflt-name { font-size: var(--fs-15); font-weight: 700; color: var(--ink); }
 .dflt-set { font-size: var(--fs-13); color: var(--muted); }
 .dflt-rm { flex: none; padding: 8px 14px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--bp-faint); color: var(--bp); font-size: var(--fs-13); font-weight: 700; }
+/* F43: every Work tile reads GOAL · WORK · REST · REPS on one line of four; the lanes keep only the input */
+.work4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-6); margin: 2px 0 4px; }
+.work4 .w4-cell { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.work4 .cv { font-size: var(--fs-14); font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ex-row.work4-row .c-goal, .ex-row.work4-row .c-second { display: none; }
+.ex-row.work4-row .l2 { grid-template-columns: minmax(0, 1fr); }
+.ex-row.work4-row.w4-noinput .l2 { display: none; }

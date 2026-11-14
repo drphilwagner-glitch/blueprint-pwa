@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261113-k4srcword';   // FRIDAY 11-13 run 1 — K4-FELT: a driven browser's profile read says src= (bpTagRead), so our own journeys leave K5; no pixel moves. Reversing line: '20261112-sprintlog'.
+  var APP_BUILD = '20261113-f36timed';   // FRIDAY 11-13 run 2 — F36 ships on A79: a one-effort Work set with a Level Standards K time gains the ▶ (lead-in, go, buzzer logs the set, rest, next). Reversing line: '20261113-k4srcword'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3769,7 +3769,7 @@
   // `hold lead-in s`, 3-2-1 beeps, go beep), counts his work time in tenths, buzzes, logs the set through the row's own
   // _commit (the A75 tile's x1, exactly what Log Set posts), then counts his rest on the next set's ▶ and repeats. A tap on
   // the running ▶ stops the series; the sets already buzzed stay logged. Leaving the workout stops it with no beep and no set.
-  var F36_TIMED_WORK = false;   // F36: the timed Work tile; GUARD until his A-id answers (REFUSALS row 27); reversing line: false
+  var F36_TIMED_WORK = true;   // F36: the timed Work tile; SHIPPED on his A79 pass (11-13 13:38, REFUSALS row 27); reversing line: false
   function startTimedWork(row) {
     var host = row.closest('.slot') || row.parentNode, me = row._f36;
     var series = [].slice.call(host.querySelectorAll('.ex-row.cond')).filter(function (r) {
@@ -3871,6 +3871,26 @@
   function mmss(s) {   // D289: 600 -> "10:00", 180 -> "3:00"
     s = Math.round(Number(s) || 0);
     return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+  }
+  // F43 (Phil 2026-11-13, his FEATURE line, verbatim: "Every Work tile shows four fields: Goal, Work, Rest, Reps. Goal = time to
+  // beat (sprints), yards (Run), watts (Bike)."). Every Work set (mode conditioning) reads one line of four labelled fields under its
+  // name. GOAL: a sprint's time to beat (its work_s, June's Sprint 20yd "2.4 s"), a Run's K mark in whole yards, a Bike's K mark
+  // in total watts (his K x her BW, the engine's `watts`; W/lb when she has no BW cell), else his distance cell, else "—".
+  // WORK: a sprint's distance off its name ("20 yd"), an interval's or a duration's clock ("10:00"). REST: his rest as a clock.
+  // REPS: his reps (H), "Max" on a max set. The PRESCRIBED and WORK lanes leave the row; the input and the buttons are untouched.
+  // GUARD: F43_FOUR_FIELDS=false, held off every phone until his A-id answers (REFUSALS row 27). Reversing line: F43_FOUR_FIELDS = false.
+  var F43_FOUR_FIELDS = false;
+  function work4Fields(ex, t, oneEffortShape, distGoal) {
+    var m = t.mark && Number(t.mark.value) > 0 ? t.mark : null, ws = Number(t.work_s) || 0, nm = String(ex.exercise || '');
+    var nameDist = /(\d+)\s*(yd|m)\b/i.exec(nm), sprint = oneEffortShape && !!nameDist;
+    var goal = (sprint && ws > 0) ? (ws + ' s')
+      : m ? ((m.unit === 'W/lb' && Number(m.watts) > 0) ? Math.round(Number(m.watts)) + ' W' : markText(m))
+      : (distGoal || '—');
+    var work = sprint ? (nameDist[1] + ' ' + nameDist[2].toLowerCase())
+      : ws > 0 ? mmss(ws) : (Number(t.duration_s) > 0 ? mmss(t.duration_s) : '—');
+    var rest = Number(t.rest_s) > 0 ? mmss(t.rest_s) : '—';
+    var tr = t.target_reps, reps = isMaxVal(tr) ? 'Max' : ((tr != null && tr !== '') ? String(tr) : '—');
+    return [['Goal', goal], ['Work', work], ['Rest', rest], ['Reps', reps]];
   }
   function beatFlag(made, of, workS, judged, mark, nomark) {   // F41: a mark row reads `beat:2/2@600s=2339yd pass`; F42: `=nomark no pass`
     if (nomark) return 'beat:' + of + '/' + of + '@' + workS + 's=nomark no pass';
@@ -4009,7 +4029,7 @@
     // D290 (Phil 2026-11-13, his A82 answer, verbatim: "A82 tile: "2339 yd" has no label and collides with the Reps box at 390
     // wide. Label it Goal, on its own line."). A marked Run/Bike set's mark leaves the narrow PRESCRIBED lane for a GOAL line of
     // its own under the name; the reps and work lanes take the row. Rides F40_MARK's guard. Reversing line: `markLine = false`.
-    var markLine = !!markGoal && !distGoal;
+    var markLine = !!markGoal && !distGoal && !F43_FOUR_FIELDS;   // F43: Goal is one of the four fields
     if (markLine) {
       var ml = el('div', 'mark-line');
       ml.appendChild(el('span', 'lane-l', 'goal'));
@@ -4018,7 +4038,7 @@
       row.classList.add('mark-row');
     }
     l2.appendChild(lane('c-goal', markLine ? '' : 'prescribed', markLine ? null : el('span', 'cv goal-v', scheme)));
-    l2.appendChild(lane('c-actual', wantsDist ? 'distance' : 'reps', di));
+    l2.appendChild(lane('c-actual', wantsDist ? 'distance' : (F43_FOUR_FIELDS && ex.mode === 'conditioning' ? 'reps done' : 'reps'), di));   // F43: REPS is his field above
     }
     // D289 (Phil 2026-11-13, his A82 answer, verbatim: "A82 tile shows Work as "600s" and shows no Rest. Show Work 10:00 and
     // Rest 3:00; the 13:00 on the button is their sum."). A marked Run/Bike set reads its work and rest as a clock, rest under
@@ -4032,6 +4052,13 @@
       secLane.appendChild(el('span', 'cv rest-v', mmss(t.rest_s)));
     }
     l2.appendChild(secLane);
+    if (F43_FOUR_FIELDS && ex.mode === 'conditioning') {   // F43: GOAL · WORK · REST · REPS under the name; the l2 lanes keep only the input
+      var f4 = work4Fields(ex, t, oneEffortShape, distGoal), w4 = el('div', 'work4');
+      f4.forEach(function (f) { var c = el('div', 'w4-cell w4-' + f[0].toLowerCase()); c.appendChild(el('span', 'lane-l', f[0])); c.appendChild(el('span', 'cv', f[1])); w4.appendChild(c); });
+      row.appendChild(w4);
+      row.classList.add('work4-row');
+      if (oneEffort) row.classList.add('w4-noinput');   // one effort: nothing to type, the round's Log button logs it
+    }
     row.appendChild(l2);
     // F36 (Phil 2026-11-12, his FEATURE line): a timed one-effort Work set (June's Sprint 20yd at his Level Standards K 2.4 s)
     // keeps the A75 tile and gains a ▶: one tap runs his hold-tile lead-in, go, the buzzer at his time, logs the set, counts his

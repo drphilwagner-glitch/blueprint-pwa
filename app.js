@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261114-d303nobox';   // SATURDAY 11-14 run 1 — D303: a timed Run/Bike tile runs every set off one ▶, draws no reps box, and ends on one card. Reversing line: '20261114-d302onecard'.
+  var APP_BUILD = '20261114-d305video';   // SATURDAY 11-14 run 1 — D305: a Work or Speed tile's name opens his Exercise Videos clip. Reversing line: '20261114-d303nobox'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3884,6 +3884,7 @@
   // GUARD: F43_FOUR_FIELDS=false, held off every phone until his A-id answers (REFUSALS row 27). Reversing line: F43_FOUR_FIELDS = false.
   var F43_FOUR_FIELDS = true;   // F43: SHIPPED on his A87 pass (11-14) under D299 ("Deploy it and A87 by 12:00 today"); reversing line: false
   var D302_ONE_CARD = true;   // D302: a timed one-effort block reads its reps once, on the tile. Reversing line: false
+  var D305_COND_VIDEO = true;   // D305: a Work or Speed tile's name opens its clip, as a lift's does. Reversing line: false
   function work4Fields(ex, t, oneEffortShape, distGoal) {
     var m = t.mark && Number(t.mark.value) > 0 ? t.mark : null, ws = Number(t.work_s) || 0, nm = String(ex.exercise || '');
     var nameDist = /(\d+)\s*(yd|m)\b/i.exec(nm), sprint = oneEffortShape && !!nameDist;
@@ -3954,7 +3955,17 @@
     // DISTANCE, its secondary is the time — so it lands in column b under every other lift's weight.
     var row = el('div', 'ex-row cond');
     var l1 = el('div', 'l1');
-    l1.appendChild(el('span', 'ex-name', exLabel(ex)));
+    // D305 (Phil 2026-11-14, verbatim: "P0 June's Work day shows no video on any warm-up or Work tile. Exercise Videos
+    // holds them. Link every tile today."): this row drew its name as a bare span, so every Work tile and, under
+    // R1716, every Speed warm-up lost the clip the engine already serves. Same name as exerciseRow's: a tappable
+    // `.ex-name.has-video` when there IS a clip, the plain name when there is none. Reversing line: D305_COND_VIDEO = false.
+    if (D305_COND_VIDEO && ex.video_url) {
+      var nmV = el('button', 'ex-name has-video', exLabel(ex)); nmV.type = 'button';
+      nmV.addEventListener('click', function () { openVideo(ex.video_url); });
+      l1.appendChild(nmV);
+    } else {
+      l1.appendChild(el('span', 'ex-name', exLabel(ex)));
+    }
     // A conditioning row is swappable too — Depth Jump had no swap icon at all (Phil 2026-07-27:
     // "Depth jump has no swap option ... every exercise needs that swap icon"). The row registers below
     // so a swap replaces every set of it, exactly like a lifting row (QA-05).

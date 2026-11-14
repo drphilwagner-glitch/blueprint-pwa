@@ -754,6 +754,7 @@ span.ex-name { display: block; }
 .round.is-later:not(.open) { border-color: transparent; background: none; padding: 2px 8px; }
 .round.is-later:not(.open) .up-line { opacity: .55; font-size: var(--fs-12); }
 .round.is-later:not(.open) .roundlog { display: none; }
+.round.w1-hid:not(.open) { display: none; }   /* D302: a timed one-effort block's later sets — the tile's REPS says how many */
 .round.open > .round-sum { display: none; }
 .round-sum:empty { display: none; }
 

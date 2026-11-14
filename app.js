@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261114-d301mss';   // SATURDAY 11-14 run 1 — D301: the Start button prints m:ss on a fractional interval (Agility 5-10-5 1:49, was 1:.7). Reversing line: '20261114-d299agility'.
+  var APP_BUILD = '20261114-d302onecard';   // SATURDAY 11-14 run 1 — D302: a timed one-effort block is one card (Agility 5-10-5 REPS 8, no Set 2-8 lines). Reversing line: '20261114-d301mss'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3882,6 +3882,7 @@
   // REPS: his reps (H), "Max" on a max set. The PRESCRIBED and WORK lanes leave the row; the input and the buttons are untouched.
   // GUARD: F43_FOUR_FIELDS=false, held off every phone until his A-id answers (REFUSALS row 27). Reversing line: F43_FOUR_FIELDS = false.
   var F43_FOUR_FIELDS = true;   // F43: SHIPPED on his A87 pass (11-14) under D299 ("Deploy it and A87 by 12:00 today"); reversing line: false
+  var D302_ONE_CARD = true;   // D302: a timed one-effort block reads its reps once, on the tile. Reversing line: false
   function work4Fields(ex, t, oneEffortShape, distGoal) {
     var m = t.mark && Number(t.mark.value) > 0 ? t.mark : null, ws = Number(t.work_s) || 0, nm = String(ex.exercise || '');
     var nameDist = /(\d+)\s*(yd|m)\b/i.exec(nm), sprint = oneEffortShape && !!nameDist;
@@ -3894,6 +3895,13 @@
       : ws > 0 ? mmss(ws) : (Number(t.duration_s) > 0 ? mmss(t.duration_s) : '—');
     var rest = Number(t.rest_s) > 0 ? mmss(t.rest_s) : '—';
     var tr = t.target_reps, reps = isMaxVal(tr) ? 'Max' : ((tr != null && tr !== '') ? String(tr) : '—');
+    // D302 (Phil 2026-11-14, verbatim: "Agility tile states the dose four times: "PRESCRIBED 1x5.7s", WORK 5.7s, REPS 1, sets
+    // 1-8. Show the A87 fields only."). A timed one-effort block (Agility 5-10-5 1x5.7s x8, Sprint 20yd 1x2.4s x8) is one card:
+    // REPS is every rep in the block (8), and its later sets print no Next/Set line (roundSummary). Reversing line: D302_ONE_CARD = false.
+    if (D302_ONE_CARD && (sprint || oneTimed) && Number(tr) === 1) {
+      var blk = (ex.targets || ex.sets || []).filter(function (x) { return Number(x.work_s) > 0 && Number(x.target_reps) === 1; });
+      if (blk.length > 1) reps = String(blk.length);
+    }
     return [['Goal', goal], ['Work', work], ['Rest', rest], ['Reps', reps]];
   }
   function beatFlag(made, of, workS, judged, mark, nomark) {   // F41: a mark row reads `beat:2/2@600s=2339yd pass`; F42: `=nomark no pass`
@@ -4091,7 +4099,7 @@
     if (noMark) markRow = true;
     var timedWork = F36_TIMED_WORK && (oneEffort || markRow) && Number(t.work_s) > 0;
     var check = el('button', 'check cond-go' + (timedWork ? ' dur' : ''), timedWork ? '▶' : ((t.work_s && !oneEffort) ? 'Start' : (t.duration_s ? ('Start ' + Math.round(t.duration_s / 60) + 'm') : '✓'))); check.type = 'button';
-    if (timedWork) row._f36 = { work: Number(t.work_s), rest: Number(t.rest_s) || 0, set: Number(t.set_no) || 0, check: check, ex: ex.exercise, cx: (slot && slot.complex_name) || '',
+    if (timedWork) row._f36 = { work: Number(t.work_s), rest: Number(t.rest_s) || 0, set: Number(t.set_no) || 0, check: check, ex: ex.exercise, cx: (slot && slot.complex_name) || '', one: oneEffort,
       mark: (markRow && !noMark) ? markText(t.mark) : '', nomark: noMark,
       commit: markRow ? function () { if (!row.classList.contains('done')) logIt(Number(t.work_s)); } : null };   // F41: logs the interval's time; the round's Log button is untouched
     if (oneEffort) {   // no number to pass through (rule 2b), so the row is confirmed as drawn
@@ -5014,7 +5022,12 @@
         line.appendChild(el('span', 'dl-v', s.val));
         sum.appendChild(line);
       });
-    } else if (rb.classList.contains('is-next') || rb.classList.contains('is-later')) {
+    }
+    // D302: the later sets of a timed one-effort block print nothing; the tile's REPS already says how many, and its ▶ runs them.
+    var oneCard = D302_ONE_CARD && !rb.classList.contains('is-done') && (rb.classList.contains('is-next') || rb.classList.contains('is-later'))
+      && rows.length > 0 && rows.every(function (r) { return r._f36 && r._f36.one; });
+    rb.classList.toggle('w1-hid', oneCard);
+    if (!oneCard && !rb.classList.contains('is-done') && (rb.classList.contains('is-next') || rb.classList.contains('is-later'))) {
       // Phil, on a real phone: "There are only sets one and two. There are no work sets for squat and
       // for split squat... so that's a pretty massive problem." The work sets existed — rule 1 was
       // HIDING every round past the next one, so a session he couldn't advance through looked like a

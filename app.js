@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261114-d299agility';   // SATURDAY 11-14 run 1 — D299: Agility 5-10-5 / 3 Cone draw the ▶ timed tile; F43 four fields ship on A87. Reversing line: '20261113-f39beat'.
+  var APP_BUILD = '20261114-d301mss';   // SATURDAY 11-14 run 1 — D301: the Start button prints m:ss on a fractional interval (Agility 5-10-5 1:49, was 1:.7). Reversing line: '20261114-d299agility'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1887,7 +1887,9 @@
 
   // ---- one ROLLING timer per complex: starts on the first A-side set, auto-restarts each round
   //      (rolls through all sets in succession), until the athlete pauses. ----
-  function fmt(s) { return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  // D301 (Phil 2026-11-14): a timed Work set's interval is fractional (his 5.7 s + rest = 109.7 s), and s % 60 = 49.7 sliced
+  // to ".7" printed "1:.7". Whole seconds first: m:ss (1:49). Reversing line: drop the `s = Math.floor(...)` statement.
+  function fmt(s) { s = Math.floor(Number(s) || 0); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
     // --- rest-timer alert: a chime + vibrate + a half-screen banner when the interval rolls over ---
     //
     // THE CUE IS A MEDIA ELEMENT FIRST, WEBAUDIO ONLY AS A FALLBACK — REINSTATED BY DEVICE

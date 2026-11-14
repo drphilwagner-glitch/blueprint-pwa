@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261114-d305video';   // SATURDAY 11-14 run 1 — D305: a Work or Speed tile's name opens his Exercise Videos clip. Reversing line: '20261114-d303nobox'
+  var APP_BUILD = '20261114-d334course';   // SATURDAY 11-14 run 1 — D334: Agility 5-10-5's WORK reads its course, 20 yd. Reversing line: '20261114-d305video'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3885,6 +3885,7 @@
   var F43_FOUR_FIELDS = true;   // F43: SHIPPED on his A87 pass (11-14) under D299 ("Deploy it and A87 by 12:00 today"); reversing line: false
   var D302_ONE_CARD = true;   // D302: a timed one-effort block reads its reps once, on the tile. Reversing line: false
   var D305_COND_VIDEO = true;   // D305: a Work or Speed tile's name opens its clip, as a lift's does. Reversing line: false
+  var D334_COURSE = true;   // D334: Agility 5-10-5's WORK reads its course, 20 yd. Reversing line: false
   function work4Fields(ex, t, oneEffortShape, distGoal) {
     var m = t.mark && Number(t.mark.value) > 0 ? t.mark : null, ws = Number(t.work_s) || 0, nm = String(ex.exercise || '');
     var nameDist = /(\d+)\s*(yd|m)\b/i.exec(nm), sprint = oneEffortShape && !!nameDist;
@@ -3892,8 +3893,13 @@
     var goal = ((sprint || oneTimed) && ws > 0) ? (ws + ' s')
       : m ? ((m.unit === 'W/lb' && Number(m.watts) > 0) ? Math.round(Number(m.watts)) + ' W' : markText(m))
       : (distGoal || '—');
+    // D334 (Phil 2026-11-14, verbatim: "D302 prints "WORK —" on Agility 5-10-5. A87 has a value in all four fields."). A drill
+    // named by its yard legs (Agility 5-10-5) carries its course as a sprint's name does: WORK reads the legs summed, 20 yd.
+    // Reversing line: D334_COURSE = false.
+    var legs = D334_COURSE && /\b\d+(?:-\d+)+\b/.exec(nm);
+    var course = legs ? legs[0].split('-').reduce(function (a, b) { return a + Number(b); }, 0) + ' yd' : '';
     var work = sprint ? (nameDist[1] + ' ' + nameDist[2].toLowerCase())
-      : oneTimed ? '—'
+      : oneTimed ? (course || '—')
       : ws > 0 ? mmss(ws) : (Number(t.duration_s) > 0 ? mmss(t.duration_s) : '—');
     var rest = Number(t.rest_s) > 0 ? mmss(t.rest_s) : '—';
     var tr = t.target_reps, reps = isMaxVal(tr) ? 'Max' : ((tr != null && tr !== '') ? String(tr) : '—');

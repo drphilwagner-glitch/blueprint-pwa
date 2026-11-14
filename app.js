@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261114-d334course';   // SATURDAY 11-14 run 1 — D334: Agility 5-10-5's WORK reads its course, 20 yd. Reversing line: '20261114-d305video'
+  var APP_BUILD = '20261114-d289a85';   // SATURDAY 11-14 run 1 — D289: F40_MARK ships on his A85 pass (Run Work 10:00 / Rest 3:00). Reversing line: '20261114-d334course'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3110,7 +3110,7 @@
   var R1716_SPEED_SERVES = true;   // A53 pass (Phil, 2026-10-30 12:01); reversing line: false
   var F2_ONE_EFFORT = true;   // F2: a one-effort Work set draws no reps stepper (conditioningRow); A75 pass (Phil, 2026-11-09 13:19); reversing line: false
   var F31_DIST_LOGS = true;   // F31: a distance row (an athlete's Linear Hops 10 yd, Fri 11/13) gets the round's Log button; A77 pass (Phil, 2026-11-10 13:28); reversing line: false
-  var F40_MARK = false;   // F40: a Run/Bike Work set's goal reads his Level Standards K mark (yd, W/lb); GUARD until his A-id answers (REFUSALS row 27); reversing line: false
+  var F40_MARK = true;   // F40: a Run/Bike Work set's goal reads his Level Standards K mark (yd, W/lb); SHIPPED on his A85 pass (11-14) with D289/D290/D291; reversing line: false
   // F32 (F2 remainder; his 08-05 law "same = dose follows the athlete's current rung", D195 Level Standards the one home): a
   // `same` swap kept the rung's reps and rest but dropped its seconds and yards, so Run 2:1min x5 swapped to Bike drew
   // x1 and a ✓ instead of 120 s intervals, and Linear Hops 10 yd swapped to Dribbles lost its 10 yd. True: the
@@ -6083,6 +6083,18 @@
     Object.keys(rowsByDate).forEach(function (ds) {
       if (!rowsByDate[ds]._slot.childNodes.length) rowsByDate[ds]._slot.appendChild(el('div', 'wo-sub', 'rest'));
     });
+    // D316 (Phil 2026-11-14, verbatim: "June could not tell days can be switched. Rule 10-12: any session, any day in
+    // the window."): the ⇄ and the hold-drag were the only signs, and a bare arrow says nothing to a kid. One line over
+    // the week says the rule in his words — any workout, any day, up to the window's last day (the move picker's own
+    // ceiling, WEEK_WIN_END) — and names both doors. Held off every phone until his A-id answers (REFUSALS row 27);
+    // BP_FLAGS=D316_ANYDAY_ON=true arms it for qa/journeys/d316-anyday-shot.mjs. Reversing line: D316_ANYDAY_ON = false.
+    // It sits directly over today's row: the view anchors there (below), so a line at the grid's top is scrolled off.
+    if (D316_ANYDAY_ON && open.length) {
+      var hint = el('div', 'wo-sub cal-anyday', 'Any workout, any day' +
+        (WEEK_WIN_END ? ' through ' + dowLabel(WEEK_WIN_END) : ' this week') + ' — tap one to start it, or ⇄ to move it.');
+      if (todayRow) { grid.insertBefore(hint, todayRow); todayRow = hint; }   // the anchor scrolls the line in with the row
+      else grid.insertBefore(hint, grid.firstChild);
+    }
     if (!dated.length) {
       grid.appendChild(el('div', 'wo-sub', roundPending
         ? 'Your next round is being built — check back soon 💪'
@@ -6161,6 +6173,7 @@
     var anchorEl = todayRow || (menu.childNodes.length ? menu : grid.lastElementChild);
     if (anchorEl) requestAnimationFrame(function () { try { anchorEl.scrollIntoView({ block: 'start' }); } catch (e) {} });
   }
+  var D316_ANYDAY_ON = false;   // GUARD: held off every phone until his A-id answers (REFUSALS row 27)
   function attachDrag(tile, s) {
     tile.classList.add('can-move');   // invisible contract marker: the harness asserts move-ability without faking a 350ms hold
     var HOLD = 350, MOVE_CANCEL = 10;   // ms to arm; px of finger travel that counts as a scroll, not a hold

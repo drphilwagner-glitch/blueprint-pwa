@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261113-f38pass';   // FRIDAY 11-13 run 2 — F38 ships on A81: the count card asks over every set the block serves (his H) and says Level pass / No pass. Reversing line: '20261113-f37beat'.
+  var APP_BUILD = '20261113-f39beat';   // FRIDAY 11-13 run 2 — F39 ships (no pixel, rides A79-A81): Save on the count card logs one `beat:<made>/<of>@<K>s pass|no pass` row to Sessions; the kid door @1503 knows `beat:`. Reversing line: '20261113-f38pass'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3853,7 +3853,7 @@
   // buzzer, so the count is a record beside them and no census counts it as a set. The level move reads it at the mint (the
   // engine half). GUARD: F39_BEAT_LOGS=false, held off every phone until his A-id answers (REFUSALS row 27), and the server
   // must know `beat:` first or D133 refuses the blank row. Reversing line: F39_BEAT_LOGS = false.
-  var F39_BEAT_LOGS = false;
+  var F39_BEAT_LOGS = true;   // 11-13 run 2: shipped; the engine's `beat:` is on the kid door @1503 (clasp pull read).
   // F41: the timed series on a Run/Bike row that carries his K mark (see conditioningRow). Reversing line: F41_MARK_BUZZER = false.
   var F41_MARK_BUZZER = false;
   // F42 (Phil 2026-11-12, his FEATURE line, verbatim: "Same tile: Bike shows total watts (mark x the athlete's BW); the athlete does

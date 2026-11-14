@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261113-f37beat';   // FRIDAY 11-13 run 2 — F37 ships on A80: 3 ticks in the last second before each buzzer; the block ends on a card asking how many beat the time. Reversing line: '20261113-f36timed'.
+  var APP_BUILD = '20261113-f38pass';   // FRIDAY 11-13 run 2 — F38 ships on A81: the count card asks over every set the block serves (his H) and says Level pass / No pass. Reversing line: '20261113-f37beat'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3844,7 +3844,7 @@
   // Log Set before the ▶ still counts against the pass. A pass is all H of H; the card says which, live, and Save keeps
   // `pass` beside the count for F39 (Sessions, and the level move at the next mint). GUARD: F38_LEVEL_PASS=false, held off
   // every phone until his A-id answers (REFUSALS row 27). Reversing line: F38_LEVEL_PASS = false.
-  var F38_LEVEL_PASS = false;
+  var F38_LEVEL_PASS = true;   // F38: SHIPPED on his A81 pass (11-13 13:38, REFUSALS row 27); reversing line: false
   // F39 (Phil 2026-11-12, his FEATURE line, verbatim: "Same tile: log reps made and the target time to Sessions. A pass moves the
   // level at the next mint, like any lift."). Save on the count card also queues ONE Sessions row for the block, through the
   // same logRows queue every set rides: flag `beat:<made>/<of>@<K>s`, plus ` pass` / ` no pass` when F38 judged it, on the

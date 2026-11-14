@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261113-f39beat';   // FRIDAY 11-13 run 2 — F39 ships (no pixel, rides A79-A81): Save on the count card logs one `beat:<made>/<of>@<K>s pass|no pass` row to Sessions; the kid door @1503 knows `beat:`. Reversing line: '20261113-f38pass'.
+  var APP_BUILD = '20261114-d299agility';   // SATURDAY 11-14 run 1 — D299: Agility 5-10-5 / 3 Cone draw the ▶ timed tile; F43 four fields ship on A87. Reversing line: '20261113-f39beat'.
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3879,14 +3879,16 @@
   // WORK: a sprint's distance off its name ("20 yd"), an interval's or a duration's clock ("10:00"). REST: his rest as a clock.
   // REPS: his reps (H), "Max" on a max set. The PRESCRIBED and WORK lanes leave the row; the input and the buttons are untouched.
   // GUARD: F43_FOUR_FIELDS=false, held off every phone until his A-id answers (REFUSALS row 27). Reversing line: F43_FOUR_FIELDS = false.
-  var F43_FOUR_FIELDS = false;
+  var F43_FOUR_FIELDS = true;   // F43: SHIPPED on his A87 pass (11-14) under D299 ("Deploy it and A87 by 12:00 today"); reversing line: false
   function work4Fields(ex, t, oneEffortShape, distGoal) {
     var m = t.mark && Number(t.mark.value) > 0 ? t.mark : null, ws = Number(t.work_s) || 0, nm = String(ex.exercise || '');
     var nameDist = /(\d+)\s*(yd|m)\b/i.exec(nm), sprint = oneEffortShape && !!nameDist;
-    var goal = (sprint && ws > 0) ? (ws + ' s')
+    var oneTimed = oneEffortShape && ws > 0 && !m;   // D299: Agility 5-10-5's Goal is his 5.7 s too; Work is its distance or "—"
+    var goal = ((sprint || oneTimed) && ws > 0) ? (ws + ' s')
       : m ? ((m.unit === 'W/lb' && Number(m.watts) > 0) ? Math.round(Number(m.watts)) + ' W' : markText(m))
       : (distGoal || '—');
     var work = sprint ? (nameDist[1] + ' ' + nameDist[2].toLowerCase())
+      : oneTimed ? '—'
       : ws > 0 ? mmss(ws) : (Number(t.duration_s) > 0 ? mmss(t.duration_s) : '—');
     var rest = Number(t.rest_s) > 0 ? mmss(t.rest_s) : '—';
     var tr = t.target_reps, reps = isMaxVal(tr) ? 'Max' : ((tr != null && tr !== '') ? String(tr) : '—');
@@ -3996,7 +3998,15 @@
     // draws the tile he passed as A75 (x1 and his rest), unchanged. An interval named by its time (Run 2:1min, Bike: his A78
     // "1x120s") keeps its own tile. The buzzer at his time is F36's tile, asked on its own.
     // Reversing line: `isPureReps` back in place of `oneEffortShape` below.
-    var oneEffortShape = isPureReps || (!wantsDist && !t.duration_s && t.work_s > 0 && /\d\s*(yd|m)\b/i.test(String(ex.exercise || '')));
+    // D299 (Phil 2026-11-14, verbatim: "The timed tile I passed 11-13 (A79-A81, A83, A84) is not on June's phone at 04:44. Deploy
+    // it and A87 by 12:00 today."). Her Sat 11/14 Agility 5-10-5 and Agility 3 Cone carry his K time (5.7 s) but no yd/m in the
+    // name, so they drew the old PRESCRIBED/WORK/REPS tile and no ▶. The engine's own unit tell (D278: Sprint, Shuttle, Agility
+    // -> K is seconds) is one effort; an interval is named by its time (Run 10:3min, Bike 60:60s) or is a Run/Bike mark row.
+    // Reversing line: D299_AGILITY_ONE = false.
+    var D299_AGILITY_ONE = true, exNm = String(ex.exercise || '');
+    var oneEffortShape = isPureReps || (!wantsDist && !t.duration_s && t.work_s > 0 && (/\d\s*(yd|m)\b/i.test(exNm)
+      || (D299_AGILITY_ONE && !(t.mark && Number(t.mark.value) > 0) && !/^(Run|Bike)\b/i.test(exNm)
+          && !/\d\s*:\s*\d|\d\s*(s|sec|min)\b/i.test(exNm))));
     var oneEffort = F2_ONE_EFFORT && oneEffortShape && ex.mode === 'conditioning' && Number(t.target_reps) === 1;
     if (oneEffort) {
       l2.appendChild(lane('c-goal', 'prescribed', el('span', 'cv goal-v', '×1')));

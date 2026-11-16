@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261115-d350drag';   // SUNDAY 11-15 run 1 — D350: the hold-drag's pan no longer cancels the lift. Reversing line: '20261114-d289a85'
+  var APP_BUILD = '20261115-d322painalt';   // SUNDAY 11-15 run 1 — D322: a pain skip offers the lift's pain alternate (A89 pass). Reversing line: '20261115-d350drag'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3030,7 +3030,7 @@
   // lives in the panel Skip already opens. HELD OFF EVERY PHONE until Phil answers its A-id (rule 27).
   // Phil answered A56 `pass` 2026-10-31 12:00: ON for every phone. Reversing line: this declaration, back to false.
   var F15_MISSED_WEIGHT = true;   // A56 pass 2026-10-31; reversing line: false
-  var D322_PAIN_ALT = false;   // D322: the pain panel offers the lift's pain alternate; held until his A-id pass
+  var D322_PAIN_ALT = true;   // A89 pass 2026-11-15 13:25: ON for every phone. Reversing line: false
   function toggleSkip(row, ex, slot, setNo, tLoad) {
     var old = row.querySelector('.skip-panel');
     if (old) { old.remove(); return; }
@@ -6436,6 +6436,14 @@
   // kind=note with the screen it was opened from), so the coach's side reads them exactly as before. Profile's block
   // stays until F53 removes it. Held off every phone until his pass on the shot (REFUSALS row 27). Reversing line: false
   var F52_TELL_SCREEN = false;
+  // D353 (Phil 2026-11-15, verbatim: "A94 'Fewer days this week' rebuilds the week at the tap, not at the next mint. The kid
+  // may train that day."): the tap sends at_mint and the server records the word; tonight's mint rebuilds the week, so the
+  // screen says tonight and today's workout stays. Held off every phone until his pass on the shot (REFUSALS row 27).
+  // Reversing line: D353_AT_MINT = false.
+  var D353_AT_MINT = false;
+  function daysAsk(nd) { return D353_AT_MINT ? 'Train ' + nd + ' day(s) this week? Your week is rebuilt tonight. Today’s workout stays as it is, and workouts you already finished don’t change.'
+    : 'Train ' + nd + ' day(s) this week? This rebuilds your remaining sessions. Workouts you already finished don’t change.'; }
+  function daysBody(athlete, token, nd) { var b = { action: 'lifehappens', athlete: athlete, token: token, new_days: nd }; if (D353_AT_MINT) b.at_mint = true; return JSON.stringify(b); }
   // F53 (Phil 2026-11-14, verbatim: "After that ships, remove the Tell coach block from Profile. One home: the nav
   // icon."): Profile drops its Tell coach block (New pain or injury, Fewer days this week) once the nav's 💬 opens
   // F52's screen, which carries both. Read only together with F52_TELL_SCREEN, so a pass on this alone never leaves
@@ -6500,22 +6508,23 @@
         chosen = nd; dst.textContent = '';
         Array.prototype.forEach.call(picks.children, function (x) { x.classList.toggle('on', x === b); });
         ask.innerHTML = '';
-        ask.appendChild(el('p', 'tc-sub', 'Train ' + nd + ' day(s) this week? This rebuilds your remaining sessions. Workouts you already finished don’t change.'));
+        ask.appendChild(el('p', 'tc-sub', daysAsk(nd)));
         var row = el('div', 'move-any');
         var no = el('button', 'move-opt', 'Cancel'); no.type = 'button';
-        var yes = el('button', 'move-go', 'Rebuild my week'); yes.type = 'button';
+        var yes = el('button', 'move-go', D353_AT_MINT ? 'Rebuild tonight' : 'Rebuild my week'); yes.type = 'button';
         no.addEventListener('click', function () { chosen = null; ask.hidden = true; Array.prototype.forEach.call(picks.children, function (x) { x.classList.remove('on'); }); });
         yes.addEventListener('click', function () {
           if (chosen == null) return;
           var n = chosen; yes.disabled = true; no.disabled = true;
-          dst.textContent = 'Rebuilding your week…';
-          try { _writeEpochBump_('lifehappens'); } catch (eEb) {}   // R1636: this re-lays the week — no read opened before it may be joined after it
+          dst.textContent = D353_AT_MINT ? 'Sending…' : 'Rebuilding your week…';
+          if (!D353_AT_MINT) try { _writeEpochBump_('lifehappens'); } catch (eEb) {}   // R1636: this re-lays the week — no read opened before it may be joined after it
           fetch(cfg.WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'lifehappens', athlete: athlete, token: token, new_days: n }) })
+            body: daysBody(athlete, token, n) })
             .then(function (r) { return r.json(); })
             .then(function (d) {
               ask.hidden = true;
-              if (d && d.ok) { dst.textContent = 'Done — your week is updated 👍'; setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
+              if (d && d.ok && d.queued) { dst.textContent = 'Sent — your week is rebuilt tonight 👍'; }
+              else if (d && d.ok) { dst.textContent = 'Done — your week is updated 👍'; setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
               else if (d && d.result && /REFUSED/.test(d.result)) {
                 dst.textContent = 'Could not rebuild — nothing was changed. Your coach has been told why.';
                 fetch(bpTagRead(cfg.WEBAPP_URL + '?action=report&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token) +
@@ -7919,14 +7928,15 @@
       if (n == null || n.trim() === '') return;
       var nd = parseInt(n.trim(), 10);
       if (isNaN(nd) || nd < 0 || nd > 6) { show('Enter a number of days, 0-6.'); return; }
-      if (!window.confirm('Train ' + nd + ' day(s) this week? This rebuilds your remaining sessions. Workouts you already finished don’t change.')) return;
-      show('Rebuilding your week…');
-      try { _writeEpochBump_('lifehappens'); } catch (eEb3) {}   // R1636: this re-lays the week — no read opened before it may be joined after it
+      if (!window.confirm(daysAsk(nd))) return;
+      show(D353_AT_MINT ? 'Sending…' : 'Rebuilding your week…');
+      if (!D353_AT_MINT) try { _writeEpochBump_('lifehappens'); } catch (eEb3) {}   // R1636: this re-lays the week — no read opened before it may be joined after it
       fetch(cfg.WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'lifehappens', athlete: athlete, token: token, new_days: nd }) })
+        body: daysBody(athlete, token, nd) })
         .then(function (r) { return r.json(); })
         .then(function (d) {
-          if (d && d.ok) { show('Done — your week is updated 👍'); setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
+          if (d && d.ok && d.queued) { show('Sent — your week is rebuilt tonight 👍'); }
+          else if (d && d.ok) { show('Done — your week is updated 👍'); setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
           else if (d && d.result && /REFUSED/.test(d.result)) { show('Could not rebuild — nothing was changed. Your coach has been told why.'); tcSend('days', 'asked for ' + nd + ' day(s); the rebuild refused', true); }
           else { show('Could not send — try again'); }
         })

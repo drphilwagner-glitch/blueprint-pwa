@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261114-d289a85';   // SATURDAY 11-14 run 1 — D289: F40_MARK ships on his A85 pass (Run Work 10:00 / Rest 3:00). Reversing line: '20261114-d334course'
+  var APP_BUILD = '20261115-d350drag';   // SUNDAY 11-15 run 1 — D350: the hold-drag's pan no longer cancels the lift. Reversing line: '20261114-d289a85'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1426,7 +1426,25 @@
     fetchJson(readUrl() + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&date=' + encodeURIComponent(d) + '&token=' + encodeURIComponent(token))
       .then(settle).catch(function () {});   // offline: no card, no state change — the workout stands
   }
+  // D325 (Phil 2026-11-14): "Coach Test Profile still prints the retired Regen log ('NEXT UNLOCK AT 6', 'Sleep→Cossack Squat').
+  // Retired 11-07." The 0-10 card, its stages and unlocks and its pairing line are F22's retire list, and A65's one-tap card
+  // asks pain only - so the block lists the pain the athlete logged (date · pain N · where) and nothing of the old scorer.
+  // GUARD: D325_PAIN_LOG_ON=false, held off every phone until his A-id answers (REFUSALS row 27). BP_FLAGS=D325_PAIN_LOG_ON=true
+  // arms it for qa/journeys/d325-profile-regen-shot.mjs. Reversing line: D325_PAIN_LOG_ON = false (the stage/score log returns).
+  var D325_PAIN_LOG_ON = false;
+  function regenPainBlock(hist) {
+    var sec = el('section', 'p-block regen');
+    sec.appendChild(el('div', 'p-block-h', 'REGEN — pain you logged'));
+    var rows = (hist || []).filter(function (h) { return h.pain !== '' && h.pain != null && !isNaN(Number(h.pain)); });
+    if (!rows.length) { sec.appendChild(el('div', 'regen-hist-row', '—')); return sec; }
+    rows.slice(0, 10).forEach(function (h) {
+      var p = Number(h.pain);
+      sec.appendChild(el('div', 'regen-hist-row' + (p >= 1 ? ' low' : ''), h.date + ' · ' + (p >= 1 ? 'pain ' + p + (h.pain_where ? ' · ' + h.pain_where : '') : 'no pain')));
+    });
+    return sec;
+  }
   function regenProfileBlock(hist, mean, meta) {
+    if (D325_PAIN_LOG_ON && REGEN_ONETAP_ON) return regenPainBlock(hist);
     var sec = el('section', 'p-block regen');
     var m = meta || {};
     sec.appendChild(el('div', 'p-block-h', 'REGEN — stage ' + (m.stage || 1) + ' · ' + (m.logs || 0) + ' logged · next unlock at ' + (m.next_unlock != null ? m.next_unlock : '—')));
@@ -2545,6 +2563,52 @@
     return d;
   }
   var F14_TIMER_INFO = true;   // A63 pass 2026-11-04; reversing line: false
+  // F45 (Phil 2026-11-14: "F14 adds June's week 1: she did not understand the timer, skipped it, and finished in 30 min."):
+  // the lesson starts OPEN on Complex 1 until this athlete has tapped Start Complex once on this phone; after that it is
+  // F14's closed ⓘ again. Only a Start Complex tap teaches it: closing the lesson unread leaves it open next session.
+  var F45_LESSON_OPEN = false;   // reversing line: false
+  function timerTaught() { try { return localStorage.getItem('bp_timer_taught_' + athlete) === '1'; } catch (e) { return true; } }
+  function timerTaughtSet() { try { localStorage.setItem('bp_timer_taught_' + athlete, '1'); } catch (e) {} }
+  // F51 (Phil 2026-11-14, verbatim: "F14 is a build, not a design: an i icon on every tile and on the complex timer. Send
+  // one screenshot."): an ⓘ beside the name on each exercise's first tile, and F14's ⓘ on EVERY complex, not Complex 1
+  // alone. The tile's lesson is read off the tile itself when it opens — a sentence per control the tile actually drew
+  // (clip, number boxes, ✓ / ▶ / Start, Swap, History, Skip) — so it can never name a button the kid does not see.
+  // Held off every phone until his pass on the shot (REFUSALS row 27). Reversing line: false
+  var F51_TILE_INFO = false;
+  var SHOWN_INFO = {};   // per-render, like SHOWN_NOTE: one ⓘ per exercise, on its first tile
+  function tileLesson(row) {
+    // a control counts only if the kid can SEE it: a lift's ✓ is drawn but hidden where its round logs with Log Set
+    var seen = function (n) { return !!(n && n.getClientRects().length); };
+    var out = [], q = function (s) { var n = row.querySelector(s); return seen(n) ? n : null; };
+    if (q('.l1 .ex-name.has-video')) out.push('Tap the name to watch how it’s done.');
+    if (q('.stepper')) out.push('Use − and + (or tap the number) to enter what you actually did.');
+    var ck = q('.l1 .check'), w = ck ? String(ck.textContent || '').trim() : '';
+    var rd = row.closest('.round'), rlog = rd ? rd.querySelector('.roundlog') : null;
+    if (w === '▶') out.push('Tap ▶ to start the timer for this set.');
+    else if (/^Start/.test(w)) out.push('Tap ' + w + ' to start the clock.');
+    else if (ck) out.push('Tap ✓ when the set is done to log it.');
+    else if (seen(rlog) && !row._isDur) out.push('Tap ' + String(rlog.textContent || 'Log Set').trim() + ' when the set is done.');
+    if (q('.l1 .swapbtn')) out.push('⇄ Swap trades it for another exercise.');
+    if (q('.l1 .histbtn')) out.push('🕐 History shows what you did last time.');
+    if (q('.l1 .skipbtn')) out.push('⏭ Skip skips this set.');
+    return out.join(' ');
+  }
+  function tileInfo(row, ex) {
+    var key = (ex._alt_of || ex).exercise;
+    if (!F51_TILE_INFO || SHOWN_INFO[key]) return;
+    var nm = row.querySelector('.l1 .ex-name'); if (!nm) return;
+    SHOWN_INFO[key] = true;
+    var b = el('button', 'p-info tile-info', 'ⓘ'); b.type = 'button'; b.title = 'How this tile works';
+    var lesson = el('div', 'p-clk-n tile-lesson'); lesson.hidden = true;
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (lesson.hidden) lesson.textContent = tileLesson(row);
+      lesson.hidden = !lesson.hidden;
+    });
+    lesson.addEventListener('click', function () { lesson.hidden = true; });
+    nm.parentNode.insertBefore(b, nm.nextSibling);
+    row.appendChild(lesson);
+  }
   var COMPLEX_TIMER_LESSON = 'Start Complex runs the clock. Each set on it covers your lifts and your rest, and the beep starts the next set. ' +
     'If you finish early, ⏭ moves you on, and ⏮ goes back one set. A skipped lift makes that set shorter.';
   function slotLabel(s) {                              // "WUp1" -> "Warm Up 1"; "Comp1" -> "Complex 1"
@@ -2966,6 +3030,7 @@
   // lives in the panel Skip already opens. HELD OFF EVERY PHONE until Phil answers its A-id (rule 27).
   // Phil answered A56 `pass` 2026-10-31 12:00: ON for every phone. Reversing line: this declaration, back to false.
   var F15_MISSED_WEIGHT = true;   // A56 pass 2026-10-31; reversing line: false
+  var D322_PAIN_ALT = false;   // D322: the pain panel offers the lift's pain alternate; held until his A-id pass
   function toggleSkip(row, ex, slot, setNo, tLoad) {
     var old = row.querySelector('.skip-panel');
     if (old) { old.remove(); return; }
@@ -3009,6 +3074,25 @@
           p.remove(); postSkip(slot, (ex._alt_of || ex).exercise, 'pain', setNo, { score: score, note: where + (other ? (where ? ' · ' : '') + other : '') });
         });
         pr.appendChild(go);
+        // D322 (Phil 2026-11-14, verbatim): "F21 folds into F3: a pain tap writes to the Athletes tab, then offers that lift's
+        // pain alternate. One flow." The pain skip already lands on his Injury rows (D314, the set batch's skip:pain:<score>);
+        // beside "Skip it" each of the lift's own le_pain / ue_pain alternates is one more button: the same pain skip on
+        // this set, then the sets still to do become that alternate (the skipped set stays skipped). No pain alternate on
+        // his tab, or no set left to do, and the panel is today's. HELD OFF EVERY PHONE until his A-id (REFUSALS row 27).
+        if (D322_PAIN_ALT) {
+          var origP = ex._alt_of || ex;
+          var left = (ROW_REG[origP.exercise] || []).some(function (en) { return en.row !== row && !en.row.classList.contains('done') && !en.row.classList.contains('skipped'); });
+          (left ? (origP.alternates || []) : []).forEach(function (a) {
+            if (!a || !/^(le|ue)_pain$/i.test(String(a.reason || '').trim()) || String(a.name) === String(ex.exercise)) return;
+            var sw = el('button', 'pain-go pain-alt', 'Skip it — switch to ' + a.name); sw.type = 'button';
+            sw.addEventListener('click', function () {
+              var where = [area, sideP].filter(Boolean).join(' '), other = String(note.value || '').trim();
+              p.remove(); postSkip(slot, origP.exercise, 'pain', setNo, { score: score, note: where + (other ? (where ? ' · ' : '') + other : '') });
+              swapToAlt(origP, a, { fromRow: row, keepSkipped: true });
+            });
+            pr.appendChild(sw);
+          });
+        }
         p.appendChild(pr);
       });
       p.appendChild(b);
@@ -3346,7 +3430,8 @@
     var entries = (ROW_REG[key] || []).slice();
     var fromRow = (opts && opts.fromRow) || null;
     var eLive = null;   // R1489: the first set still to do — its lift is what the athlete sees as "current"
-    if (R1489_SWAP_READS) entries.forEach(function (en) { if (!eLive && !(en.row.classList.contains('done'))) eLive = en; });
+    var keepSk = !!(opts && opts.keepSkipped);   // D322: a pain-skipped set stays skipped; the alternate takes the sets after it
+    if (R1489_SWAP_READS) entries.forEach(function (en) { if (!eLive && !(en.row.classList.contains('done')) && !(keepSk && en.row.classList.contains('skipped'))) eLive = en; });
     var firstNew = null;
     try {
       var e0 = (R1489_SWAP_READS && eLive) ? eLive : entries[0];
@@ -3405,7 +3490,7 @@
       // under the new name as a not-done row the round button would then commit at its prefill (his Friday: BSS 55×5
       // real at 21:52, swapped 21:53, the rebuilt set-1 row committed as a second pair at 21:54). The swapped-in lift
       // starts at the first set not yet done.
-      if (en.row.classList.contains('done')) { ROW_REG[key].push(en); return; }
+      if (en.row.classList.contains('done') || (keepSk && en.row.classList.contains('skipped'))) { ROW_REG[key].push(en); return; }
       var oEx = en.ex._alt_of || en.ex, oT = en.ex._alt_t || en.t;   // each set keeps its own set_no
       var tgt = swapTarget(a, oEx, oT);
       if (!noteFreed) { delete SHOWN_NOTE[tgt.ex.exercise]; noteFreed = true; }   // D5: see above
@@ -3526,6 +3611,38 @@
         body.appendChild(again);
       });
   }
+  // The tap on a curated alternate, the swap panel's and D322's pain panel's: every set still to do becomes it, then its own
+  // prescription is fetched where his tab left the reps blank. `opts` is applySwapAll's (fromRow, keepSkipped).
+  function swapToAlt(origEx, a, opts) {
+    applySwapAll(origEx.exercise, a, opts);   // R1489: the tapped row — a logged one stays, and the tap must still read
+    // R686: a curated alternate with a blank reps cell applies instantly (above) but must not
+    // STAY on the outgoing lift's reps — fetch the incoming lift's own prescription and
+    // reconcile untouched rows, the searched path's proven pattern (R633/R634).
+    if (altNeedsScheme(a)) {
+      fetch(bpTagRead(cfg.WEBAPP_URL + '?action=exscheme&athlete=' + encodeURIComponent(athlete) +
+            '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(a.name) + '&sets=3', 'exscheme'))   // R1724: the swap is ALREADY on the screen (applySwapAll above) and this read reconciles untouched rows behind it — nobody is waiting on it, so it never claims the device word
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d || !d.ok || d.reps == null) return;          // nothing better than what stands
+          var ents = ROW_REG[origEx.exercise] || [];
+          var touched = ents.some(function (en) {
+            return en.row.classList.contains('done') || en.row.querySelector('.stepper.confirmed');
+          });
+          if (touched) return;                                // the athlete's screen wins (R533)
+          applySwapAll(origEx.exercise, {
+            name: a.name, video_url: a.video_url || '', note: a.note || '', reason: a.reason,
+            best_reps: (d.best_reps != null ? d.best_reps : a.best_reps),
+            reps: d.reps,
+            wants_load: (a.wants_load === true) || !!d.wants_load,
+            prefill_load: (d.load != null ? d.load : (a.prefill_load != null ? a.prefill_load : null)),
+            level_goal: null,                                 // "no alternates have level goal" (Phil 2026-07-28)
+            duration_s: (d.duration_s != null ? d.duration_s : null),
+            each_side: a.each_side
+          }, { keepSkipped: !!(opts && opts.keepSkipped) });
+        })
+        .catch(function () {});
+    }
+  }
   // Swap panel: pick a reason-tagged alternate → every set of that exercise becomes it, with the
   // alternate's own dosing. "Keep original" reverts. Works from an alternate row too (_alt_of).
   // PRINCIPLES 2: the list shows only the reason + movement — never the dosing.
@@ -3563,34 +3680,7 @@
       }
       b.addEventListener('click', function () {
         if (onPick) { onPick(a.main ? null : a); return; }
-        applySwapAll(origEx.exercise, a, { fromRow: row });   // R1489: the tapped row — a logged one stays, and the tap must still read
-        // R686: a curated alternate with a blank reps cell applies instantly (above) but must not
-        // STAY on the outgoing lift's reps — fetch the incoming lift's own prescription and
-        // reconcile untouched rows, the searched path's proven pattern (R633/R634).
-        if (altNeedsScheme(a)) {
-          fetch(bpTagRead(cfg.WEBAPP_URL + '?action=exscheme&athlete=' + encodeURIComponent(athlete) +
-                '&token=' + encodeURIComponent(token) + '&exercise=' + encodeURIComponent(a.name) + '&sets=3', 'exscheme'))   // R1724: the swap is ALREADY on the screen (applySwapAll above) and this read reconciles untouched rows behind it — nobody is waiting on it, so it never claims the device word
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-              if (!d || !d.ok || d.reps == null) return;          // nothing better than what stands
-              var ents = ROW_REG[origEx.exercise] || [];
-              var touched = ents.some(function (en) {
-                return en.row.classList.contains('done') || en.row.querySelector('.stepper.confirmed');
-              });
-              if (touched) return;                                // the athlete's screen wins (R533)
-              applySwapAll(origEx.exercise, {
-                name: a.name, video_url: a.video_url || '', note: a.note || '', reason: a.reason,
-                best_reps: (d.best_reps != null ? d.best_reps : a.best_reps),
-                reps: d.reps,
-                wants_load: (a.wants_load === true) || !!d.wants_load,
-                prefill_load: (d.load != null ? d.load : (a.prefill_load != null ? a.prefill_load : null)),
-                level_goal: null,                                 // "no alternates have level goal" (Phil 2026-07-28)
-                duration_s: (d.duration_s != null ? d.duration_s : null),
-                each_side: a.each_side
-              });
-            })
-            .catch(function () {});
-        }
+        swapToAlt(origEx, a, { fromRow: row });
       });
       panel.appendChild(b);
     });
@@ -4214,6 +4304,7 @@
     });
     l1.appendChild(check);   // same as a lifting row: the action rides with the name
     regRow({ row: row, slot: slot, ex: ex, t: t, timer: timer, isASide: false });   // so a swap reaches it (QA-05)
+    tileInfo(row, ex);   // F51
     return row;
   }
 
@@ -4659,6 +4750,7 @@
     // already refuse to count it.
     if (wasLogged && !skReason) { row.classList.add('done'); check.classList.add('done'); check.textContent = '✓'; }   // show as logged; tap to edit
     regRow({ row: row, slot: slot, ex: ex, t: t, timer: timer, isASide: isASide });   // so a swap can reach every set (QA-05)
+    tileInfo(row, ex);   // F51
     return row;
   }
 
@@ -5271,7 +5363,7 @@
     // R1208 (Phil 2026-09-21 A1: "The timer dies at completion, always."): the sid-matched early return of clearTimerBar kept his complex
     // timer counting on a workout the server had just marked done (09-20 23:1x). A done screen has no timer — stopped unconditionally.
     clearTimerBar();
-    SESSION = s; ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};
+    SESSION = s; ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {}; SHOWN_INFO = {};
     renderNav('wo');
     meta.textContent = (s.from_rows ? 'Completed' : woTitle(s)) + ' · ' + s.date;
     if (meta.parentNode) Array.prototype.forEach.call(meta.parentNode.querySelectorAll('.hdr-dur'), function (n) { n.remove(); });
@@ -5323,7 +5415,7 @@
     if (isDoneSession(s)) return renderDone(s);
     clearTimerBar(s && (s.session_id || s.date));   // same session re-rendering keeps its live timer
     SESSION = s;
-    ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};   // fresh registries per session render
+    ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {}; SHOWN_INFO = {};   // fresh registries per session render
     renderNav('wo');
     // PREFETCH the swap search library (and warm the backend) the instant a workout opens, so tapping
     // Swap and searching is immediate instead of the ~10s cold wait an athlete hit mid-set (Phil, 2026-07-27).
@@ -5412,9 +5504,9 @@
       // F14 (A63 pass, Phil 2026-11-04): the Profile's own ⓘ beside Complex 1 opens the timer lesson and a tap closes it;
       // nothing moves for a kid who never taps it. Complex 1 alone, the one he passed.
       var timerLesson = null;
-      if (F14_TIMER_INFO && isComp && compSeen === 1) {
+      if (F14_TIMER_INFO && isComp && (compSeen === 1 || F51_TILE_INFO)) {   // F51: every complex
         var infoBtn = el('button', 'p-info', 'ⓘ'); infoBtn.type = 'button'; infoBtn.title = 'How the complex timer works';
-        timerLesson = el('div', 'p-clk-n slot-lesson', COMPLEX_TIMER_LESSON); timerLesson.hidden = true;
+        timerLesson = el('div', 'p-clk-n slot-lesson', COMPLEX_TIMER_LESSON); timerLesson.hidden = !(F45_LESSON_OPEN && compSeen === 1 && !timerTaught());   // F45 opens Complex 1's alone
         infoBtn.addEventListener('click', function (ev) { ev.stopPropagation(); timerLesson.hidden = !timerLesson.hidden; });
         timerLesson.addEventListener('click', function () { timerLesson.hidden = true; });
         head.classList.add('has-info'); head.appendChild(infoBtn);
@@ -5441,7 +5533,10 @@
       var timer = live ? live.adopt(timerNode, pauseBtn)
                        : makeTimer(timerNode, pauseBtn, ivs, sLabel, roundTitles, slotKey);
       if (live) startBtn.hidden = true;
-      startBtn.addEventListener('click', function () { timer.start(); startBtn.hidden = true; });
+      startBtn.addEventListener('click', function () {
+        if (F45_LESSON_OPEN && isComp) { timerTaughtSet(); if (timerLesson) timerLesson.hidden = true; }
+        timer.start(); startBtn.hidden = true;
+      });
 
       // Collapsed form of a complex you haven't reached (or have finished) — rule 1. Tap to open it
       // anyway, because a plan is not an order: you may want to jump ahead.
@@ -6058,7 +6153,7 @@
       if (!nextMarked && s.open_round && s.status !== 'done' && s.status !== 'missed') { t.classList.add('wo-next'); nextMarked = true; }
       // R376: no "resume" wording (Phil 2026-08-19: "you don't need resume — just put started");
       // the one-card-on-today placement itself (F2) is unchanged.
-      if (s.open_round && s.status !== 'done') {
+      if (s.open_round && s.status !== 'done' && !F54_NO_MOVE) {
         attachDrag(t, s);   // move/swap: the athlete's right
         // ⇄ TAP BUTTON RESTORED (Phil 2026-08-21, ruling (a)). It was deleted on 2026-08-12 inside a
         // CHECKPOINT auto-snapshot (8317a03) when the calendar rewrite made hold-drag the move
@@ -6091,7 +6186,8 @@
     // It sits directly over today's row: the view anchors there (below), so a line at the grid's top is scrolled off.
     if (D316_ANYDAY_ON && open.length) {
       var hint = el('div', 'wo-sub cal-anyday', 'Any workout, any day' +
-        (WEEK_WIN_END ? ' through ' + dowLabel(WEEK_WIN_END) : ' this week') + ' — tap one to start it, or ⇄ to move it.');
+        (WEEK_WIN_END ? ' through ' + dowLabel(WEEK_WIN_END) : ' this week') +
+        (F54_NO_MOVE ? ' — tap one to start it.' : ' — tap one to start it, or ⇄ to move it.'));   // F54: no ⇄ left to name
       if (todayRow) { grid.insertBefore(hint, todayRow); todayRow = hint; }   // the anchor scrolls the line in with the row
       else grid.insertBefore(hint, grid.firstChild);
     }
@@ -6174,6 +6270,12 @@
     if (anchorEl) requestAnimationFrame(function () { try { anchorEl.scrollIntoView({ block: 'start' }); } catch (e) {} });
   }
   var D316_ANYDAY_ON = false;   // GUARD: held off every phone until his A-id answers (REFUSALS row 27)
+  // F54 (Phil 2026-11-14, verbatim: "Kill the Move-a-workout panel. Dates are placeholders (rule 10-09)."): an open
+  // workout loses its ⇄ and the date panel it opens, and the hold-drag that moved it the same way. A kid taps any open
+  // workout on any day to start it; nothing on the phone rewrites a date. The server's move door is untouched (no
+  // engine byte). D316's line drops its "or ⇄ to move it" clause when this is on. Held off every phone until his pass
+  // on the shot (REFUSALS row 27); BP_FLAGS=F54_NO_MOVE=true arms it for qa/journeys/f54-no-move.mjs. Reversing line: false
+  var F54_NO_MOVE = false;
   function attachDrag(tile, s) {
     tile.classList.add('can-move');   // invisible contract marker: the harness asserts move-ability without faking a 350ms hold
     var HOLD = 350, MOVE_CANCEL = 10;   // ms to arm; px of finger travel that counts as a scroll, not a hold
@@ -6244,6 +6346,11 @@
       }
     });
     tile.addEventListener('pointercancel', cleanup);
+    // D350 (Phil 2026-11-15, verbatim: "Hold-and-drag on the calendar has not worked for me."): touch-action is read
+    // at the finger's first touch, so body.dragging's `touch-action: none` lands too late — the finger's travel after
+    // the hold started a pan, the pan fired pointercancel, and the lift died with no move sent. A non-passive
+    // touchmove that cancels only once the hold has armed stops that pan; before the arm the page scrolls as ever.
+    tile.addEventListener('touchmove', function (e) { if (armed && e.cancelable) e.preventDefault(); }, { passive: false });
     // a drag must not also fire the tile's openSession click
     tile.addEventListener('click', function (e) { if (armed) { e.preventDefault(); e.stopPropagation(); } }, true);
   }
@@ -6321,6 +6428,111 @@
       .then(function (r) { return r.json(); })
       .then(function (d) { toast(d && d.ok ? 'Sent to coach 👍' : 'Could not send — try again'); })
       .catch(function () { toast('Offline — try again when connected'); });
+  }
+  // F52 (Phil 2026-11-14, verbatim: "Tell coach nav opens a real screen (New pain or injury, Fewer days this week, one
+  // free line), not a browser prompt."): the nav's 💬 opens a screen of three cards — where it hurts, how many days
+  // this week, anything else — each sent from the screen itself, with no window.prompt and no window.confirm. They
+  // call the same doors Profile's Tell coach calls (report kind=injury, the judged lifehappens rebuild, report
+  // kind=note with the screen it was opened from), so the coach's side reads them exactly as before. Profile's block
+  // stays until F53 removes it. Held off every phone until his pass on the shot (REFUSALS row 27). Reversing line: false
+  var F52_TELL_SCREEN = false;
+  // F53 (Phil 2026-11-14, verbatim: "After that ships, remove the Tell coach block from Profile. One home: the nav
+  // icon."): Profile drops its Tell coach block (New pain or injury, Fewer days this week) once the nav's 💬 opens
+  // F52's screen, which carries both. Read only together with F52_TELL_SCREEN, so a pass on this alone never leaves
+  // a kid with no way to report pain or fewer days. Held off every phone until his pass on the shot (REFUSALS row 27).
+  // Reversing line: false
+  var F53_PROFILE_NO_TELL = false;
+  function tellCoachFrom() {
+    var scr = 'app';
+    try { var onB = NAV && NAV.querySelector('.nav-b.on'); if (onB && onB.dataset.k) scr = { cal: 'calendar', wo: 'workout', prof: 'profile' }[onB.dataset.k] || onB.dataset.k; } catch (e) {}
+    try { if (document.querySelector('.summary')) scr = 'completion'; } catch (e) {}
+    return scr;
+  }
+  function loadTellCoach() {
+    var from = tellCoachFrom();
+    if (from === 'msg') from = 'app';
+    newScreen();
+    renderNav('msg');
+    app.innerHTML = '';
+    meta.textContent = athlete + ' · tell coach';
+    var wrap = el('div', 'tellscreen');
+    var card = function (h, sub) {
+      var c = el('div', 'tc-card'); c.appendChild(el('div', 'p-block-h', h));
+      if (sub) c.appendChild(el('p', 'tc-sub', sub));
+      wrap.appendChild(c); return c;
+    };
+    var status = function (c) { var s = el('p', 'tc-status'); s.setAttribute('role', 'status'); c.appendChild(s); return s; };
+    var send = function (kind, detail, st, done) {
+      st.textContent = 'Sending…';
+      fetch(bpTagRead(cfg.WEBAPP_URL + '?action=report&athlete=' + encodeURIComponent(athlete) +
+            '&token=' + encodeURIComponent(token) + '&kind=' + kind + (kind === 'note' ? '&screen=' + encodeURIComponent(from) : '') +
+            '&detail=' + encodeURIComponent(detail)))   // R1724: the athlete's own tap — they wait on 'Sent to coach'
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d && d.ok) { st.textContent = 'Sent to coach 👍'; if (done) done(); } else st.textContent = 'Could not send — try again'; })
+        .catch(function () { st.textContent = 'Offline — try again when connected'; });
+    };
+    // one line + Send; Send lights only when the line holds a word
+    var lineCard = function (c, cls, ph, kind) {
+      var row = el('div', 'move-any');
+      var inp = el('input', 'move-date tc-in ' + cls); inp.type = 'text'; inp.placeholder = ph; inp.maxLength = 200;
+      inp.setAttribute('enterkeyhint', 'send');
+      var go = el('button', 'move-go', 'Send'); go.type = 'button'; go.disabled = true;
+      var st = status(c);
+      var fire = function () { var w = inp.value.trim(); if (!w) return; send(kind, w, st, function () { inp.value = ''; go.disabled = true; }); };
+      inp.addEventListener('input', function () { go.disabled = !inp.value.trim(); if (st.textContent) st.textContent = ''; });
+      inp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); fire(); } });
+      go.addEventListener('click', fire);
+      row.appendChild(inp); row.appendChild(go); c.insertBefore(row, st);
+    };
+
+    lineCard(card('🚑 New pain or injury', 'Where does it hurt?'), 'tc-pain', 'e.g. left knee', 'injury');
+
+    // FEWER DAYS: a tap on a number asks once, on the screen, in the words the Profile confirm carried; the
+    // rebuild is the same judged POST, and a refused rebuild changes nothing and says so.
+    var dc = card('📅 Fewer days this week', 'How many days can you train this week? 0 ends this round early.');
+    var picks = el('div', 'move-any move-quick tc-days'); dc.appendChild(picks);
+    var ask = el('div', 'tc-ask'); ask.hidden = true; dc.appendChild(ask);
+    var dst = status(dc);
+    var chosen = null;
+    for (var nd0 = 0; nd0 <= 6; nd0++) (function (nd) {
+      var b = el('button', 'move-opt', String(nd)); b.type = 'button'; b.dataset.n = nd;
+      b.addEventListener('click', function () {
+        chosen = nd; dst.textContent = '';
+        Array.prototype.forEach.call(picks.children, function (x) { x.classList.toggle('on', x === b); });
+        ask.innerHTML = '';
+        ask.appendChild(el('p', 'tc-sub', 'Train ' + nd + ' day(s) this week? This rebuilds your remaining sessions. Workouts you already finished don’t change.'));
+        var row = el('div', 'move-any');
+        var no = el('button', 'move-opt', 'Cancel'); no.type = 'button';
+        var yes = el('button', 'move-go', 'Rebuild my week'); yes.type = 'button';
+        no.addEventListener('click', function () { chosen = null; ask.hidden = true; Array.prototype.forEach.call(picks.children, function (x) { x.classList.remove('on'); }); });
+        yes.addEventListener('click', function () {
+          if (chosen == null) return;
+          var n = chosen; yes.disabled = true; no.disabled = true;
+          dst.textContent = 'Rebuilding your week…';
+          try { _writeEpochBump_('lifehappens'); } catch (eEb) {}   // R1636: this re-lays the week — no read opened before it may be joined after it
+          fetch(cfg.WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'lifehappens', athlete: athlete, token: token, new_days: n }) })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              ask.hidden = true;
+              if (d && d.ok) { dst.textContent = 'Done — your week is updated 👍'; setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
+              else if (d && d.result && /REFUSED/.test(d.result)) {
+                dst.textContent = 'Could not rebuild — nothing was changed. Your coach has been told why.';
+                fetch(bpTagRead(cfg.WEBAPP_URL + '?action=report&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token) +
+                      '&kind=days&detail=' + encodeURIComponent('asked for ' + n + ' day(s); the rebuild refused'))).catch(function () {});
+              } else { dst.textContent = 'Could not send — try again'; yes.disabled = false; no.disabled = false; ask.hidden = false; }
+            })
+            .catch(function () { dst.textContent = 'Offline — try again when connected'; yes.disabled = false; no.disabled = false; });
+        });
+        row.appendChild(no); row.appendChild(yes); ask.appendChild(row);
+        ask.hidden = false;
+      });
+      picks.appendChild(b);
+    })(nd0);
+    dc.appendChild(dst);
+
+    lineCard(card('💬 Anything else', 'One line, anything — your coach reads it.'), 'tc-note', 'Type here', 'note');
+    app.appendChild(wrap);
   }
   function toast(msg) {
     // never show(): that replaces the whole screen mid-workout. A small self-removing chip.
@@ -6580,7 +6792,7 @@
       [['cal', '📅', 'Calendar', function () { loadHome(); }],
        ['wo', '🏋️', 'Workout', function () { openToday(); }],
        ['prof', '📈', 'Profile', function () { loadProfile(); }],
-       ['msg', '💬', 'Tell coach', function () { tellCoachNote(); }]]
+       ['msg', '💬', 'Tell coach', function () { if (F52_TELL_SCREEN) loadTellCoach(); else tellCoachNote(); }]]
         .concat(REGEN_MODULE_ON ? [['regen', '🧘', 'Regen', function () { loadRegen(); }]] : [])   // R1707: his fifth icon, off until the A-id
         .forEach(function (d) {
         var b = el('button', 'nav-b'); b.type = 'button'; b.dataset.k = d[0];
@@ -7676,7 +7888,8 @@
     meta.textContent = athlete + ' · your progress';
     if (!list.length) { app.appendChild(el('p', 'empty', 'No exercises yet.')); return; }
 
-    // ── 0. TELL COACH — it writes to the coach, so it leads (R085; spec block 0).
+    // ── 0. TELL COACH — it writes to the coach, so it leads (R085; spec block 0). F53: gone once the nav's screen holds it.
+    if (!(F53_PROFILE_NO_TELL && F52_TELL_SCREEN)) {
     var tc = el('div', 'tellcoach');
     tc.appendChild(el('div', 'p-block-h', 'Tell coach'));
     var tcRow = el('div', 'tc-row');
@@ -7722,6 +7935,7 @@
     tcRow.appendChild(tb1); tcRow.appendChild(tb2);
     tc.appendChild(tcRow);
     app.appendChild(tc);
+    }
 
     // ONE dataset, three sorts (+ the quality grouping the ladder bars read).
     var laddered = [], other = [];

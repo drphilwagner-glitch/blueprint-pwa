@@ -268,6 +268,7 @@ html, body { overflow-x: hidden; }                 /* never scroll sideways */
 .pain-chip.on { background: var(--warn); border-color: var(--warn); color: var(--bg); }
 .pain-note { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--muted-soft); border-radius: 8px; font-size: var(--fs-14); background: var(--bg); color: var(--ink); margin-bottom: 8px; }   /* 8px: a structural corner */
 .pain-go { width: 100%; padding: 10px; border: 0; border-radius: var(--r-pill); background: var(--warn); color: var(--bg); font-weight: 700; }
+.pain-alt { margin-top: 8px; background: transparent; color: var(--warn); box-shadow: inset 0 0 0 2px var(--warn); }   /* D322: the pain alternate, beside Skip it */
 /* R1000 — REGEN v1 (his §2: no emoji, no color on the card, no praise/shame copy). The card floats over the workout, which stays visible
    behind it; Skip is always visible; the strip is text only. */
 .regen-wrap { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.35); display: flex; align-items: flex-start; justify-content: center; padding: 12px; z-index: 40; }
@@ -818,6 +819,9 @@ span.ex-name { display: block; }
 .slot-head.has-info .slot-title { flex: 0 0 auto; }
 .slot-head.has-info .tstart { margin-left: auto; }
 .p-clk-n.slot-lesson { font-size: 14px; }
+/* F51: a tile's own lesson, F14's 14px, under the tile it explains */
+.p-clk-n.tile-lesson { font-size: 14px; margin-top: var(--sp-4, 4px); }
+.l1 .tile-info { flex: none; }
 .slot.slot-later:not(.open) .slot-head .p-info, .slot.slot-later:not(.open) > .slot-lesson,
 .slot.slot-done:not(.open) .slot-head .p-info, .slot.slot-done:not(.open) > .slot-lesson { display: none; }
 .slot.slot-done:not(.open) > .slot-sum { border-color: var(--ok-line); background: var(--ok-bg-2); color: var(--ok); }
@@ -1334,6 +1338,14 @@ body #app { padding-bottom: 108px; }
 .p-clkrow .p-clk-n { flex-basis: 100%; }
 .p-row-goal { font-size: var(--fs-13); font-weight: 600; color: var(--muted); margin-top: 2px; }
 .tellcoach { margin-top: 8px; }
+/* F52 — the Tell coach screen: three cards, the Move panel's own controls, no new theme values */
+.tc-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-10); padding: 12px; margin: 12px 0; }
+.tc-sub { font-size: var(--fs-14); color: var(--ink); margin: 0 0 8px; }
+.tc-status { font-size: var(--fs-14); font-weight: 700; color: var(--bp); margin: 8px 0 0; min-height: 1em; }
+.tc-status:empty { display: none; }
+.tc-ask { margin-top: 10px; }
+.move-quick .move-opt.on { background: var(--bp); color: var(--white); border-color: var(--bp); }
+.move-any .move-go[disabled] { opacity: .38; }
 
 /* C32a: content must clear the fixed bottom nav */
 .build-id { margin-bottom: 96px; }

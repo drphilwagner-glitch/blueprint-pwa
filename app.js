@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261116-f52f53tell';   // MONDAY 11-16 run 2 — F52+F53: the nav's 💬 opens the Tell coach screen and Profile drops its block (A94+A96 pass). Reversing line: '20261115-d322painalt'
+  var APP_BUILD = '20261116-k4queuebg';   // MONDAY 11-16 run 2 — K4-FELT: a Finish the queue re-sends says bg=queue (no pixel). Reversing line: '20261116-f52f53tell'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -462,10 +462,19 @@
     delete COMPLETE_ACKED[sessionId];
     var pend = pendingCompletes();
     if (!pend.some(function (x) { return x.sid === sessionId; })) { pend.push({ sid: sessionId, at: new Date().toISOString() }); savePendingCompletes(pend); }
-    return drainCompletes();
+    return drainCompletes(sessionId);
   }
   var drainingC = false;
-  function drainCompletes() {
+  // K4-FELT (2026-11-16 run 2) — A FINISH THE QUEUE RE-SENDS IS A CALL NOBODY WAITS ON, AND SAYS SO. June tapped Finish
+  // 11-17 00:44:40Z and pocketed the phone; the server took it (event_finish 00:44:52Z) but the answer was lost, so the
+  // Finish stayed queued and the wake re-sent it at 00:59:23Z: the server answered in 0.1 s, the wall read 17.0 s, and K4
+  // filed it as "June · finishing the workout · waited 17.0 s". The Finish screen paints at the tap (R635), so only the
+  // TAPPED session's send is his; any other send (the 20 s tick, `online`, releaseBg, an older Finish the tap's drain
+  // clears first) carries bg=queue. The word follows the session id, never the argument: `online` hands this an Event.
+  // `bg` moves no write — the engine reads it for telemetry only, and livefreeze takes every event_finish unfiltered.
+  // Reversing line: drop `feltSid` here and in sendComplete, and the bg=queue term from the url.
+  // Rig: qa/harness/k4felt-forgetloop.mjs arms 6-6d (mutants feltdrain, eventfelt).
+  function drainCompletes(feltSid) {
     if (drainingC || !navigator.onLine) return Promise.resolve();
     if (bgHeld()) return Promise.resolve();   // R1245: yield the pool to an unpainted open (the 20 s tick and releaseBg retry)
     var pend = pendingCompletes();
@@ -473,14 +482,14 @@
     drainingC = true;
     var sid = pend[0].sid, at = pend[0].at || '';
     var url = cfg.WEBAPP_URL + '?action=complete&athlete=' + encodeURIComponent(athlete) +
-      '&token=' + encodeURIComponent(token) + '&session_id=' + encodeURIComponent(sid) + (at ? '&finished_at=' + encodeURIComponent(at) : '');
+      '&token=' + encodeURIComponent(token) + '&session_id=' + encodeURIComponent(sid) + (at ? '&finished_at=' + encodeURIComponent(at) : '') + (sid === feltSid ? '' : '&bg=queue');
     var forget = function () {
       COMPLETE_ACKED[sid] = 1;
       if (!savePendingCompletes(pendingCompletes().filter(function (x) { return x.sid !== sid; }))) reportError('complete_forget_failed', 'the phone could not rewrite its Finish queue after the server answered ' + sid + ' — held in memory, not re-sent (K4-FELT)', sid, '');
     };
     return fetchJson(url).then(function (d) {
       drainingC = false;
-      if (d && d.ok) { forget(); return drainCompletes(); }   // clear any others waiting
+      if (d && d.ok) { forget(); return drainCompletes(feltSid); }   // clear any others waiting
       if (d && d.error === 'stale_complete') {   // R1208: a set was logged after this Finish — the workout is still open; the Finish is dropped, never replayed
         forget(); reportError('complete_stale_dropped', 'a Finish from ' + at + ' was refused: a set landed after it (' + String(d.newer_set_at || '') + ') — dropped, the workout stays open (R1208)', sid, '');
         // R1248 (an athlete 2026-09-23 18:02 her clock): the drop was SILENT — she believed she finished and the workout

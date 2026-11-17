@@ -1336,6 +1336,8 @@ body #app { padding-bottom: 108px; }
 .p-clkrow-side { flex: none; min-width: 92px; font-weight: 800; color: var(--ink); }
 .p-clkrow-txt { flex: 1; min-width: 0; }
 .p-clkrow .p-clk-n { flex-basis: 100%; }
+/* F57/F58: the mint's two sentences in place of the clock rows (flag F57_PROFILE_SENTENCES) */
+.p-sum { margin: 0; padding: 4px 2px; font-size: var(--fs-15); color: var(--ink); line-height: 1.35; }
 .p-row-goal { font-size: var(--fs-13); font-weight: 600; color: var(--muted); margin-top: 2px; }
 .tellcoach { margin-top: 8px; }
 /* F52 — the Tell coach screen: three cards, the Move panel's own controls, no new theme values */

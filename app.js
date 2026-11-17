@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261115-d322painalt';   // SUNDAY 11-15 run 1 — D322: a pain skip offers the lift's pain alternate (A89 pass). Reversing line: '20261115-d350drag'
+  var APP_BUILD = '20261116-f52f53tell';   // MONDAY 11-16 run 2 — F52+F53: the nav's 💬 opens the Tell coach screen and Profile drops its block (A94+A96 pass). Reversing line: '20261115-d322painalt'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2611,6 +2611,10 @@
   }
   var COMPLEX_TIMER_LESSON = 'Start Complex runs the clock. Each set on it covers your lifts and your rest, and the beep starts the next set. ' +
     'If you finish early, ⏭ moves you on, and ⏮ goes back one set. A skipped lift makes that set shorter.';
+  // F45 on his A91 no (Phil 2026-11-15, verbatim: "end the lesson after 'starts the next set'. Cut 'If you finish early'
+  // and what follows."): the lesson F45 opens is his first two sentences; it rides F45_LESSON_OPEN, so the ⓘ's lesson on
+  // a phone today is unchanged until his pass on the re-ask. Reversing line: delete this var and its one reader.
+  var COMPLEX_TIMER_LESSON_A91 = 'Start Complex runs the clock. Each set on it covers your lifts and your rest, and the beep starts the next set.';
   function slotLabel(s) {                              // "WUp1" -> "Warm Up 1"; "Comp1" -> "Complex 1"
     s = String(s || '');
     var m = s.match(/^W\s*U\s*p?\s*(\d+)/i); if (m) return 'Warm Up ' + m[1];
@@ -5506,7 +5510,7 @@
       var timerLesson = null;
       if (F14_TIMER_INFO && isComp && (compSeen === 1 || F51_TILE_INFO)) {   // F51: every complex
         var infoBtn = el('button', 'p-info', 'ⓘ'); infoBtn.type = 'button'; infoBtn.title = 'How the complex timer works';
-        timerLesson = el('div', 'p-clk-n slot-lesson', COMPLEX_TIMER_LESSON); timerLesson.hidden = !(F45_LESSON_OPEN && compSeen === 1 && !timerTaught());   // F45 opens Complex 1's alone
+        timerLesson = el('div', 'p-clk-n slot-lesson', F45_LESSON_OPEN ? COMPLEX_TIMER_LESSON_A91 : COMPLEX_TIMER_LESSON); timerLesson.hidden = !(F45_LESSON_OPEN && compSeen === 1 && !timerTaught());   // F45 opens Complex 1's alone
         infoBtn.addEventListener('click', function (ev) { ev.stopPropagation(); timerLesson.hidden = !timerLesson.hidden; });
         timerLesson.addEventListener('click', function () { timerLesson.hidden = true; });
         head.classList.add('has-info'); head.appendChild(infoBtn);
@@ -6435,7 +6439,7 @@
   // call the same doors Profile's Tell coach calls (report kind=injury, the judged lifehappens rebuild, report
   // kind=note with the screen it was opened from), so the coach's side reads them exactly as before. Profile's block
   // stays until F53 removes it. Held off every phone until his pass on the shot (REFUSALS row 27). Reversing line: false
-  var F52_TELL_SCREEN = false;
+  var F52_TELL_SCREEN = true;   // F52: SHIPPED on his A94 pass (11-15); reversing line: false
   // D353 (Phil 2026-11-15, verbatim: "A94 'Fewer days this week' rebuilds the week at the tap, not at the next mint. The kid
   // may train that day."): the tap sends at_mint and the server records the word; tonight's mint rebuilds the week, so the
   // screen says tonight and today's workout stays. Held off every phone until his pass on the shot (REFUSALS row 27).
@@ -6449,7 +6453,13 @@
   // F52's screen, which carries both. Read only together with F52_TELL_SCREEN, so a pass on this alone never leaves
   // a kid with no way to report pain or fewer days. Held off every phone until his pass on the shot (REFUSALS row 27).
   // Reversing line: false
-  var F53_PROFILE_NO_TELL = false;
+  var F53_PROFILE_NO_TELL = true;   // F53: SHIPPED on his A96 pass (11-15), with F52; reversing line: false
+  // F57/F58 (Phil 2026-11-16, verbatim: "F13 direction: two sentences on Profile in place of the round and level tiles, written at
+  // the mint." · "F13 sentence 1: this round's top need in plain words. Sentence 2: the next pass, as lift, load and reps."): the
+  // Leveling clock rows give way to the two sentences the last mint wrote (`sentences` on the profile payload, _f57Write_). No
+  // sentences on the payload (no mint since the engine half, or no Token cell) = the clock rows, exactly as before. Held off every
+  // phone until his pass on the shot (REFUSALS row 27). Reversing line: false
+  var F57_PROFILE_SENTENCES = false;
   function tellCoachFrom() {
     var scr = 'app';
     try { var onB = NAV && NAV.querySelector('.nav-b.on'); if (onB && onB.dataset.k) scr = { cal: 'calendar', wo: 'workout', prof: 'profile' }[onB.dataset.k] || onB.dataset.k; } catch (e) {}
@@ -8001,9 +8011,17 @@
       }
       return row;
     }
+    var sum57 = payload && payload.sentences;
+    if (F57_PROFILE_SENTENCES && sum57 && sum57.s1 && sum57.s2) {   // F57/F58: two sentences in place of the clock rows
+      var smSec = el('section', 'p-block sum');
+      smSec.appendChild(el('p', 'p-sum', String(sum57.s1)));
+      smSec.appendChild(el('p', 'p-sum', String(sum57.s2)));
+      app.appendChild(smSec);
+    } else {
     var ckSec = el('section', 'p-block clocks');
     (clocks || []).forEach(function (c) { var r = clockRowFor(c); if (r) ckSec.appendChild(r); });
     if (ckSec.children.length) app.appendChild(ckSec);
+    }
     // F24 (Phil 2026-11-07): "Profile lists the athlete's defaults with a remove button." Behind DEFAULT_ALT_ON: the block draws
     // only when the athlete has a default; Remove blanks the cell on the athlete's own tap, and the lift serves as itself from the
     // next workout opened. A failed remove keeps the row and says so.

@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261117-f45lesson';   // TUESDAY 11-17 run 2 — F45 on his A102 pass: the timer lesson opens itself under Complex 1 until the first Start Complex. Reversing line: '20261116-k4queuebg'
+  var APP_BUILD = '20261118-d353nomint';   // WEDNESDAY 11-18 run 1 — D353: A99's refused at-mint copy leaves the bundle; his A109 question rides behind D353_MORE_DAYS=false. Reversing line: '20261117-f45lesson'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2583,23 +2583,15 @@
   // alone. The tile's lesson is read off the tile itself when it opens — a sentence per control the tile actually drew
   // (clip, number boxes, ✓ / ▶ / Start, Swap, History, Skip) — so it can never name a button the kid does not see.
   // Held off every phone until his pass on the shot (REFUSALS row 27). Reversing line: false
+  // HIS A93 NO (Phil 2026-11-15, verbatim: "too many words. Each tile is already labeled."): the lesson says only what the
+  // tile does NOT label — the name that opens the clip, and the ▶ — and a tile whose every control carries its own word
+  // (Swap, History, Skip, Log Set, LB, REPS) gets no ⓘ. Reversing line: the 11-14 tileLesson in git (731e7a1ac).
   var F51_TILE_INFO = false;
   var SHOWN_INFO = {};   // per-render, like SHOWN_NOTE: one ⓘ per exercise, on its first tile
-  function tileLesson(row) {
-    // a control counts only if the kid can SEE it: a lift's ✓ is drawn but hidden where its round logs with Log Set
-    var seen = function (n) { return !!(n && n.getClientRects().length); };
-    var out = [], q = function (s) { var n = row.querySelector(s); return seen(n) ? n : null; };
-    if (q('.l1 .ex-name.has-video')) out.push('Tap the name to watch how it’s done.');
-    if (q('.stepper')) out.push('Use − and + (or tap the number) to enter what you actually did.');
-    var ck = q('.l1 .check'), w = ck ? String(ck.textContent || '').trim() : '';
-    var rd = row.closest('.round'), rlog = rd ? rd.querySelector('.roundlog') : null;
-    if (w === '▶') out.push('Tap ▶ to start the timer for this set.');
-    else if (/^Start/.test(w)) out.push('Tap ' + w + ' to start the clock.');
-    else if (ck) out.push('Tap ✓ when the set is done to log it.');
-    else if (seen(rlog) && !row._isDur) out.push('Tap ' + String(rlog.textContent || 'Log Set').trim() + ' when the set is done.');
-    if (q('.l1 .swapbtn')) out.push('⇄ Swap trades it for another exercise.');
-    if (q('.l1 .histbtn')) out.push('🕐 History shows what you did last time.');
-    if (q('.l1 .skipbtn')) out.push('⏭ Skip skips this set.');
+  function tileLesson(row) {   // '' = every control on the tile carries its own word
+    var out = [], ck = row.querySelector('.l1 .check');
+    if (row.querySelector('.l1 .ex-name.has-video')) out.push('Tap the name for the video.');
+    if (ck && /^▶/.test(String(ck.textContent || '').trim())) out.push('▶ starts the timer.');
     return out.join(' ');
   }
   function tileInfo(row, ex) {
@@ -2607,6 +2599,7 @@
     if (!F51_TILE_INFO || SHOWN_INFO[key]) return;
     var nm = row.querySelector('.l1 .ex-name'); if (!nm) return;
     SHOWN_INFO[key] = true;
+    if (!tileLesson(row)) return;
     var b = el('button', 'p-info tile-info', 'ⓘ'); b.type = 'button'; b.title = 'How this tile works';
     var lesson = el('div', 'p-clk-n tile-lesson'); lesson.hidden = true;
     b.addEventListener('click', function (ev) {
@@ -6449,14 +6442,15 @@
   // kind=note with the screen it was opened from), so the coach's side reads them exactly as before. Profile's block
   // stays until F53 removes it. Held off every phone until his pass on the shot (REFUSALS row 27). Reversing line: false
   var F52_TELL_SCREEN = true;   // F52: SHIPPED on his A94 pass (11-15); reversing line: false
-  // D353 (Phil 2026-11-15, verbatim: "A94 'Fewer days this week' rebuilds the week at the tap, not at the next mint. The kid
-  // may train that day."): the tap sends at_mint and the server records the word; tonight's mint rebuilds the week, so the
-  // screen says tonight and today's workout stays. Held off every phone until his pass on the shot (REFUSALS row 27).
-  // Reversing line: D353_AT_MINT = false.
-  var D353_AT_MINT = false;
-  function daysAsk(nd) { return D353_AT_MINT ? 'Train ' + nd + ' day(s) this week? Your week is rebuilt tonight. Today’s workout stays as it is, and workouts you already finished don’t change.'
+  // D353 (A99 no, Phil 2026-11-16, verbatim: "rebuild at the tap, not tonight. Ask \"How many more days can you train this
+  // week?\" and count what is left."): the question asks for the days LEFT, the tap sends more_days, and the server adds
+  // them to the days already done and rebuilds at the tap (today counts as one of them). Held off every phone until his
+  // pass on the shot (REFUSALS row 27). Reversing line: D353_MORE_DAYS = false.
+  var D353_MORE_DAYS = false;
+  var DAYS_Q = D353_MORE_DAYS ? 'How many more days can you train this week?' : 'How many days can you train this week?';
+  function daysAsk(nd) { return D353_MORE_DAYS ? 'Train ' + nd + ' more day(s) this week? This rebuilds the workouts you have left over those days. Workouts you already finished don’t change.'
     : 'Train ' + nd + ' day(s) this week? This rebuilds your remaining sessions. Workouts you already finished don’t change.'; }
-  function daysBody(athlete, token, nd) { var b = { action: 'lifehappens', athlete: athlete, token: token, new_days: nd }; if (D353_AT_MINT) b.at_mint = true; return JSON.stringify(b); }
+  function daysBody(athlete, token, nd) { var b = { action: 'lifehappens', athlete: athlete, token: token }; b[D353_MORE_DAYS ? 'more_days' : 'new_days'] = nd; return JSON.stringify(b); }
   // F53 (Phil 2026-11-14, verbatim: "After that ships, remove the Tell coach block from Profile. One home: the nav
   // icon."): Profile drops its Tell coach block (New pain or injury, Fewer days this week) once the nav's 💬 opens
   // F52's screen, which carries both. Read only together with F52_TELL_SCREEN, so a pass on this alone never leaves
@@ -6516,7 +6510,7 @@
 
     // FEWER DAYS: a tap on a number asks once, on the screen, in the words the Profile confirm carried; the
     // rebuild is the same judged POST, and a refused rebuild changes nothing and says so.
-    var dc = card('📅 Fewer days this week', 'How many days can you train this week? 0 ends this round early.');
+    var dc = card('📅 Fewer days this week', DAYS_Q + ' 0 ends this round early.');
     var picks = el('div', 'move-any move-quick tc-days'); dc.appendChild(picks);
     var ask = el('div', 'tc-ask'); ask.hidden = true; dc.appendChild(ask);
     var dst = status(dc);
@@ -6530,20 +6524,19 @@
         ask.appendChild(el('p', 'tc-sub', daysAsk(nd)));
         var row = el('div', 'move-any');
         var no = el('button', 'move-opt', 'Cancel'); no.type = 'button';
-        var yes = el('button', 'move-go', D353_AT_MINT ? 'Rebuild tonight' : 'Rebuild my week'); yes.type = 'button';
+        var yes = el('button', 'move-go', 'Rebuild my week'); yes.type = 'button';
         no.addEventListener('click', function () { chosen = null; ask.hidden = true; Array.prototype.forEach.call(picks.children, function (x) { x.classList.remove('on'); }); });
         yes.addEventListener('click', function () {
           if (chosen == null) return;
           var n = chosen; yes.disabled = true; no.disabled = true;
-          dst.textContent = D353_AT_MINT ? 'Sending…' : 'Rebuilding your week…';
-          if (!D353_AT_MINT) try { _writeEpochBump_('lifehappens'); } catch (eEb) {}   // R1636: this re-lays the week — no read opened before it may be joined after it
+          dst.textContent = 'Rebuilding your week…';
+          try { _writeEpochBump_('lifehappens'); } catch (eEb) {}   // R1636: this re-lays the week — no read opened before it may be joined after it
           fetch(cfg.WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: daysBody(athlete, token, n) })
             .then(function (r) { return r.json(); })
             .then(function (d) {
               ask.hidden = true;
-              if (d && d.ok && d.queued) { dst.textContent = 'Sent — your week is rebuilt tonight 👍'; }
-              else if (d && d.ok) { dst.textContent = 'Done — your week is updated 👍'; setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
+              if (d && d.ok) { dst.textContent = 'Done — your week is updated 👍'; setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
               else if (d && d.result && /REFUSED/.test(d.result)) {
                 dst.textContent = 'Could not rebuild — nothing was changed. Your coach has been told why.';
                 fetch(bpTagRead(cfg.WEBAPP_URL + '?action=report&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token) +
@@ -7943,19 +7936,18 @@
       // the server's judged path (done sessions untouched; a refused rebuild changes nothing and
       // says so). Same prompt idiom as the rest of Tell Coach; the confirm carries Phil's own
       // sheet wording.
-      var n = window.prompt('How many days can you train this week? (0 ends this round early)');
+      var n = window.prompt(DAYS_Q + ' (0 ends this round early)');
       if (n == null || n.trim() === '') return;
       var nd = parseInt(n.trim(), 10);
       if (isNaN(nd) || nd < 0 || nd > 6) { show('Enter a number of days, 0-6.'); return; }
       if (!window.confirm(daysAsk(nd))) return;
-      show(D353_AT_MINT ? 'Sending…' : 'Rebuilding your week…');
-      if (!D353_AT_MINT) try { _writeEpochBump_('lifehappens'); } catch (eEb3) {}   // R1636: this re-lays the week — no read opened before it may be joined after it
+      show('Rebuilding your week…');
+      try { _writeEpochBump_('lifehappens'); } catch (eEb3) {}   // R1636: this re-lays the week — no read opened before it may be joined after it
       fetch(cfg.WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: daysBody(athlete, token, nd) })
         .then(function (r) { return r.json(); })
         .then(function (d) {
-          if (d && d.ok && d.queued) { show('Sent — your week is rebuilt tonight 👍'); }
-          else if (d && d.ok) { show('Done — your week is updated 👍'); setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
+          if (d && d.ok) { show('Done — your week is updated 👍'); setTimeout(function () { try { location.reload(); } catch (e) {} }, 900); }
           else if (d && d.result && /REFUSED/.test(d.result)) { show('Could not rebuild — nothing was changed. Your coach has been told why.'); tcSend('days', 'asked for ' + nd + ' day(s); the rebuild refused', true); }
           else { show('Could not send — try again'); }
         })

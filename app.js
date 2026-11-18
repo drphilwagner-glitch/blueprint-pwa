@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261116-k4queuebg';   // MONDAY 11-16 run 2 — K4-FELT: a Finish the queue re-sends says bg=queue (no pixel). Reversing line: '20261116-f52f53tell'
+  var APP_BUILD = '20261117-f45lesson';   // TUESDAY 11-17 run 2 — F45 on his A102 pass: the timer lesson opens itself under Complex 1 until the first Start Complex. Reversing line: '20261116-k4queuebg'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2575,7 +2575,7 @@
   // F45 (Phil 2026-11-14: "F14 adds June's week 1: she did not understand the timer, skipped it, and finished in 30 min."):
   // the lesson starts OPEN on Complex 1 until this athlete has tapped Start Complex once on this phone; after that it is
   // F14's closed ⓘ again. Only a Start Complex tap teaches it: closing the lesson unread leaves it open next session.
-  var F45_LESSON_OPEN = false;   // reversing line: false
+  var F45_LESSON_OPEN = true;   // A102 pass (Phil 2026-11-17). Reversing line: false
   function timerTaught() { try { return localStorage.getItem('bp_timer_taught_' + athlete) === '1'; } catch (e) { return true; } }
   function timerTaughtSet() { try { localStorage.setItem('bp_timer_taught_' + athlete, '1'); } catch (e) {} }
   // F51 (Phil 2026-11-14, verbatim: "F14 is a build, not a design: an i icon on every tile and on the complex timer. Send
@@ -8031,14 +8031,6 @@
     (clocks || []).forEach(function (c) { var r = clockRowFor(c); if (r) ckSec.appendChild(r); });
     if (ckSec.children.length) app.appendChild(ckSec);
     }
-    // F24 (Phil 2026-11-07): "Profile lists the athlete's defaults with a remove button." Behind DEFAULT_ALT_ON: the block draws
-    // only when the athlete has a default; Remove blanks the cell on the athlete's own tap, and the lift serves as itself from the
-    // next workout opened. A failed remove keeps the row and says so.
-    if (DEFAULT_ALT_ON) {
-      var dfSec = el('section', 'p-block defaults'); dfSec.hidden = true; app.appendChild(dfSec);
-      fetchJson(readUrl() + '?action=defaults&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
-        .then(function (d) { if (d && d.ok && dfSec.parentNode) defaultsBlock(dfSec, d.defaults || []); }).catch(function () {});
-    }
     // R1000 §6: the REGEN block under Levels — date · total · S N T D · LOW, last 10 rows + the 4-week mean (logged rows only)
     if (REGEN_ON) {
       var regenSec = regenProfileBlock([], null); app.appendChild(regenSec);
@@ -8087,6 +8079,16 @@
         togg.textContent = wrap2.hidden ? 'Other work (' + rest.length + ') ▾' : 'Other work (' + rest.length + ') ▴';
       });
       app.appendChild(togg); app.appendChild(wrap2);
+    }
+
+    // F24 (Phil 2026-11-07): "Profile lists the athlete's defaults with a remove button." Behind DEFAULT_ALT_ON: the block draws
+    // only when the athlete has a default; Remove blanks the cell on the athlete's own tap, and the lift serves as itself from the
+    // next workout opened. A failed remove keeps the row and says so. A104 no (Phil 2026-11-17): "Put Your defaults at the very
+    // bottom of Profile, under the levels." — so it sits after Other work, above only the build footer.
+    if (DEFAULT_ALT_ON) {
+      var dfSec = el('section', 'p-block defaults'); dfSec.hidden = true; app.appendChild(dfSec);
+      fetchJson(readUrl() + '?action=defaults&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
+        .then(function (d) { if (d && d.ok && dfSec.parentNode) defaultsBlock(dfSec, d.defaults || []); }).catch(function () {});
     }
 
     // R607: the build this device runs, one muted line — the debug footer survives the rebuild.

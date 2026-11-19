@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261119-d435clock';   // THURSDAY 11-19 run 1 — D435: the Finish watchdog's completion_slow row carries ms= and hidden= and says "no wait felt" when the page was hidden. Reversing line: '20261118-d353nomint'
+  var APP_BUILD = '20261119-d353moredays';   // THURSDAY 11-19 run 1 — D353 on his A109 pass: Fewer days this week asks how many MORE days and rebuilds at the tap. Reversing line: '20261119-d435clock'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -6452,7 +6452,7 @@
   // week?\" and count what is left."): the question asks for the days LEFT, the tap sends more_days, and the server adds
   // them to the days already done and rebuilds at the tap (today counts as one of them). Held off every phone until his
   // pass on the shot (REFUSALS row 27). Reversing line: D353_MORE_DAYS = false.
-  var D353_MORE_DAYS = false;
+  var D353_MORE_DAYS = true;   // D353: SHIPPED on his A109 pass (11-19); reversing line: false
   var DAYS_Q = D353_MORE_DAYS ? 'How many more days can you train this week?' : 'How many days can you train this week?';
   function daysAsk(nd) { return D353_MORE_DAYS ? 'Train ' + nd + ' more day(s) this week? This rebuilds the workouts you have left over those days. Workouts you already finished don’t change.'
     : 'Train ' + nd + ' day(s) this week? This rebuilds your remaining sessions. Workouts you already finished don’t change.'; }

@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261118-d353nomint';   // WEDNESDAY 11-18 run 1 — D353: A99's refused at-mint copy leaves the bundle; his A109 question rides behind D353_MORE_DAYS=false. Reversing line: '20261117-f45lesson'
+  var APP_BUILD = '20261119-d435clock';   // THURSDAY 11-19 run 1 — D435: the Finish watchdog's completion_slow row carries ms= and hidden= and says "no wait felt" when the page was hidden. Reversing line: '20261118-d353nomint'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -856,6 +856,7 @@
       // R631 test seam: the localhost guard below rightly keeps harness noise out of ErrorLog, but
       // j34 must still SEE that a failure reported itself — record the attempt where a journey can read it.
       try { (window.__bpErrLog = window.__bpErrLog || []).push(kind); } catch (eSeam) {}
+      try { (window.__bpErrRows = window.__bpErrRows || []).push({ kind: kind, message: String(message || ''), extra: String(extra || '') }); } catch (eSeam2) {}   // D435: j38 reads the clock a row carries
       if (!cfg.WEBAPP_URL || cfg.WEBAPP_URL.indexOf('REPLACE_') === 0) return;
       // A localhost app is NEVER a kid's phone (errorhygiene, 2026-08-18): the QA harness renders
       // real athletes' boards at 127.0.0.1 for screenshots, and every harness reload was landing in
@@ -1108,18 +1109,34 @@
   // the precedent) and it logs 5.
   var NUTRITION_CARD_ON = false;
   var NUTRI_COUNTS = [['0', 0], ['1', 1], ['2', 2], ['3', 3], ['4', 4], ['5+', 5]];
+  // A106 no (Phil, Decisions tab 2026-11-18 13:31, verbatim): "I said once a week, not once a day. Fruit and veg still lack
+  // "1 fist = 1 serving". Take the ambulance off." ONCE A WEEK: the card leads the pain tap on the first open with no Regen row
+  // today whose phone holds no nutrition answer from the last 7 days ('bp_nutri_<athlete>' = the date of the last answer, written
+  // when Next hands the three numbers on). Every other day the pain tap he passed opens alone, exactly as shipped, Skip and all.
+  // A phone that never answered (or was wiped) asks once. Reversing line: nutriDue returns true.
+  var NUTRI_EVERY_DAYS = 7;
+  function nutriKey() { return 'bp_nutri_' + athlete; }
+  function nutriDue(d) {
+    var last = null; try { last = localStorage.getItem(nutriKey()); } catch (e) {}
+    if (!last || !/^\d{4}-\d{2}-\d{2}$/.test(last)) return true;
+    return (Date.parse(d + 'T00:00:00Z') - Date.parse(last + 'T00:00:00Z')) / 86400000 >= NUTRI_EVERY_DAYS;
+  }
+  // "Take the ambulance off": the pain tap's head is the word PAIN alone. GUARD: held off every phone until his A-id answers
+  // (REFUSALS row 27). BP_FLAGS=PAIN_NO_ICON_ON=true arms it for qa/journeys/f22-nutrition-shot.mjs. Reversing line: false.
+  var PAIN_NO_ICON_ON = false;
   function nutritionCard(d, st) {
     var wrap = el('div', 'regen-wrap nutri'), card = el('div', 'regen-card');
     card.appendChild(el('div', 'regen-title', 'YESTERDAY'));
     card.appendChild(el('div', 'regen-sub', 'Coach sees this.'));
     var s = el('div', 'regen-q'), h = el('div', 'regen-qh');
     h.appendChild(el('span', 'regen-qi', '🥗')); h.appendChild(el('span', 'regen-qh-t', 'FUEL')); s.appendChild(h);
-    var items = [['water', 'Water (bottles)'], ['protein', 'Protein (fists)'], ['plants', 'Fruit & veg (fists)']], vals = {};
+    var items = [['water', 'Water (bottles)'], ['protein', 'Protein (fists)'], ['plants', 'Fruit & veg (fists)', '1 fist = 1 serving']], vals = {};
     var next = el('button', 'regen-start nutri-next', 'Next'); next.type = 'button'; next.disabled = true;
     function sync() { var all = items.every(function (it) { return vals[it[0]] != null; }); next.disabled = !all; next.classList.toggle('ready', all); }
     items.forEach(function (it) {
       var r = el('div', 'regen-row nutri-row'), chips = [];
       s.appendChild(el('div', 'regen-qt nutri-name', it[1]));
+      if (it[2]) s.appendChild(el('div', 'nutri-unit', it[2]));   // A106 no: "Fruit and veg still lack "1 fist = 1 serving""
       NUTRI_COUNTS.forEach(function (o) {
         var b = el('button', 'regen-chip one', o[0]); b.type = 'button';
         b.addEventListener('click', function () { chips.forEach(function (x) { x.classList.toggle('on', x === b); }); vals[it[0]] = o[1]; sync(); });
@@ -1130,7 +1147,8 @@
     card.appendChild(s);
     next.addEventListener('click', function () {
       if (next.disabled) return;
-      var pain = regenOneTapCard(d, st, { water: vals.water, protein: vals.protein, plants: vals.plants });
+      try { localStorage.setItem(nutriKey(), d); } catch (e) {}   // A106 no: the week runs from this answer
+      var pain =regenOneTapCard(d, st, { water: vals.water, protein: vals.protein, plants: vals.plants });
       wrap.parentNode && wrap.parentNode.replaceChild(pain, wrap);
     });
     var foot = el('div', 'regen-foot'), btns = el('div', 'regen-btns');
@@ -1141,7 +1159,8 @@
     var stage = (st && st.stage) || 1;
     var wrap = el('div', 'regen-wrap onetap'), card = el('div', 'regen-card');
     var row = el('div', 'regen-row'), s = el('div', 'regen-q'), h = el('div', 'regen-qh');
-    h.appendChild(el('span', 'regen-qi', '🚑')); h.appendChild(el('span', 'regen-qh-t', 'PAIN')); s.appendChild(h);
+    if (!PAIN_NO_ICON_ON) h.appendChild(el('span', 'regen-qi', '🚑'));
+    h.appendChild(el('span', 'regen-qh-t', 'PAIN')); s.appendChild(h);
     s.appendChild(el('div', 'regen-qt', 'Anything hurt right now? 0 = nothing. Coach sees this.'));
     function done(pain, where) {
       if (pain == null) regenQueue(d, null, true);
@@ -1175,7 +1194,7 @@
   }
   // the card — his copy verbatim for the questions present; per-athlete numbers from the server's targets (the BW cell, live)
   function regenCard(d, st) {
-    if (NUTRITION_CARD_ON) return nutritionCard(d, st);
+    if (NUTRITION_CARD_ON && nutriDue(d)) return nutritionCard(d, st);
     if (REGEN_ONETAP_ON) return regenOneTapCard(d, st);
     var targets = st && st.targets, q9 = (st && st.questions) || { sleep: true, fuel: true, tissue: true, same: true, reset: true }, stage = (st && st.stage) || 1;
     var wrap = el('div', 'regen-wrap');
@@ -2579,38 +2598,11 @@
   function timerTaught() { try { return localStorage.getItem('bp_timer_taught_' + athlete) === '1'; } catch (e) { return true; } }
   function timerTaughtSet() { try { localStorage.setItem('bp_timer_taught_' + athlete, '1'); } catch (e) {} }
   // F51 (Phil 2026-11-14, verbatim: "F14 is a build, not a design: an i icon on every tile and on the complex timer. Send
-  // one screenshot."): an ⓘ beside the name on each exercise's first tile, and F14's ⓘ on EVERY complex, not Complex 1
-  // alone. The tile's lesson is read off the tile itself when it opens — a sentence per control the tile actually drew
-  // (clip, number boxes, ✓ / ▶ / Start, Swap, History, Skip) — so it can never name a button the kid does not see.
-  // Held off every phone until his pass on the shot (REFUSALS row 27). Reversing line: false
-  // HIS A93 NO (Phil 2026-11-15, verbatim: "too many words. Each tile is already labeled."): the lesson says only what the
-  // tile does NOT label — the name that opens the clip, and the ▶ — and a tile whose every control carries its own word
-  // (Swap, History, Skip, Log Set, LB, REPS) gets no ⓘ. Reversing line: the 11-14 tileLesson in git (731e7a1ac).
-  var F51_TILE_INFO = false;
-  var SHOWN_INFO = {};   // per-render, like SHOWN_NOTE: one ⓘ per exercise, on its first tile
-  function tileLesson(row) {   // '' = every control on the tile carries its own word
-    var out = [], ck = row.querySelector('.l1 .check');
-    if (row.querySelector('.l1 .ex-name.has-video')) out.push('Tap the name for the video.');
-    if (ck && /^▶/.test(String(ck.textContent || '').trim())) out.push('▶ starts the timer.');
-    return out.join(' ');
-  }
-  function tileInfo(row, ex) {
-    var key = (ex._alt_of || ex).exercise;
-    if (!F51_TILE_INFO || SHOWN_INFO[key]) return;
-    var nm = row.querySelector('.l1 .ex-name'); if (!nm) return;
-    SHOWN_INFO[key] = true;
-    if (!tileLesson(row)) return;
-    var b = el('button', 'p-info tile-info', 'ⓘ'); b.type = 'button'; b.title = 'How this tile works';
-    var lesson = el('div', 'p-clk-n tile-lesson'); lesson.hidden = true;
-    b.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      if (lesson.hidden) lesson.textContent = tileLesson(row);
-      lesson.hidden = !lesson.hidden;
-    });
-    lesson.addEventListener('click', function () { lesson.hidden = true; });
-    nm.parentNode.insertBefore(b, nm.nextSibling);
-    row.appendChild(lesson);
-  }
+  // one screenshot."): F14's ⓘ on EVERY complex, not Complex 1 alone. HIS A108 NO (Phil 2026-11-18, verbatim: "remove the
+  // tile info icon. It sits too far from the timer start to help."): the per-tile ⓘ and its lesson are gone; what is left
+  // is the complex ⓘ, which sits beside its own Start Complex. Held off every phone until his pass on the shot (REFUSALS
+  // row 27). Reversing line: false (the tile ⓘ of A108 is in git at 2b4403c19).
+  var F51_EVERY_COMPLEX_INFO = false;
   var COMPLEX_TIMER_LESSON = 'Start Complex runs the clock. Each set on it covers your lifts and your rest, and the beep starts the next set. ' +
     'If you finish early, ⏭ moves you on, and ⏮ goes back one set. A skipped lift makes that set shorter.';
   // F45 on his A91 no (Phil 2026-11-15, verbatim: "end the lesson after 'starts the next set'. Cut 'If you finish early'
@@ -4310,7 +4302,6 @@
     });
     l1.appendChild(check);   // same as a lifting row: the action rides with the name
     regRow({ row: row, slot: slot, ex: ex, t: t, timer: timer, isASide: false });   // so a swap reaches it (QA-05)
-    tileInfo(row, ex);   // F51
     return row;
   }
 
@@ -4756,7 +4747,6 @@
     // already refuse to count it.
     if (wasLogged && !skReason) { row.classList.add('done'); check.classList.add('done'); check.textContent = '✓'; }   // show as logged; tap to edit
     regRow({ row: row, slot: slot, ex: ex, t: t, timer: timer, isASide: isASide });   // so a swap can reach every set (QA-05)
-    tileInfo(row, ex);   // F51
     return row;
   }
 
@@ -5369,7 +5359,7 @@
     // R1208 (Phil 2026-09-21 A1: "The timer dies at completion, always."): the sid-matched early return of clearTimerBar kept his complex
     // timer counting on a workout the server had just marked done (09-20 23:1x). A done screen has no timer — stopped unconditionally.
     clearTimerBar();
-    SESSION = s; ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {}; SHOWN_INFO = {};
+    SESSION = s; ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};
     renderNav('wo');
     meta.textContent = (s.from_rows ? 'Completed' : woTitle(s)) + ' · ' + s.date;
     if (meta.parentNode) Array.prototype.forEach.call(meta.parentNode.querySelectorAll('.hdr-dur'), function (n) { n.remove(); });
@@ -5421,7 +5411,7 @@
     if (isDoneSession(s)) return renderDone(s);
     clearTimerBar(s && (s.session_id || s.date));   // same session re-rendering keeps its live timer
     SESSION = s;
-    ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {}; SHOWN_INFO = {};   // fresh registries per session render
+    ROW_REG = {}; LEG_REG = {}; SHOWN_NOTE = {};   // fresh registries per session render
     renderNav('wo');
     // PREFETCH the swap search library (and warm the backend) the instant a workout opens, so tapping
     // Swap and searching is immediate instead of the ~10s cold wait an athlete hit mid-set (Phil, 2026-07-27).
@@ -5510,7 +5500,7 @@
       // F14 (A63 pass, Phil 2026-11-04): the Profile's own ⓘ beside Complex 1 opens the timer lesson and a tap closes it;
       // nothing moves for a kid who never taps it. Complex 1 alone, the one he passed.
       var timerLesson = null;
-      if (F14_TIMER_INFO && isComp && (compSeen === 1 || F51_TILE_INFO)) {   // F51: every complex
+      if (F14_TIMER_INFO && isComp && (compSeen === 1 || F51_EVERY_COMPLEX_INFO)) {   // F51: every complex
         var infoBtn = el('button', 'p-info', 'ⓘ'); infoBtn.type = 'button'; infoBtn.title = 'How the complex timer works';
         timerLesson = el('div', 'p-clk-n slot-lesson', F45_LESSON_OPEN ? COMPLEX_TIMER_LESSON_A91 : COMPLEX_TIMER_LESSON); timerLesson.hidden = !(F45_LESSON_OPEN && compSeen === 1 && !timerTaught());   // F45 opens Complex 1's alone
         infoBtn.addEventListener('click', function (ev) { ev.stopPropagation(); timerLesson.hidden = !timerLesson.hidden; });
@@ -5729,12 +5719,27 @@
       // message, so the report can grade it against the cell) or never lands at all (the 20-30s
       // eyewitness class). Reports fire even if the athlete navigated away: leaving a slow screen
       // IS the signal.
+      // D435 (Phil 2026-11-19, P0: June's "finishing the workout" summary "10 s+ late or missing", in the letter 11-17 and
+      // 11-19) — THE WATCHDOG SAYS HOW LONG THE SCREEN WAS LOOKED AT. Both of June's reports were written by this timer
+      // with no clock on them: 11-18 she tapped Finish 22:32:28Z and the page went hidden 4.2 s later (her complete row:
+      // hidden=1551761 of ms=1555971); iOS froze the 20 s timer in her pocket and it fired 26 min later on her return.
+      // 11-16 the same, 15 min later. K4 read each as "untimed" and the letter printed it as a summary she waited on.
+      // The row now carries `ms=` (the wall from the tap) and `hidden=` (the page's hidden ms inside it), the pair K4
+      // already grades for api_slow (K4_FELT_LAW: hidden >= half the wall = background), and the message says
+      // "no wait felt" in that case. Nothing about when the summary is fetched, painted or reported changes.
+      // Reversing line: drop sumH0 and the two `_sumClock_()` extras, and restore the two bare messages.
       var COMPLETION_SLOW_MS = 10000, COMPLETION_WATCHDOG_MS = 20000;
-      var sumT0 = Date.now(), sumSettled = false, sumReported = false;
+      var sumT0 = Date.now(), sumH0 = _hiddenMs(), sumSettled = false, sumReported = false;
+      var _sumClock_ = function () {
+        var ms = Math.max(0, Date.now() - sumT0), hid = Math.max(0, Math.min(ms, _hiddenMs() - sumH0));
+        return { ms: ms, hid: hid, extra: 'ms=' + ms + ' hidden=' + hid,
+                 said: hid >= ms / 2 ? ', the app was in the background for ' + (Math.round(hid / 100) / 10) + 's of it — no wait felt' : '' };
+      };
       setTimeout(function () {
         if (sumSettled || sumReported) return;
         sumReported = true;
-        reportError('completion_slow', 'summary still pending after ' + COMPLETION_WATCHDOG_MS + 'ms', finSid, '');   // R1330: finSid, never SESSION — the athlete may have left
+        var ck = _sumClock_();
+        reportError('completion_slow', 'summary still pending after ' + COMPLETION_WATCHDOG_MS + 'ms' + ck.said, finSid, ck.extra);   // R1330: finSid, never SESSION — the athlete may have left
       }, COMPLETION_WATCHDOG_MS);
       setTimeout(function () {
         fetchJson(url).then(function (d) {
@@ -5742,7 +5747,8 @@
           var sumMs = Date.now() - sumT0;
           if (sumMs > COMPLETION_SLOW_MS && !sumReported) {
             sumReported = true;
-            reportError('completion_slow', 'summary landed after ' + (Math.round(sumMs / 100) / 10) + 's', finSid, '');   // R1330: finSid, never SESSION
+            var ck2 = _sumClock_();
+            reportError('completion_slow', 'summary landed after ' + (Math.round(sumMs / 100) / 10) + 's' + ck2.said, finSid, ck2.extra);   // R1330: finSid, never SESSION
           }
           if (!isCurrent(sumScreen)) return;             // the athlete moved on; leave their screen alone
           if (d && d.ok) renderSummary(n, d);            // any failure: the local completion stands

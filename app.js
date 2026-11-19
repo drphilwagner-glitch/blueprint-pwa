@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261119-d353moredays';   // THURSDAY 11-19 run 1 — D353 on his A109 pass: Fewer days this week asks how many MORE days and rebuilds at the tap. Reversing line: '20261119-d435clock'
+  var APP_BUILD = '20261119-d395rungroot';   // THURSDAY 11-19 run 1 — D395: a ladder rung picked from the swap menu logs under its lift (Grace's Front Rack BSS orphan row). Reversing line: '20261119-d353moredays'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1124,13 +1124,19 @@
   // "Take the ambulance off": the pain tap's head is the word PAIN alone. GUARD: held off every phone until his A-id answers
   // (REFUSALS row 27). BP_FLAGS=PAIN_NO_ICON_ON=true arms it for qa/journeys/f22-nutrition-shot.mjs. Reversing line: false.
   var PAIN_NO_ICON_ON = false;
+  // D388 (Phil 2026-11-17, verbatim): "A103 counts carry no units. Bottle = 24 or 32 oz, 1 fist protein = 25 g, 1 fist fruit or
+  // veg = 1 serving." D424 (2026-11-19, verbatim): "A110 add "1 fist = 25 g" on protein, and the bottle's size in small text. Use
+  // 32 oz unless I say otherwise." So Water and Protein carry the same grey line Fruit & veg already does. 25 is the engine's
+  // REGEN_PROT_G_PER_FIST; the bottle has no cell, so 32 is his word here. GUARD: held off every phone until his A-id answers
+  // (REFUSALS row 27). BP_FLAGS=NUTRI_UNITS_ON=true arms it for qa/journeys/f22-nutrition-shot.mjs. Reversing line: false.
+  var NUTRI_UNITS_ON = false;
   function nutritionCard(d, st) {
     var wrap = el('div', 'regen-wrap nutri'), card = el('div', 'regen-card');
     card.appendChild(el('div', 'regen-title', 'YESTERDAY'));
     card.appendChild(el('div', 'regen-sub', 'Coach sees this.'));
     var s = el('div', 'regen-q'), h = el('div', 'regen-qh');
     h.appendChild(el('span', 'regen-qi', '🥗')); h.appendChild(el('span', 'regen-qh-t', 'FUEL')); s.appendChild(h);
-    var items = [['water', 'Water (bottles)'], ['protein', 'Protein (fists)'], ['plants', 'Fruit & veg (fists)', '1 fist = 1 serving']], vals = {};
+    var items = [['water', 'Water (bottles)', NUTRI_UNITS_ON ? '1 bottle = 32 oz' : ''], ['protein', 'Protein (fists)', NUTRI_UNITS_ON ? '1 fist = 25 g' : ''], ['plants', 'Fruit & veg (fists)', '1 fist = 1 serving']], vals = {};
     var next = el('button', 'regen-start nutri-next', 'Next'); next.type = 'button'; next.disabled = true;
     function sync() { var all = items.every(function (it) { return vals[it[0]] != null; }); next.disabled = !all; next.classList.toggle('ready', all); }
     items.forEach(function (it) {
@@ -3184,6 +3190,7 @@
   // are a clock, never a dose. A `same` alternate keeps the rung verbatim (his 08-05 law). HELD OFF
   // EVERY PHONE until he answers the A-id that carries the shot (rule 27). Reversing line: false.
   var R1742_ALT_MAXCONT_TILE = true;   // A57 pass (Phil, 2026-11-01); reversing line: false
+  var D395_RUNG_ROOT = true;   // D395: a ladder rung picked from the swap menu logs as its lift's variant, never its own exercise; reversing line: false
   // F1 PHASE 6 (R1716) — the client half of the Speed seat, held off every phone until Phil answers
   // A53. False: `exerciseRow`'s dispatch reads the word 'conditioning' exactly as it has, so not one
   // rendered row moves. True: a served `mode: 'speed'` row — which no board in the Workbook carries,
@@ -3237,7 +3244,11 @@
     // grain AND its sets from the parent's weekly-cap fold. The search payload carries `root` for
     // Exercise Videos variants only; alternates (genuinely different movements) have none and keep
     // their own name with the blank variant stamp (the D-P3 rule, unchanged for them).
-    var vRoot = String(a.root || '').trim();
+    // D395 (Phil 11-17..11-19, D396/D404/D421/D422/D428/D429): the swap menu's LADDER rungs (`reason: 'rung'`, R1306) are
+    // the lift's own variants and carried no `root`, so Grace's 11/16 Front Rack Bulgarian Split Squat (her 3.1 rung, picked
+    // from the menu) logged as its own exercise and stood on the Coach View as an orphan row. A rung's root is the lift it
+    // was offered on; a shown name stamped as the variant is read back by the engine (_stampResolve_, R1267).
+    var vRoot = String(a.root || ((D395_RUNG_ROOT && a.reason === 'rung') ? oEx.exercise : '') || '').trim();
     var isVariant = !!(vRoot && vRoot.toLowerCase() !== String(a.name || '').trim().toLowerCase());
     return {
       ex: { exercise: isVariant ? vRoot : a.name, display_name: a.name, athlete_name: a.name,

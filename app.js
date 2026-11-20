@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261119-d426lessontap';   // THURSDAY 11-19 run 1 — D426: the complex-timer lesson opens only on the athlete's ⓘ tap, never by itself. Reversing line: '20261119-d395rungroot'
+  var APP_BUILD = '20261119-f51everycomplex';   // THURSDAY 11-19 run 2 — F51 (A111 pass): F14's ⓘ beside every complex's Start Complex. Reversing line: '20261119-d426lessontap'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -2619,8 +2619,9 @@
   // one screenshot."): F14's ⓘ on EVERY complex, not Complex 1 alone. HIS A108 NO (Phil 2026-11-18, verbatim: "remove the
   // tile info icon. It sits too far from the timer start to help."): the per-tile ⓘ and its lesson are gone; what is left
   // is the complex ⓘ, which sits beside its own Start Complex. Held off every phone until his pass on the shot (REFUSALS
-  // row 27). Reversing line: false (the tile ⓘ of A108 is in git at 2b4403c19).
-  var F51_EVERY_COMPLEX_INFO = false;
+  // row 27). HIS A111 PASS (Phil 2026-11-19) on design/approvals/f51-complex-info-390.png flips it on.
+  // Reversing line: false (the tile ⓘ of A108 is in git at 2b4403c19).
+  var F51_EVERY_COMPLEX_INFO = true;
   var COMPLEX_TIMER_LESSON = 'Start Complex runs the clock. Each set on it covers your lifts and your rest, and the beep starts the next set. ' +
     'If you finish early, ⏭ moves you on, and ⏮ goes back one set. A skipped lift makes that set shorter.';
   // F45 on his A91 no (Phil 2026-11-15, verbatim: "end the lesson after 'starts the next set'. Cut 'If you finish early'

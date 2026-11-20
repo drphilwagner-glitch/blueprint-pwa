@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261120-f24defaultalt';   // FRIDAY 11-20 run 1 — F24 (A107 pass): two picks of the same alternate ask to make it the default; Your defaults on Profile. Reversing line: '20261120-f22nutriweekly'
+  var APP_BUILD = '20261120-d388nutriunits';   // FRIDAY 11-20 run 1 — D388/D424 (A112 pass): the nutrition card's Water and Protein carry '1 bottle = 32 oz' and '1 fist = 25 g'. Reversing line: '20261120-f24defaultalt'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1129,7 +1129,7 @@
   // 32 oz unless I say otherwise." So Water and Protein carry the same grey line Fruit & veg already does. 25 is the engine's
   // REGEN_PROT_G_PER_FIST; the bottle has no cell, so 32 is his word here. GUARD: held off every phone until his A-id answers
   // (REFUSALS row 27). BP_FLAGS=NUTRI_UNITS_ON=true arms it for qa/journeys/f22-nutrition-shot.mjs. Reversing line: false.
-  var NUTRI_UNITS_ON = false;
+  var NUTRI_UNITS_ON = true;   // A112 pass (2026-11-20 14:24). Reversing line: false
   // D425 (Phil 2026-11-19, verbatim): "A110 show each goal as the athlete's own number: protein g (1 g per lb), 8 servings, water
   // oz (half BW)." The engine already serves them off her live BW cell and his Thresholds cells (_regenTargets_: g = BW x
   // REGEN_PROT_G_PER_LB, oz = BW x REGEN_HYD_OZ_PER_LB, plants = REGEN_PLANT_SERVINGS) as st.targets, so the grey line leads with

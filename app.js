@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261119-d395rungroot';   // THURSDAY 11-19 run 1 — D395: a ladder rung picked from the swap menu logs under its lift (Grace's Front Rack BSS orphan row). Reversing line: '20261119-d353moredays'
+  var APP_BUILD = '20261119-d426lessontap';   // THURSDAY 11-19 run 1 — D426: the complex-timer lesson opens only on the athlete's ⓘ tap, never by itself. Reversing line: '20261119-d395rungroot'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1130,13 +1130,27 @@
   // REGEN_PROT_G_PER_FIST; the bottle has no cell, so 32 is his word here. GUARD: held off every phone until his A-id answers
   // (REFUSALS row 27). BP_FLAGS=NUTRI_UNITS_ON=true arms it for qa/journeys/f22-nutrition-shot.mjs. Reversing line: false.
   var NUTRI_UNITS_ON = false;
+  // D425 (Phil 2026-11-19, verbatim): "A110 show each goal as the athlete's own number: protein g (1 g per lb), 8 servings, water
+  // oz (half BW)." The engine already serves them off her live BW cell and his Thresholds cells (_regenTargets_: g = BW x
+  // REGEN_PROT_G_PER_LB, oz = BW x REGEN_HYD_OZ_PER_LB, plants = REGEN_PLANT_SERVINGS) as st.targets, so the grey line leads with
+  // "Goal 130 g" etc. No BW cell, no goal printed for water or protein (never an invented number). GUARD: held off every phone
+  // until his A-id answers (REFUSALS row 27). BP_FLAGS=NUTRI_GOALS_ON=true arms it for qa/journeys/f22-nutrition-shot.mjs.
+  // Reversing line: false.
+  var NUTRI_GOALS_ON = false;
+  function nutriGoal(t, k) {
+    var v = t && t[k] != null && t[k] !== '' && isFinite(Number(t[k])) && Number(t[k]) > 0 ? Number(t[k]) : null;
+    if (!NUTRI_GOALS_ON || v == null) return '';
+    return 'Goal ' + v + (k === 'oz' ? ' oz' : k === 'g' ? ' g' : ' servings');
+  }
+  function nutriLine(goal, unit) { return [goal, unit].filter(Boolean).join(' · '); }
   function nutritionCard(d, st) {
+    var tg = st && st.targets;
     var wrap = el('div', 'regen-wrap nutri'), card = el('div', 'regen-card');
     card.appendChild(el('div', 'regen-title', 'YESTERDAY'));
     card.appendChild(el('div', 'regen-sub', 'Coach sees this.'));
     var s = el('div', 'regen-q'), h = el('div', 'regen-qh');
     h.appendChild(el('span', 'regen-qi', '🥗')); h.appendChild(el('span', 'regen-qh-t', 'FUEL')); s.appendChild(h);
-    var items = [['water', 'Water (bottles)', NUTRI_UNITS_ON ? '1 bottle = 32 oz' : ''], ['protein', 'Protein (fists)', NUTRI_UNITS_ON ? '1 fist = 25 g' : ''], ['plants', 'Fruit & veg (fists)', '1 fist = 1 serving']], vals = {};
+    var items = [['water', 'Water (bottles)', nutriLine(nutriGoal(tg, 'oz'), NUTRI_UNITS_ON ? '1 bottle = 32 oz' : '')], ['protein', 'Protein (fists)', nutriLine(nutriGoal(tg, 'g'), NUTRI_UNITS_ON ? '1 fist = 25 g' : '')], ['plants', 'Fruit & veg (fists)', nutriLine(nutriGoal(tg, 'plants'), '1 fist = 1 serving')]], vals = {};
     var next = el('button', 'regen-start nutri-next', 'Next'); next.type = 'button'; next.disabled = true;
     function sync() { var all = items.every(function (it) { return vals[it[0]] != null; }); next.disabled = !all; next.classList.toggle('ready', all); }
     items.forEach(function (it) {
@@ -2597,12 +2611,10 @@
     return d;
   }
   var F14_TIMER_INFO = true;   // A63 pass 2026-11-04; reversing line: false
-  // F45 (Phil 2026-11-14: "F14 adds June's week 1: she did not understand the timer, skipped it, and finished in 30 min."):
-  // the lesson starts OPEN on Complex 1 until this athlete has tapped Start Complex once on this phone; after that it is
-  // F14's closed ⓘ again. Only a Start Complex tap teaches it: closing the lesson unread leaves it open next session.
+  // F45 (A102 pass, Phil 2026-11-17) opened the lesson by itself on Complex 1 until a first Start Complex tap. RETIRED by
+  // D426 (Phil 2026-11-19, verbatim: "the timer text shows only when the athlete taps the info icon. It never opens by
+  // itself."): the lesson starts closed on every phone, every session; the flag now picks only his A91 copy.
   var F45_LESSON_OPEN = true;   // A102 pass (Phil 2026-11-17). Reversing line: false
-  function timerTaught() { try { return localStorage.getItem('bp_timer_taught_' + athlete) === '1'; } catch (e) { return true; } }
-  function timerTaughtSet() { try { localStorage.setItem('bp_timer_taught_' + athlete, '1'); } catch (e) {} }
   // F51 (Phil 2026-11-14, verbatim: "F14 is a build, not a design: an i icon on every tile and on the complex timer. Send
   // one screenshot."): F14's ⓘ on EVERY complex, not Complex 1 alone. HIS A108 NO (Phil 2026-11-18, verbatim: "remove the
   // tile info icon. It sits too far from the timer start to help."): the per-tile ⓘ and its lesson are gone; what is left
@@ -5513,7 +5525,7 @@
       var timerLesson = null;
       if (F14_TIMER_INFO && isComp && (compSeen === 1 || F51_EVERY_COMPLEX_INFO)) {   // F51: every complex
         var infoBtn = el('button', 'p-info', 'ⓘ'); infoBtn.type = 'button'; infoBtn.title = 'How the complex timer works';
-        timerLesson = el('div', 'p-clk-n slot-lesson', F45_LESSON_OPEN ? COMPLEX_TIMER_LESSON_A91 : COMPLEX_TIMER_LESSON); timerLesson.hidden = !(F45_LESSON_OPEN && compSeen === 1 && !timerTaught());   // F45 opens Complex 1's alone
+        timerLesson = el('div', 'p-clk-n slot-lesson', F45_LESSON_OPEN ? COMPLEX_TIMER_LESSON_A91 : COMPLEX_TIMER_LESSON); timerLesson.hidden = true;   // D426: opens only on the athlete's ⓘ tap
         infoBtn.addEventListener('click', function (ev) { ev.stopPropagation(); timerLesson.hidden = !timerLesson.hidden; });
         timerLesson.addEventListener('click', function () { timerLesson.hidden = true; });
         head.classList.add('has-info'); head.appendChild(infoBtn);
@@ -5541,7 +5553,7 @@
                        : makeTimer(timerNode, pauseBtn, ivs, sLabel, roundTitles, slotKey);
       if (live) startBtn.hidden = true;
       startBtn.addEventListener('click', function () {
-        if (F45_LESSON_OPEN && isComp) { timerTaughtSet(); if (timerLesson) timerLesson.hidden = true; }
+        if (timerLesson) timerLesson.hidden = true;
         timer.start(); startBtn.hidden = true;
       });
 

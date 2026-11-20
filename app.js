@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261119-f51everycomplex';   // THURSDAY 11-19 run 2 — F51 (A111 pass): F14's ⓘ beside every complex's Start Complex. Reversing line: '20261119-d426lessontap'
+  var APP_BUILD = '20261120-f22nutriweekly';   // FRIDAY 11-20 run 1 — F22 (A110 pass): the weekly nutrition card leads the pain tap; no ambulance. Reversing line: '20261119-f51everycomplex'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -1107,7 +1107,7 @@
   // question with his FUEL icon, the sticky foot with its one button - and its only content is three rows of count chips,
   // none lit. Six chips is what one row holds at 390 above the 44 px floor, so the last one is 5+ (his sleep row's 9½h+ is
   // the precedent) and it logs 5.
-  var NUTRITION_CARD_ON = false;
+  var NUTRITION_CARD_ON = true;   // A110 pass (Phil, Decisions tab 2026-11-19 13:20); engine half on the kid door @1747. Reversing line: false
   var NUTRI_COUNTS = [['0', 0], ['1', 1], ['2', 2], ['3', 3], ['4', 4], ['5+', 5]];
   // A106 no (Phil, Decisions tab 2026-11-18 13:31, verbatim): "I said once a week, not once a day. Fruit and veg still lack
   // "1 fist = 1 serving". Take the ambulance off." ONCE A WEEK: the card leads the pain tap on the first open with no Regen row
@@ -1123,7 +1123,7 @@
   }
   // "Take the ambulance off": the pain tap's head is the word PAIN alone. GUARD: held off every phone until his A-id answers
   // (REFUSALS row 27). BP_FLAGS=PAIN_NO_ICON_ON=true arms it for qa/journeys/f22-nutrition-shot.mjs. Reversing line: false.
-  var PAIN_NO_ICON_ON = false;
+  var PAIN_NO_ICON_ON = true;   // A110 pass (2026-11-19 13:20). Reversing line: false
   // D388 (Phil 2026-11-17, verbatim): "A103 counts carry no units. Bottle = 24 or 32 oz, 1 fist protein = 25 g, 1 fist fruit or
   // veg = 1 serving." D424 (2026-11-19, verbatim): "A110 add "1 fist = 25 g" on protein, and the bottle's size in small text. Use
   // 32 oz unless I say otherwise." So Water and Protein carry the same grey line Fruit & veg already does. 25 is the engine's
@@ -1475,24 +1475,12 @@
       .then(settle).catch(function () {});   // offline: no card, no state change — the workout stands
   }
   // D325 (Phil 2026-11-14): "Coach Test Profile still prints the retired Regen log ('NEXT UNLOCK AT 6', 'Sleep→Cossack Squat').
-  // Retired 11-07." The 0-10 card, its stages and unlocks and its pairing line are F22's retire list, and A65's one-tap card
-  // asks pain only - so the block lists the pain the athlete logged (date · pain N · where) and nothing of the old scorer.
-  // GUARD: D325_PAIN_LOG_ON=false, held off every phone until his A-id answers (REFUSALS row 27). BP_FLAGS=D325_PAIN_LOG_ON=true
-  // arms it for qa/journeys/d325-profile-regen-shot.mjs. Reversing line: D325_PAIN_LOG_ON = false (the stage/score log returns).
-  var D325_PAIN_LOG_ON = false;
-  function regenPainBlock(hist) {
-    var sec = el('section', 'p-block regen');
-    sec.appendChild(el('div', 'p-block-h', 'REGEN — pain you logged'));
-    var rows = (hist || []).filter(function (h) { return h.pain !== '' && h.pain != null && !isNaN(Number(h.pain)); });
-    if (!rows.length) { sec.appendChild(el('div', 'regen-hist-row', '—')); return sec; }
-    rows.slice(0, 10).forEach(function (h) {
-      var p = Number(h.pain);
-      sec.appendChild(el('div', 'regen-hist-row' + (p >= 1 ? ' low' : ''), h.date + ' · ' + (p >= 1 ? 'pain ' + p + (h.pain_where ? ' · ' + h.pain_where : '') : 'no pain')));
-    });
-    return sec;
-  }
+  // Retired 11-07." His A90 answer (11-15): "no: take the REGEN block off Profile altogether. Pain is not Regen, and Regen
+  // has its own tab." So the pain-list redraw is gone and, flag on, the Profile draws no REGEN block and asks no regen_status.
+  // GUARD: D325_PROFILE_REGEN_OFF=false, held off every phone until his A-id answers (REFUSALS row 27). BP_FLAGS=
+  // D325_PROFILE_REGEN_OFF=true arms it for qa/journeys/d325-profile-regen-shot.mjs. Reversing line: D325_PROFILE_REGEN_OFF = false.
+  var D325_PROFILE_REGEN_OFF = false;
   function regenProfileBlock(hist, mean, meta) {
-    if (D325_PAIN_LOG_ON && REGEN_ONETAP_ON) return regenPainBlock(hist);
     var sec = el('section', 'p-block regen');
     var m = meta || {};
     sec.appendChild(el('div', 'p-block-h', 'REGEN — stage ' + (m.stage || 1) + ' · ' + (m.logs || 0) + ' logged · next unlock at ' + (m.next_unlock != null ? m.next_unlock : '—')));
@@ -6215,17 +6203,21 @@
       if (!rowsByDate[ds]._slot.childNodes.length) rowsByDate[ds]._slot.appendChild(el('div', 'wo-sub', 'rest'));
     });
     // D316 (Phil 2026-11-14, verbatim: "June could not tell days can be switched. Rule 10-12: any session, any day in
-    // the window."): the ⇄ and the hold-drag were the only signs, and a bare arrow says nothing to a kid. One line over
-    // the week says the rule in his words — any workout, any day, up to the window's last day (the move picker's own
-    // ceiling, WEEK_WIN_END) — and names both doors. Held off every phone until his A-id answers (REFUSALS row 27);
-    // BP_FLAGS=D316_ANYDAY_ON=true arms it for qa/journeys/d316-anyday-shot.mjs. Reversing line: D316_ANYDAY_ON = false.
-    // It sits directly over today's row: the view anchors there (below), so a line at the grid's top is scrolled off.
-    if (D316_ANYDAY_ON && open.length) {
-      var hint = el('div', 'wo-sub cal-anyday', 'Any workout, any day' +
-        (WEEK_WIN_END ? ' through ' + dowLabel(WEEK_WIN_END) : ' this week') +
-        (F54_NO_MOVE ? ' — tap one to start it.' : ' — tap one to start it, or ⇄ to move it.'));   // F54: no ⇄ left to name
-      if (todayRow) { grid.insertBefore(hint, todayRow); todayRow = hint; }   // the anchor scrolls the line in with the row
-      else grid.insertBefore(hint, grid.firstChild);
+    // the window."). HIS A88 NO (Phil 2026-11-15, verbatim: "no written line. Put an i after "Pick a Workout"; a tap
+    // shows the any-day rule and how to move a workout."): the written line over today is gone; an ⓘ follows the
+    // header's "pick a workout", and its tap opens the rule (any workout, any day, up to the window's last day: the move
+    // picker's own ceiling, WEEK_WIN_END) and both ways to move one. It sits in the sticky header, so the anchor never
+    // scrolls it off. Only while an open workout exists. Held off every phone until his A-id answers (REFUSALS row 27);
+    // BP_FLAGS=D316_INFO_ON=true arms it for qa/journeys/d316-anyday-shot.mjs. Reversing line: D316_INFO_ON = false.
+    if (D316_INFO_ON && open.length) {
+      var anyI = el('button', 'p-info cal-info', '\u24D8'); anyI.type = 'button'; anyI.title = 'Any workout, any day';
+      anyI.setAttribute('aria-label', 'How picking and moving a workout works');
+      var anyL = el('div', 'cal-anyday', 'Any workout, any day' +
+        (WEEK_WIN_END ? ' through ' + dowLabel(WEEK_WIN_END) : ' this week') + ': tap one to start it.' +
+        (F54_NO_MOVE ? '' : ' To move one to another day, tap \u21C4 beside it, or hold it and drag it to the day.'));
+      anyL.hidden = true;
+      anyI.addEventListener('click', function () { anyL.hidden = !anyL.hidden; });
+      meta.appendChild(anyI); meta.appendChild(anyL);
     }
     if (!dated.length) {
       grid.appendChild(el('div', 'wo-sub', roundPending
@@ -6305,11 +6297,11 @@
     var anchorEl = todayRow || (menu.childNodes.length ? menu : grid.lastElementChild);
     if (anchorEl) requestAnimationFrame(function () { try { anchorEl.scrollIntoView({ block: 'start' }); } catch (e) {} });
   }
-  var D316_ANYDAY_ON = false;   // GUARD: held off every phone until his A-id answers (REFUSALS row 27)
+  var D316_INFO_ON = false;   // GUARD: held off every phone until his A-id answers (REFUSALS row 27)
   // F54 (Phil 2026-11-14, verbatim: "Kill the Move-a-workout panel. Dates are placeholders (rule 10-09)."): an open
   // workout loses its ⇄ and the date panel it opens, and the hold-drag that moved it the same way. A kid taps any open
   // workout on any day to start it; nothing on the phone rewrites a date. The server's move door is untouched (no
-  // engine byte). D316's line drops its "or ⇄ to move it" clause when this is on. Held off every phone until his pass
+  // engine byte). D316's ⓘ lesson drops its move sentence when this is on. Held off every phone until his pass
   // on the shot (REFUSALS row 27); BP_FLAGS=F54_NO_MOVE=true arms it for qa/journeys/f54-no-move.mjs. Reversing line: false
   var F54_NO_MOVE = false;
   function attachDrag(tile, s) {
@@ -8054,7 +8046,7 @@
     if (ckSec.children.length) app.appendChild(ckSec);
     }
     // R1000 §6: the REGEN block under Levels — date · total · S N T D · LOW, last 10 rows + the 4-week mean (logged rows only)
-    if (REGEN_ON) {
+    if (REGEN_ON && !D325_PROFILE_REGEN_OFF) {
       var regenSec = regenProfileBlock([], null); app.appendChild(regenSec);
       fetchJson(readUrl() + '?action=regen_status&athlete=' + encodeURIComponent(athlete) + '&token=' + encodeURIComponent(token))
         .then(function (st) { if (st && st.ok && regenSec.parentNode) regenSec.replaceWith(regenProfileBlock(st.history || [], st.mean4w, { stage: st.stage, logs: st.logs, next_unlock: st.next_unlock, window_mean: st.window_mean, window_n: st.window_n })); }).catch(function () {});

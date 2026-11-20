@@ -568,7 +568,8 @@ span.ex-name.sub { text-decoration: none; display: block; }
   padding: 10px 0; border-bottom: 1px solid var(--line); min-height: 56px; }
 .day-row.today .day-dow, .day-row.today .day-date { color: var(--bp); }
 .day-g { display: flex; flex-direction: column; }
-.cal-anyday { padding: 10px 0 0; font-size: var(--fs-13); color: var(--ink); }   /* D316: the any-day line over today */
+#hdr .cal-info { color: inherit; padding: 0 4px; vertical-align: baseline; }   /* D316 (A88 no): the ⓘ after "pick a workout" */
+.cal-anyday { padding: 6px 0 0; font-size: var(--fs-13); line-height: 1.35; color: inherit; }   /* D316: its lesson, in the header */
 .day-dow { font-size: var(--fs-11); font-weight: 800; color: var(--muted); letter-spacing: .3px; }
 .day-date { font-size: var(--fs-17); font-weight: 700; color: var(--ink); }   /* "7/14", not "14" */
 .day-wos { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }

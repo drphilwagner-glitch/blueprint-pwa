@@ -315,7 +315,7 @@
   // (pwa_ver). Mismatch => force the service worker to update and reload ONCE per version.
   // The payload fetch fires at every open — the one channel that reaches a warm-recalled
   // standalone PWA, which never cold-relaunches and so never re-checks sw.js on its own.
-  var APP_BUILD = '20261120-f22nutriweekly';   // FRIDAY 11-20 run 1 — F22 (A110 pass): the weekly nutrition card leads the pain tap; no ambulance. Reversing line: '20261119-f51everycomplex'
+  var APP_BUILD = '20261120-f24defaultalt';   // FRIDAY 11-20 run 1 — F24 (A107 pass): two picks of the same alternate ask to make it the default; Your defaults on Profile. Reversing line: '20261120-f22nutriweekly'
   function versionHandshake(pwaVer) {
     try {
       if (!pwaVer || String(pwaVer) === APP_BUILD) return;
@@ -3331,7 +3331,7 @@
   // that alternate is logged today, once per session per lift. The answer is a MARKER row `default:<lift> -> <alt> yes|no` on the
   // same durable queue as a swap record (`default:` is in both marker vocabularies), so it is never a set. Yes is served from the
   // next mint. Reversing line: DEFAULT_ALT_ON = false. Shot: qa/journeys/f24-default-alt-shot.mjs.
-  var DEFAULT_ALT_ON = false;
+  var DEFAULT_ALT_ON = true;   // ON: A107 pass 2026-11-18 13:31
   function defaultAltAfterSet(slot, ex, cur) {
     if (!DEFAULT_ALT_ON) return;
     try {
